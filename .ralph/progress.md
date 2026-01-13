@@ -81,3 +81,41 @@ Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260113-160943-91467-it
   - Carbon.HIToolbox provides key code constants (kVK_Space, etc.)
   - NSVisualEffectView with .hudWindow material gives native macOS blur appearance
 ---
+
+## [2026-01-13 16:35] - US-003: Audio Capture
+Thread: codex exec session
+Run: 20260113-160943-91467 (iteration 3)
+Run log: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260113-160943-91467-iter-3.log
+Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260113-160943-91467-iter-3.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: d3688d2 feat(US-003): implement audio capture with device selection
+- Post-commit status: clean
+- Verification:
+  - Command: `swift build` -> PASS (build complete, no errors)
+- Files changed:
+  - Sources/WispFlow/AudioManager.swift (new)
+  - Sources/WispFlow/AppDelegate.swift (modified)
+  - Sources/WispFlow/StatusBarController.swift (modified)
+  - .agents/tasks/prd.md (updated acceptance criteria)
+  - .ralph/IMPLEMENTATION_PLAN.md (updated task status)
+- What was implemented:
+  - AudioManager.swift: Complete audio capture using AVAudioEngine
+  - Microphone permission handling with AVCaptureDevice.requestAccess and graceful denial UI
+  - Audio format conversion to 16kHz mono Float32 for Whisper compatibility
+  - Audio buffer accumulation during recording sessions
+  - start/stop/cancel recording controls with AudioCaptureResult return type
+  - Audio input device enumeration using Core Audio APIs (AudioObjectGetPropertyData)
+  - Device selection persistence via UserDefaults
+  - Device change listener for hot-plug support (AudioObjectAddPropertyListenerBlock)
+  - Audio Input submenu in StatusBarController for device picker
+  - NSMenuDelegate to dynamically populate device list when menu opens
+  - Integration with AppDelegate lifecycle for recording state management
+- **Learnings for future iterations:**
+  - Core Audio APIs use AudioObjectPropertyAddress with mSelector/mScope/mElement
+  - Device UID (string) is stable identifier; device ID (AudioDeviceID) can change
+  - AVAudioConverter handles sample rate conversion between input format and target format
+  - Use Unmanaged<CFString> for proper memory management with Core Audio string properties
+  - AudioObjectAddPropertyListenerBlock allows monitoring device changes
+  - Weak reference to AudioManager in StatusBarController avoids retain cycles
+---

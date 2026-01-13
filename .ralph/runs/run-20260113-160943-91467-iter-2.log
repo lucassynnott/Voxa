@@ -1,0 +1,10 @@
+US-002 is complete. There are still 5 stories remaining (US-003 through US-007), so I should NOT output the completion signal.
+
+**Summary of US-002 Implementation:**
+
+Implemented global hotkey recording for WispFlow with:
+- **HotkeyManager.swift**: Global hotkey listener using `NSEvent.addGlobalMonitorForEvents` and `addLocalMonitorForEvents`. Default hotkey is Cmd+Shift+Space (⌘⇧Space) with a configurable `HotkeyConfiguration` struct.
+- **RecordingIndicatorWindow.swift**: Floating NSPanel pill-shaped indicator with `NSVisualEffectView` blur background, positioned at top center of screen. Includes pulsing red mic icon animation and cancel button (xmark.circle.fill) that stops recording.
+- **AppDelegate.swift**: Updated to wire the hotkey manager callback to toggle recording and show/hide the indicator based on recording state changes.
+
+Build verification passed (`swift build` completed successfully). All 4 acceptance criteria for US-002 are checked off. Commit: `ec3e255 feat(US-002): implement global hotkey recording`.

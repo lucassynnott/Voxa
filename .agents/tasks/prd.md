@@ -117,15 +117,15 @@ As a user, I want to press a global hotkey to start/stop recording so I can dict
 - [x] Visual indicator when recording (floating pill/badge)
 - [x] Cancel button on recording indicator
 
-### [ ] US-003: Audio Capture
+### [x] US-003: Audio Capture
 As a user, I want the app to capture my microphone audio so it can transcribe my speech.
-- Use AVAudioEngine for microphone input
-- Real-time audio capture
-- Request microphone permissions gracefully
-- Audio buffering for transcription
-- **Audio input device selection** - Allow user to choose which microphone/input device to use
-- List available audio input devices in settings
-- Remember selected device between sessions
+- [x] Use AVAudioEngine for microphone input
+- [x] Real-time audio capture
+- [x] Request microphone permissions gracefully
+- [x] Audio buffering for transcription
+- [x] **Audio input device selection** - Allow user to choose which microphone/input device to use
+- [x] List available audio input devices in settings
+- [x] Remember selected device between sessions
 
 ### [ ] US-004: Local Whisper Transcription
 As a user, I want my speech transcribed locally using Whisper so my audio never leaves my device.

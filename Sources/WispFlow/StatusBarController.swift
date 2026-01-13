@@ -9,6 +9,9 @@ final class StatusBarController: NSObject {
     // Callback for when recording state changes
     var onRecordingStateChanged: ((RecordingState) -> Void)?
     
+    // Reference to audio manager for device selection
+    weak var audioManager: AudioManager?
+    
     override init() {
         super.init()
         setupStatusItem()
@@ -38,11 +41,20 @@ final class StatusBarController: NSObject {
     
     private func setupMenu() {
         let menu = NSMenu()
+        menu.delegate = self
         
         // Settings item
         let settingsItem = NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ",")
         settingsItem.target = self
         menu.addItem(settingsItem)
+        
+        menu.addItem(NSMenuItem.separator())
+        
+        // Audio Input Device submenu
+        let audioDeviceItem = NSMenuItem(title: "Audio Input", action: nil, keyEquivalent: "")
+        let audioDeviceSubmenu = NSMenu()
+        audioDeviceItem.submenu = audioDeviceSubmenu
+        menu.addItem(audioDeviceItem)
         
         menu.addItem(NSMenuItem.separator())
         
@@ -60,6 +72,46 @@ final class StatusBarController: NSObject {
         menu.addItem(quitItem)
         
         statusItem?.menu = menu
+    }
+    
+    /// Populate the audio devices submenu with available devices
+    private func populateAudioDevicesMenu(_ menu: NSMenu) {
+        menu.removeAllItems()
+        
+        guard let audioManager = audioManager else {
+            let noDevicesItem = NSMenuItem(title: "No audio manager", action: nil, keyEquivalent: "")
+            noDevicesItem.isEnabled = false
+            menu.addItem(noDevicesItem)
+            return
+        }
+        
+        let devices = audioManager.inputDevices
+        let currentDevice = audioManager.currentDevice
+        
+        if devices.isEmpty {
+            let noDevicesItem = NSMenuItem(title: "No input devices", action: nil, keyEquivalent: "")
+            noDevicesItem.isEnabled = false
+            menu.addItem(noDevicesItem)
+            return
+        }
+        
+        for device in devices {
+            let deviceItem = NSMenuItem(
+                title: device.name + (device.isDefault ? " (System Default)" : ""),
+                action: #selector(selectAudioDevice(_:)),
+                keyEquivalent: ""
+            )
+            deviceItem.target = self
+            deviceItem.representedObject = device.uid
+            deviceItem.state = (currentDevice?.uid == device.uid) ? .on : .off
+            menu.addItem(deviceItem)
+        }
+    }
+    
+    @objc private func selectAudioDevice(_ sender: NSMenuItem) {
+        guard let uid = sender.representedObject as? String else { return }
+        audioManager?.selectDevice(uid: uid)
+        print("Selected audio device: \(sender.title)")
     }
     
     // MARK: - Icon Management
@@ -159,5 +211,23 @@ final class StatusBarController: NSObject {
         recordingState = state
         updateIcon()
         onRecordingStateChanged?(recordingState)
+    }
+}
+
+// MARK: - NSMenuDelegate
+
+extension StatusBarController: NSMenuDelegate {
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        // Find the Audio Input submenu and populate it with current devices
+        for item in menu.items {
+            if item.title == "Audio Input", let submenu = item.submenu {
+                populateAudioDevicesMenu(submenu)
+            }
+            
+            // Update launch at login state
+            if item.title == "Launch at Login" {
+                item.state = isLaunchAtLoginEnabled() ? .on : .off
+            }
+        }
     }
 }

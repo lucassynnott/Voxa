@@ -86,27 +86,37 @@ The implementation should proceed in dependency order: project scaffolding → m
 
 ---
 
-### US-003: Audio Capture
+### US-003: Audio Capture ✅
 
-- [ ] Implement microphone permission request
+- [x] Implement microphone permission request
   - Scope: Create `AudioManager.swift`. Request microphone permission using AVCaptureDevice.requestAccess. Show appropriate UI if denied.
   - Acceptance: App prompts for microphone permission on first use; handles denial gracefully
   - Verification: Reset permissions (`tccutil reset Microphone com.wispflow.WispFlow`), launch app, verify permission prompt
+  - **Completed**: AudioManager.swift with requestMicrophonePermission(), showMicrophonePermissionAlert(), and permissionStatus property. Shows NSAlert guiding user to System Settings if permission denied.
 
-- [ ] Set up AVAudioEngine for capture
+- [x] Set up AVAudioEngine for capture
   - Scope: Configure AVAudioEngine with input node. Set appropriate sample rate (16kHz for Whisper). Install tap on input node.
   - Acceptance: Audio engine captures microphone input when started
   - Verification: Log audio buffer levels to confirm capture is working
+  - **Completed**: AVAudioEngine configured with input node, sample rate conversion to 16kHz mono Float32 for Whisper compatibility. Tap installed on input node with 4096 buffer size.
 
-- [ ] Implement audio buffer accumulation
+- [x] Implement audio buffer accumulation
   - Scope: Accumulate audio buffers during recording session. Convert to format required by Whisper (16kHz mono Float32).
   - Acceptance: Audio data is accumulated and available for transcription
   - Verification: Record audio, verify buffer contains expected duration of samples
+  - **Completed**: Audio buffers accumulated in array during recording, with AVAudioConverter for sample rate/channel conversion. combineBuffersToData() converts to Data.
 
-- [ ] Add start/stop recording controls
+- [x] Add start/stop recording controls
   - Scope: Implement startRecording() and stopRecording() methods. Return accumulated audio data on stop.
   - Acceptance: Recording starts/stops cleanly; audio data is returned
   - Verification: Start recording, speak, stop recording, verify audio data is non-empty
+  - **Completed**: startCapturing() and stopCapturing() methods. stopCapturing() returns AudioCaptureResult with audioData, duration, and sampleRate. cancelCapturing() discards audio.
+
+- [x] Add audio input device selection
+  - Scope: List available audio input devices. Allow user to select which microphone to use. Remember selection between sessions.
+  - Acceptance: User can select audio input device from menu; selection persists
+  - Verification: Open Audio Input submenu, verify devices listed, select a device, restart app, verify selection persisted
+  - **Completed**: enumerateAudioInputDevices() using Core Audio APIs. selectDevice() method. Device selection stored in UserDefaults. Audio Input submenu in StatusBarController with device picker. Device change listener for hot-plug support.
 
 ---
 
@@ -236,5 +246,5 @@ The implementation should proceed in dependency order: project scaffolding → m
 
 - Error logging/reporting for debugging
 - Onboarding flow for first-time users
-- Audio input device selection (if multiple mics)
+- ~~Audio input device selection (if multiple mics)~~ - Implemented in US-003
 - Keyboard shortcut conflicts handling
