@@ -1,0 +1,19 @@
+US-407 is complete! There are still 3 remaining unchecked stories (US-408, US-409, US-410), so the PRD is not yet fully complete.
+
+## Summary
+
+Successfully implemented **US-407: Transcription Settings Tab Polish** with the following changes:
+
+1. **Redesigned model selector as elegant card-based picker** - Replaced radio group with `ModelSelectionCard` components showing model icon, name, size/speed/accuracy specs, and status badges (Active, Downloaded)
+
+2. **Added gradient progress bar** - Created `GradientProgressBar` component with coral gradient fill and subtle shimmer effect for downloads
+
+3. **Enhanced model status badges** - Created `ModelStatusBadge` with design system colors (success/warning/error) and `ModelCardBadge` for card-level status indicators
+
+4. **Added language selector with flag icons** - Created `LanguagePicker` dropdown with emoji flags for 12+ languages (Auto-Detect default, English, Spanish, French, German, Italian, Portuguese, Japanese, Chinese, Korean, Russian, Arabic)
+
+5. **Created clear visual hierarchy** - Added `TranscriptionStatusHero` section at top showing current model status at a glance with large icon, title, subtitle and status badge
+
+**Commits:**
+- `9453a74` feat(US-407): add transcription settings tab polish with design system integration
+- `5b7cdb4` docs: update progress log for US-407

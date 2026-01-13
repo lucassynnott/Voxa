@@ -449,26 +449,54 @@ As a user, I want the Transcription settings to look premium.
 ### US-408: Text Cleanup Settings Tab Polish
 As a user, I want the Text Cleanup settings beautifully designed.
 
-- [ ] Style mode selector as segmented control
+- [x] Style mode selector as segmented control
   - Scope: Modify `TextCleanupSettingsView` Picker in SettingsWindow.swift
-  - Use segmented picker style with coral accent for selection
-  - Clear visual distinction between modes
-  - Acceptance: Cleanup mode uses segmented control styling
-  - Verification: `swift build` passes
+  - Created `CleanupModeSegmentedControl` with `CleanupModeSegment` components
+  - Clear visual distinction between modes with icons and coral accent
+  - Acceptance: Cleanup mode uses segmented control styling ✓
+  - Verification: `swift build` passes ✓
 
-- [ ] Improve LLM settings panel styling
+- [x] Create hero status section with enable/disable toggle
+  - Scope: Add `CleanupStatusHero` component at top of view
+  - Shows cleanup status, selected mode, and enable/disable state
+  - Enhanced toggle card with icon header and description
+  - Acceptance: Hero section provides clear visual hierarchy ✓
+  - Verification: `swift build` passes ✓
+
+- [x] Improve LLM settings panel styling
   - Scope: Modify LLM settings section in TextCleanupSettingsView
-  - Use card-based layout for LLM model selection
-  - Consistent styling with Transcription settings
-  - Acceptance: LLM settings match overall design system
-  - Verification: `swift build` passes
+  - Created `LLMModelSelectionCard` component for card-based model picker
+  - Separated model selection card from download actions card
+  - Consistent styling with Transcription settings (ModelSelectionCard pattern)
+  - Acceptance: LLM settings match overall design system ✓
+  - Verification: `swift build` passes ✓
 
-- [ ] Add cleanup preview panel
-  - Scope: Add preview section showing example cleanup
-  - Show "Before" and "After" text comparison
-  - Use subtle background differentiation
-  - Acceptance: Users can see cleanup effect preview
-  - Verification: `swift build` passes
+- [x] Add cleanup preview panel
+  - Scope: Created `CleanupPreviewCard` component
+  - Shows "Before" and "After" text comparison
+  - Different sample outputs for each cleanup mode
+  - Visual differentiation with colored backgrounds (error/success tints)
+  - Acceptance: Users can see cleanup effect preview ✓
+  - Verification: `swift build` passes ✓
+
+**Implementation Notes (US-408):**
+- Completely redesigned TextCleanupSettingsView with 6 main sections:
+  1. CleanupStatusHero - Hero section showing cleanup status and mode at a glance
+  2. Enable/Disable Card - Toggle with icon header and description
+  3. Mode Selection Card - CleanupModeSegmentedControl with 4 mode options
+  4. CleanupPreviewCard - Before/after text comparison showing cleanup effect
+  5. LLM Model Selection Card - Card-based picker with LLMModelSelectionCard components
+  6. LLM Actions Card - Download/load controls with gradient progress bar
+- Created new components:
+  - CleanupStatusHero: Shows cleanup status with mode badge and icon
+  - CleanupModeSegmentedControl: Horizontal segmented picker with icons
+  - CleanupModeSegment: Individual segment button with hover states
+  - CleanupPreviewCard: Before/after preview with mode-specific outputs
+  - LLMModelSelectionCard: Card-based model picker with specs (reuses ModelCardBadge, ModelSpec)
+  - Added modeDescriptionIcon computed property for contextual icons
+- Fixed LLM model cases to match LLMManager.ModelSize enum (qwen1_5b, phi3_mini, gemma2b)
+- All components use design system colors, fonts, spacing, and corner radius
+- Hover states and animations throughout for premium feel
 
 ---
 

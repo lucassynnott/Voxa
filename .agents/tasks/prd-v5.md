@@ -144,12 +144,12 @@ As a user, I want the Transcription settings to look premium.
 - [x] Language selector with flag icons
 - [x] Clear visual hierarchy
 
-### [ ] US-408: Text Cleanup Settings Tab Polish
+### [x] US-408: Text Cleanup Settings Tab Polish
 As a user, I want the Text Cleanup settings beautifully designed.
-- Mode selector as segmented control
-- Enable/disable toggle with description
-- LLM model section as card
-- Preview of cleanup behavior
+- [x] Mode selector as segmented control
+- [x] Enable/disable toggle with description
+- [x] LLM model section as card
+- [x] Preview of cleanup behavior
 
 ### [ ] US-409: Toast Notification System
 As a user, I want elegant notifications for app events.

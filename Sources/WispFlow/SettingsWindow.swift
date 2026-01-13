@@ -1347,8 +1347,23 @@ struct TextCleanupSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.lg) {
-                // Cleanup toggle card
+                // Hero section with cleanup status (US-408)
+                CleanupStatusHero(
+                    textCleanupManager: textCleanupManager,
+                    llmManager: llmManager
+                )
+                
+                // Enable/disable toggle card with enhanced description (US-408)
                 VStack(alignment: .leading, spacing: Spacing.md) {
+                    HStack(spacing: Spacing.sm) {
+                        Image(systemName: "wand.and.stars")
+                            .foregroundColor(Color.Wispflow.accent)
+                            .font(.system(size: 16, weight: .medium))
+                        Text("Text Cleanup")
+                            .font(Font.Wispflow.headline)
+                            .foregroundColor(Color.Wispflow.textPrimary)
+                    }
+                    
                     Toggle("Enable Text Cleanup", isOn: Binding(
                         get: { textCleanupManager.isCleanupEnabled },
                         set: { textCleanupManager.isCleanupEnabled = $0 }
@@ -1363,88 +1378,96 @@ struct TextCleanupSettingsView: View {
                 }
                 .wispflowCard()
                 
-                // Mode selection card
+                // Mode selection with segmented control (US-408)
                 VStack(alignment: .leading, spacing: Spacing.md) {
-                    Text("Cleanup Mode")
-                        .font(Font.Wispflow.headline)
-                        .foregroundColor(Color.Wispflow.textPrimary)
-                    
-                    Text("Select a cleanup mode. AI-Powered uses a local LLM for intelligent cleanup.")
-                        .font(Font.Wispflow.caption)
-                        .foregroundColor(Color.Wispflow.textSecondary)
-                    
-                    Picker("Cleanup Mode", selection: $textCleanupManager.selectedMode) {
-                        ForEach(TextCleanupManager.CleanupMode.allCases) { mode in
-                            HStack {
-                                Text(mode.displayName)
-                                    .foregroundColor(Color.Wispflow.textPrimary)
-                                if mode == .aiPowered {
-                                    if llmManager.modelStatus == .ready {
-                                        Image(systemName: "checkmark.circle.fill")
-                                            .foregroundColor(Color.Wispflow.success)
-                                            .font(.caption)
-                                    } else if llmManager.isModelDownloaded(llmManager.selectedModel) {
-                                        Image(systemName: "circle.fill")
-                                            .foregroundColor(Color.Wispflow.accent)
-                                            .font(.caption)
-                                    }
-                                }
-                            }
-                            .tag(mode)
-                        }
+                    HStack(spacing: Spacing.sm) {
+                        Image(systemName: "slider.horizontal.3")
+                            .foregroundColor(Color.Wispflow.accent)
+                            .font(.system(size: 16, weight: .medium))
+                        Text("Cleanup Mode")
+                            .font(Font.Wispflow.headline)
+                            .foregroundColor(Color.Wispflow.textPrimary)
                     }
-                    .pickerStyle(.radioGroup)
-                    .disabled(!textCleanupManager.isCleanupEnabled)
                     
-                    Text(textCleanupManager.selectedMode.description)
+                    Text("Select a cleanup intensity level. Higher levels remove more filler words and apply more formatting.")
                         .font(Font.Wispflow.caption)
                         .foregroundColor(Color.Wispflow.textSecondary)
-                        .padding(.leading, Spacing.xl)
+                    
+                    // Segmented control style mode picker (US-408)
+                    CleanupModeSegmentedControl(
+                        selectedMode: $textCleanupManager.selectedMode,
+                        isEnabled: textCleanupManager.isCleanupEnabled,
+                        llmStatus: llmManager.modelStatus
+                    )
+                    .padding(.vertical, Spacing.sm)
+                    
+                    // Mode description
+                    HStack(spacing: Spacing.sm) {
+                        Image(systemName: modeDescriptionIcon)
+                            .foregroundColor(Color.Wispflow.textSecondary)
+                            .font(.system(size: 12))
+                        Text(textCleanupManager.selectedMode.description)
+                            .font(Font.Wispflow.caption)
+                            .foregroundColor(Color.Wispflow.textSecondary)
+                    }
+                    .padding(Spacing.sm)
+                    .background(Color.Wispflow.border.opacity(0.3))
+                    .cornerRadius(CornerRadius.small)
                 }
                 .wispflowCard()
                 
-                // LLM Settings (only shown when AI-Powered mode is selected)
+                // Cleanup Preview card (US-408)
+                CleanupPreviewCard(selectedMode: textCleanupManager.selectedMode)
+                    .opacity(textCleanupManager.isCleanupEnabled ? 1.0 : 0.5)
+                
+                // LLM Settings card (US-408 - shown when AI-Powered mode is selected)
                 if textCleanupManager.selectedMode == .aiPowered {
+                    // LLM Model selection as card-based picker (US-408)
                     VStack(alignment: .leading, spacing: Spacing.md) {
-                        Text("Local LLM Settings")
-                            .font(Font.Wispflow.headline)
-                            .foregroundColor(Color.Wispflow.textPrimary)
-                        
-                        // LLM Model selection
-                        Picker("LLM Model", selection: Binding(
-                            get: { llmManager.selectedModel },
-                            set: { llmManager.selectModel($0) }
-                        )) {
-                            ForEach(LLMManager.ModelSize.allCases) { model in
-                                HStack {
-                                    Text(model.displayName)
-                                        .foregroundColor(Color.Wispflow.textPrimary)
-                                    if llmManager.isModelDownloaded(model) {
-                                        Image(systemName: "checkmark.circle.fill")
-                                            .foregroundColor(Color.Wispflow.success)
-                                            .font(.caption)
-                                    }
-                                }
-                                .tag(model)
-                            }
+                        HStack(spacing: Spacing.sm) {
+                            Image(systemName: "brain")
+                                .foregroundColor(Color.Wispflow.accent)
+                                .font(.system(size: 16, weight: .medium))
+                            Text("Local LLM Model")
+                                .font(Font.Wispflow.headline)
+                                .foregroundColor(Color.Wispflow.textPrimary)
+                            
+                            Spacer()
+                            
+                            // Status badge inline
+                            LLMStatusBadge(status: llmManager.modelStatus)
                         }
-                        .pickerStyle(.radioGroup)
                         
-                        Text(llmManager.selectedModel.description)
+                        Text("Select a language model for AI-powered text cleanup. Larger models are more accurate but use more memory.")
                             .font(Font.Wispflow.caption)
                             .foregroundColor(Color.Wispflow.textSecondary)
-                            .padding(.leading, Spacing.xl)
                         
-                        Divider()
-                            .background(Color.Wispflow.border)
-                        
-                        // LLM Status
-                        HStack {
-                            Text("LLM Status:")
-                                .font(Font.Wispflow.body)
-                                .foregroundColor(Color.Wispflow.textSecondary)
-                            
-                            LLMStatusBadge(status: llmManager.modelStatus)
+                        // Card-based LLM model picker (US-408)
+                        VStack(spacing: Spacing.sm) {
+                            ForEach(LLMManager.ModelSize.allCases) { model in
+                                LLMModelSelectionCard(
+                                    model: model,
+                                    isSelected: llmManager.selectedModel == model,
+                                    isDownloaded: llmManager.isModelDownloaded(model),
+                                    isActive: model == llmManager.selectedModel && llmManager.modelStatus == .ready,
+                                    onSelect: {
+                                        llmManager.selectModel(model)
+                                    }
+                                )
+                            }
+                        }
+                    }
+                    .wispflowCard()
+                    
+                    // LLM Download & Actions card (US-408)
+                    VStack(alignment: .leading, spacing: Spacing.md) {
+                        HStack(spacing: Spacing.sm) {
+                            Image(systemName: "arrow.down.circle")
+                                .foregroundColor(Color.Wispflow.accent)
+                                .font(.system(size: 16, weight: .medium))
+                            Text("Model Actions")
+                                .font(Font.Wispflow.headline)
+                                .foregroundColor(Color.Wispflow.textPrimary)
                         }
                         
                         Text(llmManager.statusMessage)
@@ -1701,6 +1724,20 @@ struct TextCleanupSettingsView: View {
         .background(Color.Wispflow.background)
     }
     
+    // US-408: Mode description icon based on selected mode
+    private var modeDescriptionIcon: String {
+        switch textCleanupManager.selectedMode {
+        case .basic:
+            return "hare"
+        case .standard:
+            return "dial.medium"
+        case .thorough:
+            return "sparkles"
+        case .aiPowered:
+            return "brain"
+        }
+    }
+    
     private var llmButtonTitle: String {
         switch llmManager.modelStatus {
         case .ready:
@@ -1783,6 +1820,414 @@ struct LLMStatusBadge: View {
             return "Ready"
         case .error:
             return "Error"
+        }
+    }
+}
+
+// MARK: - Cleanup Status Hero (US-408)
+
+/// Hero section showing current text cleanup status at a glance
+struct CleanupStatusHero: View {
+    @ObservedObject var textCleanupManager: TextCleanupManager
+    @ObservedObject var llmManager: LLMManager
+    
+    var body: some View {
+        HStack(spacing: Spacing.lg) {
+            // Status icon
+            ZStack {
+                Circle()
+                    .fill(statusBackgroundColor.opacity(0.15))
+                    .frame(width: 64, height: 64)
+                
+                Image(systemName: statusIconName)
+                    .font(.system(size: 28, weight: .medium))
+                    .foregroundColor(statusBackgroundColor)
+            }
+            
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text(statusTitle)
+                    .font(Font.Wispflow.title)
+                    .foregroundColor(Color.Wispflow.textPrimary)
+                
+                Text(statusSubtitle)
+                    .font(Font.Wispflow.body)
+                    .foregroundColor(Color.Wispflow.textSecondary)
+                
+                // Mode badge
+                HStack(spacing: Spacing.xs) {
+                    Circle()
+                        .fill(textCleanupManager.isCleanupEnabled ? Color.Wispflow.success : Color.Wispflow.textSecondary)
+                        .frame(width: 8, height: 8)
+                    Text(textCleanupManager.isCleanupEnabled ? textCleanupManager.selectedMode.displayName : "Disabled")
+                        .font(Font.Wispflow.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(textCleanupManager.isCleanupEnabled ? Color.Wispflow.success : Color.Wispflow.textSecondary)
+                }
+                .padding(.horizontal, Spacing.sm)
+                .padding(.vertical, Spacing.xs)
+                .background((textCleanupManager.isCleanupEnabled ? Color.Wispflow.success : Color.Wispflow.textSecondary).opacity(0.12))
+                .cornerRadius(CornerRadius.small)
+                .padding(.top, Spacing.xs)
+            }
+            
+            Spacer()
+        }
+        .wispflowCard()
+    }
+    
+    private var statusTitle: String {
+        if !textCleanupManager.isCleanupEnabled {
+            return "Cleanup Disabled"
+        }
+        switch textCleanupManager.selectedMode {
+        case .aiPowered:
+            return llmManager.modelStatus == .ready ? "AI Cleanup Ready" : "AI Cleanup Mode"
+        default:
+            return "Cleanup Active"
+        }
+    }
+    
+    private var statusSubtitle: String {
+        if !textCleanupManager.isCleanupEnabled {
+            return "Enable text cleanup to improve transcriptions"
+        }
+        switch textCleanupManager.selectedMode {
+        case .basic:
+            return "Fast cleanup with minimal changes"
+        case .standard:
+            return "Balanced cleanup for most use cases"
+        case .thorough:
+            return "Comprehensive cleanup and formatting"
+        case .aiPowered:
+            return llmManager.modelStatus == .ready ? "Using \(llmManager.selectedModel.displayName)" : "Load a model to enable AI cleanup"
+        }
+    }
+    
+    private var statusIconName: String {
+        if !textCleanupManager.isCleanupEnabled {
+            return "wand.and.stars.inverse"
+        }
+        switch textCleanupManager.selectedMode {
+        case .basic:
+            return "hare.fill"
+        case .standard:
+            return "dial.medium.fill"
+        case .thorough:
+            return "sparkles"
+        case .aiPowered:
+            return llmManager.modelStatus == .ready ? "brain.head.profile" : "brain"
+        }
+    }
+    
+    private var statusBackgroundColor: Color {
+        if !textCleanupManager.isCleanupEnabled {
+            return Color.Wispflow.textSecondary
+        }
+        switch textCleanupManager.selectedMode {
+        case .aiPowered:
+            return llmManager.modelStatus == .ready ? Color.Wispflow.success : Color.Wispflow.accent
+        default:
+            return Color.Wispflow.success
+        }
+    }
+}
+
+// MARK: - Cleanup Mode Segmented Control (US-408)
+
+/// Elegant segmented control for cleanup mode selection
+struct CleanupModeSegmentedControl: View {
+    @Binding var selectedMode: TextCleanupManager.CleanupMode
+    let isEnabled: Bool
+    let llmStatus: LLMManager.ModelStatus
+    
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(TextCleanupManager.CleanupMode.allCases) { mode in
+                CleanupModeSegment(
+                    mode: mode,
+                    isSelected: selectedMode == mode,
+                    isEnabled: isEnabled,
+                    showLLMIndicator: mode == .aiPowered,
+                    llmStatus: llmStatus
+                ) {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        selectedMode = mode
+                    }
+                }
+            }
+        }
+        .background(Color.Wispflow.border.opacity(0.5))
+        .cornerRadius(CornerRadius.small)
+        .opacity(isEnabled ? 1.0 : 0.5)
+    }
+}
+
+/// Individual segment in the mode picker
+struct CleanupModeSegment: View {
+    let mode: TextCleanupManager.CleanupMode
+    let isSelected: Bool
+    let isEnabled: Bool
+    let showLLMIndicator: Bool
+    let llmStatus: LLMManager.ModelStatus
+    let onSelect: () -> Void
+    
+    @State private var isHovering = false
+    
+    private var modeIcon: String {
+        switch mode {
+        case .basic: return "hare"
+        case .standard: return "dial.medium"
+        case .thorough: return "sparkles"
+        case .aiPowered: return "brain"
+        }
+    }
+    
+    private var shortName: String {
+        switch mode {
+        case .basic: return "Basic"
+        case .standard: return "Standard"
+        case .thorough: return "Thorough"
+        case .aiPowered: return "AI"
+        }
+    }
+    
+    var body: some View {
+        Button(action: {
+            if isEnabled {
+                onSelect()
+            }
+        }) {
+            VStack(spacing: Spacing.xs) {
+                ZStack {
+                    Image(systemName: modeIcon)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(isSelected ? Color.Wispflow.accent : Color.Wispflow.textSecondary)
+                    
+                    // LLM status indicator
+                    if showLLMIndicator && llmStatus == .ready {
+                        Circle()
+                            .fill(Color.Wispflow.success)
+                            .frame(width: 8, height: 8)
+                            .offset(x: 10, y: -8)
+                    }
+                }
+                
+                Text(shortName)
+                    .font(Font.Wispflow.small)
+                    .fontWeight(isSelected ? .semibold : .regular)
+                    .foregroundColor(isSelected ? Color.Wispflow.accent : Color.Wispflow.textSecondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, Spacing.md)
+            .background(
+                RoundedRectangle(cornerRadius: CornerRadius.small - 2)
+                    .fill(isSelected ? Color.Wispflow.accentLight : (isHovering ? Color.Wispflow.border.opacity(0.3) : Color.clear))
+                    .padding(2)
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.1)) {
+                isHovering = hovering
+            }
+        }
+    }
+}
+
+// MARK: - Cleanup Preview Card (US-408)
+
+/// Shows before/after preview of text cleanup
+struct CleanupPreviewCard: View {
+    let selectedMode: TextCleanupManager.CleanupMode
+    
+    // Sample texts for preview
+    private var sampleBefore: String {
+        "Um, so like, I was thinking, you know, that we should, uh, basically just go ahead and, like, finish the project by friday."
+    }
+    
+    private var sampleAfter: String {
+        switch selectedMode {
+        case .basic:
+            return "So like, I was thinking, you know, that we should basically just go ahead and, like, finish the project by friday."
+        case .standard:
+            return "I was thinking that we should just go ahead and finish the project by Friday."
+        case .thorough:
+            return "I was thinking that we should finish the project by Friday."
+        case .aiPowered:
+            return "I think we should finish the project by Friday."
+        }
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack(spacing: Spacing.sm) {
+                Image(systemName: "eye")
+                    .foregroundColor(Color.Wispflow.accent)
+                    .font(.system(size: 16, weight: .medium))
+                Text("Preview")
+                    .font(Font.Wispflow.headline)
+                    .foregroundColor(Color.Wispflow.textPrimary)
+            }
+            
+            Text("See how your transcriptions will be cleaned up with the selected mode.")
+                .font(Font.Wispflow.caption)
+                .foregroundColor(Color.Wispflow.textSecondary)
+            
+            // Before text
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                HStack(spacing: Spacing.xs) {
+                    Circle()
+                        .fill(Color.Wispflow.error.opacity(0.5))
+                        .frame(width: 8, height: 8)
+                    Text("Before")
+                        .font(Font.Wispflow.small)
+                        .fontWeight(.semibold)
+                        .foregroundColor(Color.Wispflow.textSecondary)
+                }
+                
+                Text(sampleBefore)
+                    .font(Font.Wispflow.body)
+                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .padding(Spacing.md)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.Wispflow.error.opacity(0.08))
+                    .cornerRadius(CornerRadius.small)
+            }
+            
+            // Arrow indicator
+            HStack {
+                Spacer()
+                Image(systemName: "arrow.down")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(Color.Wispflow.accent)
+                Spacer()
+            }
+            .padding(.vertical, Spacing.xs)
+            
+            // After text
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                HStack(spacing: Spacing.xs) {
+                    Circle()
+                        .fill(Color.Wispflow.success)
+                        .frame(width: 8, height: 8)
+                    Text("After (\(selectedMode.displayName.components(separatedBy: " ").first ?? ""))")
+                        .font(Font.Wispflow.small)
+                        .fontWeight(.semibold)
+                        .foregroundColor(Color.Wispflow.textSecondary)
+                }
+                
+                Text(sampleAfter)
+                    .font(Font.Wispflow.body)
+                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .padding(Spacing.md)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.Wispflow.success.opacity(0.08))
+                    .cornerRadius(CornerRadius.small)
+            }
+        }
+        .wispflowCard()
+    }
+}
+
+// MARK: - LLM Model Selection Card (US-408)
+
+/// Card-based model picker item for LLM selection
+struct LLMModelSelectionCard: View {
+    let model: LLMManager.ModelSize
+    let isSelected: Bool
+    let isDownloaded: Bool
+    let isActive: Bool
+    let onSelect: () -> Void
+    
+    @State private var isHovering = false
+    
+    // Model metadata
+    private var modelInfo: (size: String, speed: String, quality: String, icon: String) {
+        switch model {
+        case .qwen1_5b:
+            return ("~1 GB", "Fast", "Good", "hare")
+        case .phi3_mini:
+            return ("~2 GB", "Medium", "Better", "tortoise")
+        case .gemma2b:
+            return ("~1.5 GB", "Fast", "Balanced", "star")
+        }
+    }
+    
+    var body: some View {
+        Button(action: onSelect) {
+            HStack(spacing: Spacing.md) {
+                // Model icon
+                ZStack {
+                    RoundedRectangle(cornerRadius: CornerRadius.small)
+                        .fill(isSelected ? Color.Wispflow.accentLight : Color.Wispflow.border.opacity(0.3))
+                        .frame(width: 44, height: 44)
+                    
+                    Image(systemName: modelInfo.icon)
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(isSelected ? Color.Wispflow.accent : Color.Wispflow.textSecondary)
+                }
+                
+                // Model info
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    HStack(spacing: Spacing.sm) {
+                        Text(model.displayName.components(separatedBy: " (").first ?? model.rawValue.capitalized)
+                            .font(Font.Wispflow.body)
+                            .fontWeight(.medium)
+                            .foregroundColor(Color.Wispflow.textPrimary)
+                        
+                        // Status badge
+                        if isActive {
+                            ModelCardBadge(text: "Active", color: Color.Wispflow.success)
+                        } else if isDownloaded {
+                            ModelCardBadge(text: "Downloaded", color: Color.Wispflow.accent)
+                        }
+                    }
+                    
+                    // Model specs
+                    HStack(spacing: Spacing.md) {
+                        ModelSpec(icon: "internaldrive", text: modelInfo.size)
+                        ModelSpec(icon: "speedometer", text: modelInfo.speed)
+                        ModelSpec(icon: "star", text: modelInfo.quality)
+                    }
+                }
+                
+                Spacer()
+                
+                // Selection indicator
+                ZStack {
+                    Circle()
+                        .stroke(isSelected ? Color.Wispflow.accent : Color.Wispflow.border, lineWidth: 2)
+                        .frame(width: 22, height: 22)
+                    
+                    if isSelected {
+                        Circle()
+                            .fill(Color.Wispflow.accent)
+                            .frame(width: 14, height: 14)
+                    }
+                }
+            }
+            .padding(Spacing.md)
+            .background(
+                RoundedRectangle(cornerRadius: CornerRadius.medium)
+                    .fill(isHovering ? Color.Wispflow.border.opacity(0.2) : Color.Wispflow.surface)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: CornerRadius.medium)
+                    .stroke(isSelected ? Color.Wispflow.accent : Color.Wispflow.border.opacity(0.5), lineWidth: isSelected ? 2 : 1)
+            )
+            .shadow(
+                color: isSelected ? Color.Wispflow.accent.opacity(0.15) : Color.clear,
+                radius: 8,
+                x: 0,
+                y: 2
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovering = hovering
+            }
         }
     }
 }
