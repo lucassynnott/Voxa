@@ -110,13 +110,13 @@ As a user, I want my recorded audio to actually be captured so transcription wor
 - [x] Ensure convertedBuffer is being appended to audioBuffer correctly
 - [x] Add buffer sample count verification
 
-### [ ] US-203: Audio Capture Diagnostics
+### [x] US-203: Audio Capture Diagnostics
 As a developer, I want detailed audio diagnostics so I can debug capture issues.
-- Log buffer state immediately before transcription call
-- Show sample count, duration, peak level, RMS level
-- Log first and last 10 samples to verify non-zero data
-- Show percentage of zero vs non-zero samples
-- Add console output for all audio pipeline stages
+- [x] Log buffer state immediately before transcription call
+- [x] Show sample count, duration, peak level, RMS level
+- [x] Log first and last 10 samples to verify non-zero data
+- [x] Show percentage of zero vs non-zero samples
+- [x] Add console output for all audio pipeline stages
 
 ### [ ] US-204: Permission Flow UX
 As a user, I want clear guidance on granting permissions so I can set up the app correctly.

@@ -398,25 +398,33 @@ final class AudioManager: NSObject, ObservableObject {
             return
         }
         
+        print("╔═══════════════════════════════════════════════════════════════╗")
+        print("║            AUDIO PIPELINE STAGE 1: CAPTURE START              ║")
+        print("╚═══════════════════════════════════════════════════════════════╝")
+        
         // Check permission first
         guard permissionStatus == .authorized else {
+            print("AudioManager: [STAGE 1] ✗ Microphone permission denied")
             showMicrophonePermissionAlert()
             throw AudioCaptureError.microphonePermissionDenied
         }
+        print("AudioManager: [STAGE 1] ✓ Microphone permission authorized")
         
         // Set the input device if one is selected
         if let device = currentDevice {
             try setAudioInputDevice(device)
+            print("AudioManager: [STAGE 1] ✓ Input device set: \(device.name)")
         }
         
         // Clear previous buffers
         audioBuffers.removeAll()
+        print("AudioManager: [STAGE 1] ✓ Audio buffers cleared")
         
         // Configure audio engine
         let inputNode = audioEngine.inputNode
         let inputFormat = inputNode.outputFormat(forBus: 0)
         
-        print("AudioManager: Input format - Sample rate: \(inputFormat.sampleRate), Channels: \(inputFormat.channelCount)")
+        print("AudioManager: [STAGE 1] Input format - Sample rate: \(inputFormat.sampleRate), Channels: \(inputFormat.channelCount)")
         
         // Create format for Whisper (16kHz mono)
         guard let whisperFormat = AVAudioFormat(
@@ -425,16 +433,19 @@ final class AudioManager: NSObject, ObservableObject {
             channels: 1,
             interleaved: false
         ) else {
+            print("AudioManager: [STAGE 1] ✗ Failed to create Whisper format")
             throw AudioCaptureError.formatCreationFailed
         }
+        print("AudioManager: [STAGE 1] ✓ Whisper format created (16kHz mono Float32)")
         
         // Create converter if sample rates differ
         let converter: AVAudioConverter?
         if inputFormat.sampleRate != Constants.targetSampleRate || inputFormat.channelCount != 1 {
             converter = AVAudioConverter(from: inputFormat, to: whisperFormat)
-            print("AudioManager: Created converter from \(inputFormat.sampleRate)Hz to \(Constants.targetSampleRate)Hz")
+            print("AudioManager: [STAGE 1] ✓ Audio converter created: \(inputFormat.sampleRate)Hz → \(Constants.targetSampleRate)Hz")
         } else {
             converter = nil
+            print("AudioManager: [STAGE 1] ✓ No conversion needed (already 16kHz mono)")
         }
         
         // Reset audio level tracking
@@ -445,11 +456,15 @@ final class AudioManager: NSObject, ObservableObject {
         var bufferAppendCount = 0
         var totalFramesAppended: AVAudioFrameCount = 0
         
+        print("╔═══════════════════════════════════════════════════════════════╗")
+        print("║            AUDIO PIPELINE STAGE 2: TAP INSTALLED              ║")
+        print("╚═══════════════════════════════════════════════════════════════╝")
+        
         // Install tap on input node
         inputNode.installTap(onBus: 0, bufferSize: 4096, format: inputFormat) { [weak self] buffer, time in
             guard let self = self else { return }
             
-            // Calculate audio level from raw input buffer for real-time meter
+            // [STAGE 2] Calculate audio level from raw input buffer for real-time meter
             // NOTE: This level meter and transcription buffer use THE SAME input buffer
             let level = self.calculatePeakLevel(buffer: buffer)
             
@@ -463,7 +478,7 @@ final class AudioManager: NSObject, ObservableObject {
             }
             
             if let converter = converter {
-                // Convert to target format (16kHz mono)
+                // [STAGE 2] Convert to target format (16kHz mono)
                 let frameCapacity = AVAudioFrameCount(
                     Double(buffer.frameLength) * Constants.targetSampleRate / inputFormat.sampleRate
                 )
@@ -472,7 +487,7 @@ final class AudioManager: NSObject, ObservableObject {
                     pcmFormat: whisperFormat,
                     frameCapacity: frameCapacity
                 ) else {
-                    print("AudioManager: ⚠️ Failed to create converted buffer")
+                    print("AudioManager: [STAGE 2] ⚠️ Failed to create converted buffer")
                     return
                 }
                 
@@ -485,33 +500,33 @@ final class AudioManager: NSObject, ObservableObject {
                 converter.convert(to: convertedBuffer, error: &error, withInputFrom: inputBlock)
                 
                 if let error = error {
-                    print("AudioManager: ⚠️ Audio conversion error: \(error.localizedDescription)")
+                    print("AudioManager: [STAGE 2] ⚠️ Audio conversion error: \(error.localizedDescription)")
                 } else if convertedBuffer.frameLength > 0 {
                     // Verify the converted buffer format matches expected format
                     if self.audioBuffers.isEmpty {
                         // Log format verification on first buffer
                         let format = convertedBuffer.format
-                        print("AudioManager: ✓ Converted buffer format verified:")
+                        print("AudioManager: [STAGE 2] ✓ First converted buffer format verified:")
                         print("  - Sample rate: \(format.sampleRate) Hz (expected: \(Constants.targetSampleRate))")
                         print("  - Channels: \(format.channelCount) (expected: 1)")
                         print("  - Format: \(format.commonFormat == .pcmFormatFloat32 ? "Float32" : "Other")")
                         print("  - Level meter source: same input buffer as transcription buffer")
                     }
                     
-                    // Append converted buffer to audioBuffers
+                    // [STAGE 2] Append converted buffer to audioBuffers
                     self.audioBuffers.append(convertedBuffer)
                     
                     // Log buffer append confirmation (every 10th buffer to avoid log spam)
                     bufferAppendCount += 1
                     totalFramesAppended += convertedBuffer.frameLength
                     if bufferAppendCount % 10 == 0 {
-                        print("AudioManager: Buffer append #\(bufferAppendCount) - frames: \(convertedBuffer.frameLength), total frames: \(totalFramesAppended)")
+                        print("AudioManager: [STAGE 2] Buffer append #\(bufferAppendCount) - frames: \(convertedBuffer.frameLength), total frames: \(totalFramesAppended)")
                     }
                 }
             } else {
                 // No conversion needed - already at target format
                 if self.audioBuffers.isEmpty {
-                    print("AudioManager: ✓ Audio already at target format (16kHz mono Float32)")
+                    print("AudioManager: [STAGE 2] ✓ Audio already at target format (16kHz mono Float32)")
                     print("  - Level meter source: same input buffer as transcription buffer")
                 }
                 self.audioBuffers.append(buffer)
@@ -520,7 +535,7 @@ final class AudioManager: NSObject, ObservableObject {
                 bufferAppendCount += 1
                 totalFramesAppended += buffer.frameLength
                 if bufferAppendCount % 10 == 0 {
-                    print("AudioManager: Buffer append #\(bufferAppendCount) - frames: \(buffer.frameLength), total frames: \(totalFramesAppended)")
+                    print("AudioManager: [STAGE 2] Buffer append #\(bufferAppendCount) - frames: \(buffer.frameLength), total frames: \(totalFramesAppended)")
                 }
             }
         }
@@ -530,7 +545,7 @@ final class AudioManager: NSObject, ObservableObject {
         
         isCapturing = true
         captureStartTime = Date()
-        print("AudioManager: Started capturing audio")
+        print("AudioManager: [STAGE 1] ✓ Audio engine started - capturing audio")
     }
     
     /// Stop capturing audio and return the result
@@ -539,27 +554,38 @@ final class AudioManager: NSObject, ObservableObject {
             return nil
         }
         
+        print("╔═══════════════════════════════════════════════════════════════╗")
+        print("║            AUDIO PIPELINE STAGE 3: CAPTURE STOP               ║")
+        print("╚═══════════════════════════════════════════════════════════════╝")
+        
         // Stop engine and remove tap
         audioEngine.inputNode.removeTap(onBus: 0)
         audioEngine.stop()
+        print("AudioManager: [STAGE 3] ✓ Audio engine stopped, tap removed")
         
         isCapturing = false
         
         // Calculate duration
         let duration = captureStartTime.map { Date().timeIntervalSince($0) } ?? 0
         captureStartTime = nil
+        print("AudioManager: [STAGE 3] Recording duration: \(String(format: "%.2f", duration))s, Buffers collected: \(audioBuffers.count)")
         
         // Check minimum recording duration
         if duration < Constants.minimumRecordingDuration {
-            print("AudioManager: Recording too short (\(String(format: "%.2f", duration))s < \(Constants.minimumRecordingDuration)s minimum)")
+            print("AudioManager: [STAGE 3] ✗ Recording too short (\(String(format: "%.2f", duration))s < \(Constants.minimumRecordingDuration)s minimum)")
             audioBuffers.removeAll()
             currentAudioLevel = -60.0
             onRecordingTooShort?()
             return nil
         }
         
+        print("╔═══════════════════════════════════════════════════════════════╗")
+        print("║            AUDIO PIPELINE STAGE 4: BUFFER COMBINE             ║")
+        print("╚═══════════════════════════════════════════════════════════════╝")
+        
         // Combine buffers into single data and compute statistics
         let (audioData, stats) = combineBuffersToDataWithStats()
+        print("AudioManager: [STAGE 4] ✓ Buffers combined into \(audioData.count) bytes")
         
         // Log detailed audio buffer statistics
         logAudioBufferStatistics(stats: stats, duration: duration)
@@ -567,11 +593,13 @@ final class AudioManager: NSObject, ObservableObject {
         // Check for silence
         let wasSilent = stats.peakLevel < Constants.silenceThresholdDB
         if wasSilent {
-            print("AudioManager: ⚠️ WARNING - Audio appears silent (peak \(String(format: "%.1f", stats.peakLevel))dB < \(Constants.silenceThresholdDB)dB threshold)")
+            print("AudioManager: [STAGE 4] ⚠️ WARNING - Audio appears silent (peak \(String(format: "%.1f", stats.peakLevel))dB < \(Constants.silenceThresholdDB)dB threshold)")
             onSilenceDetected?()
+        } else {
+            print("AudioManager: [STAGE 4] ✓ Audio level check passed (peak \(String(format: "%.1f", stats.peakLevel))dB)")
         }
         
-        print("AudioManager: Stopped capturing - Duration: \(String(format: "%.2f", duration))s, Data size: \(audioData.count) bytes, Peak: \(String(format: "%.1f", stats.peakLevel))dB")
+        print("AudioManager: [STAGE 4] ✓ Audio ready for transcription - Duration: \(String(format: "%.2f", duration))s, Data size: \(audioData.count) bytes, Peak: \(String(format: "%.1f", stats.peakLevel))dB")
         
         audioBuffers.removeAll()
         currentAudioLevel = -60.0
@@ -595,18 +623,18 @@ final class AudioManager: NSObject, ObservableObject {
     
     /// Log detailed audio buffer statistics
     private func logAudioBufferStatistics(stats: AudioBufferStats, duration: TimeInterval) {
-        print("╔═══════════════════════════════════════════════════════════════╗")
-        print("║                   AUDIO BUFFER STATISTICS                     ║")
-        print("╠═══════════════════════════════════════════════════════════════╣")
-        print("║ Sample Count:    \(String(format: "%10d", stats.sampleCount)) samples                        ║")
-        print("║ Duration:        \(String(format: "%10.2f", duration)) seconds                        ║")
-        print("║ Sample Rate:     \(String(format: "%10.0f", Constants.targetSampleRate)) Hz                            ║")
-        print("║ Peak Level:      \(String(format: "%10.1f", stats.peakLevel)) dB                             ║")
-        print("║ RMS Level:       \(String(format: "%10.1f", stats.rmsLevel)) dB                             ║")
-        print("║ Min Sample:      \(String(format: "%10.4f", stats.minSample))                                ║")
-        print("║ Max Sample:      \(String(format: "%10.4f", stats.maxSample))                                ║")
-        print("║ Silent:          \(stats.peakLevel < Constants.silenceThresholdDB ? "       YES ⚠️" : "        NO ✓")                                ║")
-        print("╚═══════════════════════════════════════════════════════════════╝")
+        print("AudioManager: [STAGE 4] ╔═══════════════════════════════════════════════════════════════╗")
+        print("AudioManager: [STAGE 4] ║              AUDIO BUFFER STATISTICS (COMBINED)               ║")
+        print("AudioManager: [STAGE 4] ╠═══════════════════════════════════════════════════════════════╣")
+        print("AudioManager: [STAGE 4] ║ Sample Count:    \(String(format: "%10d", stats.sampleCount)) samples                        ║")
+        print("AudioManager: [STAGE 4] ║ Duration:        \(String(format: "%10.2f", duration)) seconds                        ║")
+        print("AudioManager: [STAGE 4] ║ Sample Rate:     \(String(format: "%10.0f", Constants.targetSampleRate)) Hz                            ║")
+        print("AudioManager: [STAGE 4] ║ Peak Level:      \(String(format: "%10.1f", stats.peakLevel)) dB                             ║")
+        print("AudioManager: [STAGE 4] ║ RMS Level:       \(String(format: "%10.1f", stats.rmsLevel)) dB                             ║")
+        print("AudioManager: [STAGE 4] ║ Min Sample:      \(String(format: "%10.4f", stats.minSample))                                ║")
+        print("AudioManager: [STAGE 4] ║ Max Sample:      \(String(format: "%10.4f", stats.maxSample))                                ║")
+        print("AudioManager: [STAGE 4] ║ Silent:          \(stats.peakLevel < Constants.silenceThresholdDB ? "       YES ⚠️" : "        NO ✓")                                ║")
+        print("AudioManager: [STAGE 4] ╚═══════════════════════════════════════════════════════════════╝")
         
         // Store for potential debug display
         lastRecordingStats = stats
@@ -707,21 +735,24 @@ final class AudioManager: NSObject, ObservableObject {
             print("AudioManager: ✓ Buffer sample count verified: \(allSamples.count) samples from \(audioBuffers.count) buffers")
         }
         
-        // Log actual sample values BEFORE silence check
+        // [STAGE 4] Log actual sample values BEFORE silence check
         if !allSamples.isEmpty {
             let firstSamples = Array(allSamples.prefix(10))
             let lastSamples = Array(allSamples.suffix(10))
             
-            print("AudioManager: ┌─ SAMPLE VALUES BEFORE SILENCE CHECK ────────────────────────")
-            print("AudioManager: │ First 10 samples: \(firstSamples.map { String(format: "%.6f", $0) }.joined(separator: ", "))")
-            print("AudioManager: │ Last 10 samples:  \(lastSamples.map { String(format: "%.6f", $0) }.joined(separator: ", "))")
+            print("AudioManager: [STAGE 4] ┌─ SAMPLE VALUES BEFORE SILENCE CHECK ────────────────────────")
+            print("AudioManager: [STAGE 4] │ First 10 samples: \(firstSamples.map { String(format: "%.6f", $0) }.joined(separator: ", "))")
+            print("AudioManager: [STAGE 4] │ Last 10 samples:  \(lastSamples.map { String(format: "%.6f", $0) }.joined(separator: ", "))")
             
             // Count zero vs non-zero samples
             let zeroThreshold: Float = 1e-7
             let zeroCount = allSamples.filter { abs($0) < zeroThreshold }.count
+            let nonZeroCount = allSamples.count - zeroCount
             let zeroPercentage = Float(zeroCount) / Float(allSamples.count) * 100
-            print("AudioManager: │ Zero samples: \(String(format: "%.1f", zeroPercentage))% (\(zeroCount)/\(allSamples.count))")
-            print("AudioManager: └──────────────────────────────────────────────────────────────")
+            let nonZeroPercentage = Float(nonZeroCount) / Float(allSamples.count) * 100
+            print("AudioManager: [STAGE 4] │ Zero samples: \(String(format: "%.1f", zeroPercentage))% (\(zeroCount)/\(allSamples.count))")
+            print("AudioManager: [STAGE 4] │ Non-zero samples: \(String(format: "%.1f", nonZeroPercentage))% (\(nonZeroCount)/\(allSamples.count))")
+            print("AudioManager: [STAGE 4] └──────────────────────────────────────────────────────────────")
         }
         
         // Normalize samples to [-1.0, 1.0] range if necessary

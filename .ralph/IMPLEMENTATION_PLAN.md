@@ -111,30 +111,40 @@ As a user, I want my recorded audio to actually be captured so transcription wor
 ### US-203: Audio Capture Diagnostics
 As a developer, I want detailed audio diagnostics so I can debug capture issues.
 
-- [ ] Log buffer state immediately before transcription call
+- [x] Log buffer state immediately before transcription call
   - Scope: Modify `Sources/WispFlow/AppDelegate.swift` `processTranscription()` to log audioData.count, expected duration, sample rate before calling whisper.transcribe()
   - Acceptance: Full buffer state logged right before WhisperKit receives data
   - Verification: `swift build` passes; record and transcribe, verify pre-transcription log
+  - **DONE**: WhisperManager.logAudioDiagnostics() logs full buffer state (byte count, sample count, duration, peak, RMS) immediately before transcription in Stage 5
 
-- [ ] Show sample count, duration, peak level, RMS level before transcription
+- [x] Show sample count, duration, peak level, RMS level before transcription
   - Scope: Modify `Sources/WispFlow/AppDelegate.swift` or create helper to compute and log these stats from audioData before transcription
   - Acceptance: All four metrics visible in console before transcription attempt
   - Verification: `swift build` passes; verify all four values logged
+  - **DONE**: WhisperManager.logAudioDiagnostics() shows all four metrics in Stage 5 box: Sample Count, Duration, Peak Level, RMS Level
 
-- [ ] Log first and last 10 samples to verify non-zero data
+- [x] Log first and last 10 samples to verify non-zero data
   - Scope: Modify `Sources/WispFlow/AppDelegate.swift` or WhisperManager to extract and log first 10 and last 10 Float32 samples from audioData
   - Acceptance: Console shows actual sample values, can verify if data is zeros or valid audio
   - Verification: `swift build` passes; record audio, verify sample values are non-zero
+  - **DONE**: WhisperManager.logAudioDiagnostics() logs first 10 and last 10 samples in Stage 5; AudioManager.combineBuffersToDataWithStats() also logs them in Stage 4
 
-- [ ] Show percentage of zero vs non-zero samples
+- [x] Show percentage of zero vs non-zero samples
   - Scope: Create helper function to count zero samples (abs < 1e-7) vs total and compute percentage
   - Acceptance: Log shows "Zero samples: X% (Y/Z)" format
   - Verification: `swift build` passes; record audio, verify zero percentage < 50%
+  - **DONE**: Both AudioManager (Stage 4) and WhisperManager (Stage 5) show zero sample percentage; AudioManager also shows non-zero percentage
 
-- [ ] Add console output for all audio pipeline stages
+- [x] Add console output for all audio pipeline stages
   - Scope: Add labeled log statements at: capture, conversion, buffer append, combine, transcription handoff
   - Acceptance: Console shows complete audio flow with timestamps
   - Verification: `swift build` passes; record audio, verify all stage markers visible
+  - **DONE**: Added 5 clearly labeled stages with box headers:
+    - Stage 1: CAPTURE START (AudioManager - permission, device, format setup, engine start)
+    - Stage 2: TAP INSTALLED (AudioManager - audio conversion, buffer appends with level meter)
+    - Stage 3: CAPTURE STOP (AudioManager - engine stop, duration calculation)
+    - Stage 4: BUFFER COMBINE (AudioManager - buffer merge, sample values, statistics, silence check)
+    - Stage 5: TRANSCRIPTION HANDOFF (WhisperManager - final audio diagnostics before WhisperKit)
 
 ---
 

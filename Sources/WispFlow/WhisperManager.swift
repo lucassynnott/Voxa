@@ -403,6 +403,8 @@ final class WhisperManager: ObservableObject {
         var maxSample: Float = -Float.infinity
         var sumSquares: Float = 0
         var clippedCount = 0
+        var zeroCount = 0
+        let zeroThreshold: Float = 1e-7
         
         for sample in samples {
             minSample = min(minSample, sample)
@@ -410,6 +412,9 @@ final class WhisperManager: ObservableObject {
             sumSquares += sample * sample
             if abs(sample) > 0.99 {
                 clippedCount += 1
+            }
+            if abs(sample) < zeroThreshold {
+                zeroCount += 1
             }
         }
         
@@ -419,9 +424,14 @@ final class WhisperManager: ObservableObject {
         let rmsDb = rms > 0 ? 20.0 * log10(rms) : -Float.infinity
         let duration = Double(samples.count) / sampleRate
         let clippingPercent = samples.isEmpty ? 0 : (Double(clippedCount) / Double(samples.count)) * 100
+        let zeroPercent = samples.isEmpty ? 0 : (Double(zeroCount) / Double(samples.count)) * 100
+        
+        // Get first and last 10 samples for verification
+        let firstSamples = Array(samples.prefix(10))
+        let lastSamples = Array(samples.suffix(10))
         
         print("╔═══════════════════════════════════════════════════════════════╗")
-        print("║               WHISPER AUDIO DIAGNOSTICS                       ║")
+        print("║      AUDIO PIPELINE STAGE 5: TRANSCRIPTION HANDOFF            ║")
         print("╠═══════════════════════════════════════════════════════════════╣")
         print("║ Byte Count:      \(String(format: "%10d", audioData.count)) bytes                        ║")
         print("║ Sample Count:    \(String(format: "%10d", samples.count)) samples                       ║")
@@ -431,9 +441,14 @@ final class WhisperManager: ObservableObject {
         print("║ Peak Level:      \(String(format: "%10.1f", peakDb)) dB                             ║")
         print("║ RMS Level:       \(String(format: "%10.1f", rmsDb)) dB                             ║")
         print("║ Sample Range:    [\(String(format: "%.4f", minSample)), \(String(format: "%.4f", maxSample))]                        ║")
+        print("║ Zero Samples:    \(String(format: "%10.1f", zeroPercent))% (\(zeroCount)/\(samples.count))                   ║")
         print("║ Clipping:        \(String(format: "%10.2f", clippingPercent))%                              ║")
         print("║ Format:          Float32 mono PCM                             ║")
+        print("╠═══════════════════════════════════════════════════════════════╣")
+        print("║ First 10 samples: \(firstSamples.map { String(format: "%.4f", $0) }.joined(separator: ", "))")
+        print("║ Last 10 samples:  \(lastSamples.map { String(format: "%.4f", $0) }.joined(separator: ", "))")
         print("╚═══════════════════════════════════════════════════════════════╝")
+        print("WhisperManager: [STAGE 5] ✓ Audio data ready for WhisperKit transcription")
     }
     
     // MARK: - Transcription
