@@ -92,6 +92,8 @@ struct DebugSettingsView: View {
     var onOpenDebugWindow: (() -> Void)?
     @State private var showExportSuccess = false
     @State private var exportMessage = ""
+    @State private var exportedFilePath: String? = nil
+    @State private var isPlayingAudio = false
     
     var body: some View {
         Form {
@@ -118,6 +120,29 @@ struct DebugSettingsView: View {
                         Text("When enabled, audio will not be rejected for being too quiet. Useful for testing with silent or near-silent recordings.")
                             .font(.caption)
                             .foregroundColor(.secondary)
+                        
+                        // US-306: Auto-save recordings toggle
+                        Divider()
+                        
+                        Toggle("Auto-Save Recordings", isOn: $debugManager.isAutoSaveEnabled)
+                            .toggleStyle(.switch)
+                        
+                        Text("When enabled, each recording will be automatically saved to Documents/WispFlow/DebugRecordings/ for later analysis.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        if debugManager.isAutoSaveEnabled {
+                            Button(action: {
+                                AudioExporter.shared.openDebugRecordingsFolder()
+                            }) {
+                                HStack {
+                                    Image(systemName: "folder")
+                                    Text("Open Recordings Folder")
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                            .padding(.top, 4)
+                        }
                     }
                 }
             }
@@ -154,10 +179,63 @@ struct DebugSettingsView: View {
                         .disabled(!debugManager.isDebugModeEnabled || debugManager.lastRawAudioData == nil)
                     }
                     
+                    // US-306: Quick export to Documents
+                    if debugManager.isDebugModeEnabled && debugManager.lastRawAudioData != nil {
+                        HStack(spacing: 12) {
+                            Button(action: quickExportToDocuments) {
+                                HStack {
+                                    Image(systemName: "doc.badge.arrow.up")
+                                    Text("Quick Export")
+                                }
+                                .frame(minWidth: 100)
+                            }
+                            .buttonStyle(.bordered)
+                            .help("Export to Documents/WispFlow/DebugRecordings/")
+                            
+                            // US-306: Playback button (only if there's an exported file)
+                            if AudioExporter.shared.lastExportedURL != nil {
+                                Button(action: togglePlayback) {
+                                    HStack {
+                                        Image(systemName: isPlayingAudio ? "stop.fill" : "play.fill")
+                                        Text(isPlayingAudio ? "Stop" : "Play")
+                                    }
+                                    .frame(minWidth: 80)
+                                }
+                                .buttonStyle(.bordered)
+                                .tint(isPlayingAudio ? .red : .green)
+                                
+                                Button(action: {
+                                    AudioExporter.shared.revealLastExportInFinder()
+                                }) {
+                                    HStack {
+                                        Image(systemName: "folder.badge.questionmark")
+                                        Text("Show in Finder")
+                                    }
+                                }
+                                .buttonStyle(.bordered)
+                            }
+                        }
+                    }
+                    
                     if !debugManager.isDebugModeEnabled {
                         Text("Enable Debug Mode to access debug tools")
                             .font(.caption)
                             .foregroundColor(.secondary)
+                    }
+                    
+                    // US-306: Show last export path if available
+                    if let path = exportedFilePath {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Last Export:")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text(path)
+                                .font(.caption2)
+                                .foregroundColor(.blue)
+                                .lineLimit(2)
+                                .truncationMode(.middle)
+                        }
+                        .padding(.top, 8)
                     }
                 }
             }
@@ -173,6 +251,7 @@ struct DebugSettingsView: View {
                         DebugFeatureRow(icon: "waveform", text: "Audio waveform visualization")
                         DebugFeatureRow(icon: "doc.text", text: "Raw transcription before cleanup")
                         DebugFeatureRow(icon: "square.and.arrow.up", text: "Export audio as WAV file")
+                        DebugFeatureRow(icon: "play.circle", text: "Playback exported audio")
                         DebugFeatureRow(icon: "list.bullet.rectangle", text: "Detailed real-time logs")
                         DebugFeatureRow(icon: "chart.bar", text: "Audio level statistics")
                     }
@@ -230,9 +309,64 @@ struct DebugSettingsView: View {
         .padding()
         .alert("Export Result", isPresented: $showExportSuccess) {
             Button("OK", role: .cancel) {}
+            if let _ = exportedFilePath {
+                Button("Show in Finder") {
+                    AudioExporter.shared.revealLastExportInFinder()
+                }
+                Button("Play Audio") {
+                    togglePlayback()
+                }
+            }
         } message: {
             Text(exportMessage)
         }
+        .onAppear {
+            // Set up playback completion callback
+            AudioExporter.shared.onPlaybackComplete = {
+                isPlayingAudio = false
+            }
+            // Load last exported path if available
+            if let url = AudioExporter.shared.lastExportedURL {
+                exportedFilePath = url.path
+            }
+        }
+    }
+    
+    // US-306: Toggle audio playback
+    private func togglePlayback() {
+        if isPlayingAudio {
+            AudioExporter.shared.stopPlayback()
+            isPlayingAudio = false
+        } else {
+            if AudioExporter.shared.playLastExport() {
+                isPlayingAudio = true
+            }
+        }
+    }
+    
+    // US-306: Quick export to Documents folder
+    private func quickExportToDocuments() {
+        guard let audioData = debugManager.lastRawAudioData else {
+            exportMessage = "No audio data available to export"
+            showExportSuccess = true
+            return
+        }
+        
+        let result = AudioExporter.shared.exportToDocuments(
+            audioData: audioData,
+            sampleRate: debugManager.lastRawAudioSampleRate
+        )
+        
+        switch result {
+        case .success(let url):
+            exportMessage = "Audio exported successfully to:\n\(url.path)"
+            exportedFilePath = url.path
+        case .noAudioData:
+            exportMessage = "No audio data available to export"
+        case .exportFailed(let error):
+            exportMessage = "Export failed: \(error)"
+        }
+        showExportSuccess = true
     }
     
     private func exportLastAudio() {
@@ -250,6 +384,7 @@ struct DebugSettingsView: View {
                 switch result {
                 case .success(let url):
                     exportMessage = "Audio exported successfully to:\n\(url.path)"
+                    exportedFilePath = url.path
                 case .noAudioData:
                     exportMessage = "No audio data available to export"
                 case .exportFailed(let error):

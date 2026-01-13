@@ -1,0 +1,30 @@
+There is still one unchecked story (US-306), so I should not output the completion signal. Let me provide a summary:
+
+## Summary
+
+Successfully completed **US-305: Fix LLM Model Downloads** with the following implementation:
+
+**Changes to `LLMManager.swift` (+447 lines):**
+- Added `expectedMinimumSizeBytes` and `expectedSizeDescription` properties to `ModelSize` enum for download verification
+- Added `lastErrorMessage` property for detailed UI error display
+- Added `customModelPath` and `useCustomModelPath` properties with UserDefaults persistence for manual fallback
+- Added `checkNetworkConnectivity()` method to pre-check network before download
+- Added `createDetailedErrorMessage()` method parsing HTTP errors (401, 403, 404, 429, 5xx) and network errors
+- Added `handleDownloadError()` method for consistent error state management
+- Added `verifyDownloadedModel()` method to check file exists and has expected size
+- Added `logDownloadStart()`, `logDownloadSuccess()`, and `logVerificationFailure()` methods with boxed console output
+- Added `retryDownload()` method for retry functionality
+- Added `loadModelFromCustomPath()` method for manual model loading
+- Enhanced `DownloadProgressDelegate` to report bytes written and total bytes
+
+**Changes to `SettingsWindow.swift` (+186 lines):**
+- Added download progress bar showing percentage during download
+- Added error alert with "OK" and "Retry" buttons
+- Added "Retry Download" button when error state is active
+- Added "Error Details" button to view error info
+- Added manual model path section with toggle, text field, Browse button, and Load Custom Model button
+- Added `.fileImporter` for file picker functionality
+
+**Commits:**
+- `7dd370d feat(US-305): add LLM model download error handling, progress bar, and retry`
+- `2fa3292 docs: update progress log for US-305`

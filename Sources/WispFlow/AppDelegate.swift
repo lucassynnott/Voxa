@@ -392,6 +392,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 // Store audio data in debug manager for visualization
                 Task { @MainActor in
                     debugManager?.storeAudioData(result.audioData, sampleRate: result.sampleRate)
+                    
+                    // US-306: Auto-save recording if enabled in debug mode
+                    if DebugManager.shared.isDebugModeEnabled && DebugManager.shared.isAutoSaveEnabled {
+                        let exportResult = AudioExporter.shared.exportToDocuments(
+                            audioData: result.audioData,
+                            sampleRate: result.sampleRate
+                        )
+                        switch exportResult {
+                        case .success(let url):
+                            DebugManager.shared.addLogEntry(
+                                category: .audio,
+                                message: "Auto-saved recording",
+                                details: "Path: \(url.path)"
+                            )
+                        case .noAudioData:
+                            DebugManager.shared.addLogEntry(
+                                category: .audio,
+                                message: "Auto-save failed: No audio data"
+                            )
+                        case .exportFailed(let error):
+                            DebugManager.shared.addLogEntry(
+                                category: .audio,
+                                message: "Auto-save failed",
+                                details: error
+                            )
+                        }
+                    }
                 }
                 
                 // Update indicator to show duration briefly

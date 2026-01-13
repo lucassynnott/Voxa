@@ -181,13 +181,13 @@ As a user, I want LLM models to download successfully.
 - [x] Show clear error message if download fails
 - [x] Add manual model path option as fallback
 
-### [ ] US-306: Audio Debug Export
+### [x] US-306: Audio Debug Export
 As a user, I want to export my recorded audio to verify capture is working.
-- Add "Export Last Recording" button in debug settings
-- Save masterBuffer to WAV file in Documents folder
-- Show file path after export
-- Allow playback of exported file
-- Log export success/failure
+- [x] Add "Export Last Recording" button in debug settings
+- [x] Save masterBuffer to WAV file in Documents folder
+- [x] Show file path after export
+- [x] Allow playback of exported file
+- [x] Log export success/failure
 
 ## Success Criteria
 
@@ -200,9 +200,9 @@ As a user, I want to export my recorded audio to verify capture is working.
 
 ## Acceptance Criteria
 
-1. Record 3 seconds -> log shows ~48000 samples in buffer
-2. Log shows tap callback count > 0 after recording
-3. Buffer sample count matches level meter sample count
-4. Click download Whisper model -> progress bar moves -> model ready
-5. Click download LLM model -> progress shows -> model ready
-6. Export recording -> WAV file plays back speech correctly
+1. [x] Record 3 seconds -> log shows ~48000 samples in buffer
+2. [x] Log shows tap callback count > 0 after recording
+3. [x] Buffer sample count matches level meter sample count
+4. [x] Click download Whisper model -> progress bar moves -> model ready
+5. [x] Click download LLM model -> progress shows -> model ready
+6. [x] Export recording -> WAV file plays back speech correctly

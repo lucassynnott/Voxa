@@ -61,6 +61,7 @@ final class DebugManager: ObservableObject {
     private struct Constants {
         static let debugModeKey = "debugModeEnabled"
         static let silenceDetectionDisabledKey = "silenceDetectionDisabled"
+        static let autoSaveRecordingsKey = "autoSaveRecordingsEnabled"
         static let maxLogEntries = 500
     }
     
@@ -98,6 +99,18 @@ final class DebugManager: ObservableObject {
         }
     }
     
+    /// US-306: Whether to automatically save recordings to Documents folder
+    @Published var isAutoSaveEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(isAutoSaveEnabled, forKey: Constants.autoSaveRecordingsKey)
+            if isAutoSaveEnabled {
+                addLogEntry(category: .system, message: "Auto-save recordings enabled (saves to Documents/WispFlow/DebugRecordings)")
+            } else {
+                addLogEntry(category: .system, message: "Auto-save recordings disabled")
+            }
+        }
+    }
+    
     /// Log entries for the debug window
     @Published private(set) var logEntries: [LogEntry] = []
     
@@ -123,6 +136,7 @@ final class DebugManager: ObservableObject {
     private init() {
         isDebugModeEnabled = UserDefaults.standard.bool(forKey: Constants.debugModeKey)
         isSilenceDetectionDisabled = UserDefaults.standard.bool(forKey: Constants.silenceDetectionDisabledKey)
+        isAutoSaveEnabled = UserDefaults.standard.bool(forKey: Constants.autoSaveRecordingsKey)
         
         // Add initial log entry
         addLogEntry(category: .system, message: "Debug manager initialized")
