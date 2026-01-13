@@ -328,3 +328,48 @@ Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260113-171403-13989-it
   - Silent audio detection should skip transcription to avoid wasting compute
   - CoreAudio samples are Float32 in range [-1.0, 1.0]; absolute value gives amplitude
 ---
+
+## [2026-01-13 17:45] - US-102: Fix WhisperKit Audio Format
+Thread: codex exec session
+Run: 20260113-171403-13989 (iteration 2)
+Run log: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260113-171403-13989-iter-2.log
+Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260113-171403-13989-iter-2.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: 658ed4e feat(US-102): fix WhisperKit audio format processing
+- Post-commit status: clean
+- Verification:
+  - Command: `swift build` -> PASS (build complete, no errors)
+- Files changed:
+  - Sources/WispFlow/WhisperManager.swift (modified - validation, normalization, diagnostics, BLANK_AUDIO handling)
+  - Sources/WispFlow/AudioManager.swift (modified - normalization, format verification logging)
+  - .agents/tasks/prd-v2.md (updated acceptance criteria for US-102)
+  - .ralph/IMPLEMENTATION_PLAN.md (updated task status for US-102)
+- What was implemented:
+  - Audio validation before transcription (WhisperManager):
+    - AudioValidationError enum with cases: emptyAudioData, durationTooShort, durationTooLong, samplesOutOfRange, invalidSampleRate
+    - validateAudioData() method checks sample count, sample rate (16kHz), duration (0.5-120s), value range ([-1.0, 1.0])
+    - Descriptive error messages for each validation failure
+  - Audio normalization to [-1.0, 1.0] range:
+    - normalizeAudioSamples() method in both AudioManager and WhisperManager
+    - AudioManager normalizes during combineBuffersToDataWithStats()
+    - WhisperManager has backup normalization in transcribe() for safety
+    - Logs normalization factor when peak amplitude exceeds 1.0
+  - 16kHz sample rate conversion verification:
+    - Format verification logging on first converted buffer in AudioManager tap callback
+    - Logs sample rate, channel count, and format type after conversion
+    - Warnings for conversion failures and errors
+  - Audio preprocessing diagnostics (WhisperManager):
+    - logAudioDiagnostics() method called before transcription
+    - Comprehensive table: byte count, sample count, sample rate, duration, peak amplitude, peak/RMS levels, sample range, clipping percentage, format
+  - BLANK_AUDIO handling:
+    - isBlankAudioResponse() detects various BLANK_AUDIO patterns in transcription result
+    - createBlankAudioErrorMessage() generates context-aware error messages based on audio analysis
+    - Returns empty string instead of showing BLANK_AUDIO to user
+- **Learnings for future iterations:**
+  - WhisperKit returns "[BLANK_AUDIO]" when audio has no recognizable speech content
+  - Audio normalization prevents clipping issues that can confuse Whisper models
+  - Validation before transcription saves compute time for invalid audio
+  - Context-aware error messages (based on peak/RMS analysis) help users understand root cause
+  - Float32 normalization: divide all samples by peak amplitude if peak > 1.0
+---
