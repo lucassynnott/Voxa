@@ -163,3 +163,40 @@ Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260113-160943-91467-it
   - WhisperKit auto-downloads recommended model if none specified
   - Model pattern format: "openai_whisper-{size}" (e.g., openai_whisper-base)
 ---
+
+## [2026-01-13 16:45] - US-005: AI Text Cleanup
+Thread: codex exec session
+Run: 20260113-163956-8021 (iteration 1)
+Run log: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260113-163956-8021-iter-1.log
+Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260113-163956-8021-iter-1.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: d2298c1 feat(US-005): implement AI text cleanup
+- Post-commit status: clean
+- Verification:
+  - Command: `swift build` -> PASS (build complete, no errors)
+- Files changed:
+  - Sources/WispFlow/TextCleanupManager.swift (new)
+  - Sources/WispFlow/AppDelegate.swift (modified - added cleanup integration)
+  - Sources/WispFlow/SettingsWindow.swift (modified - added Text Cleanup settings tab)
+  - .agents/tasks/prd.md (updated acceptance criteria)
+  - .ralph/IMPLEMENTATION_PLAN.md (updated task status)
+- What was implemented:
+  - TextCleanupManager.swift: Rule-based text cleanup (more reliable than LLM for deterministic tasks)
+  - Filler word removal: 20+ patterns for um, uh, er, ah, like, you know, I mean, actually, basically, etc.
+  - Three cleanup modes: Basic (fast), Standard (balanced), Thorough (comprehensive)
+  - Contraction fixes: 25+ patterns (im→I'm, dont→don't, etc.)
+  - Capitalization fixes: First letter capitalization, after sentence-ending punctuation
+  - Punctuation fixes: Multiple punctuation, clause commas, proper ending detection
+  - Spacing cleanup: Multiple spaces, space before/after punctuation
+  - Settings UI: Enable/disable toggle, mode selection in TextCleanupSettingsView
+  - Settings persistence via UserDefaults for isCleanupEnabled and selectedMode
+  - Integration with AppDelegate via processTextCleanup() method
+  - Cleanup status UI feedback ("Cleaning up..." in recording indicator)
+- **Learnings for future iterations:**
+  - Rule-based text cleanup is more reliable and faster than LLM for deterministic text transformations
+  - NSRegularExpression with .caseInsensitive handles pattern matching efficiently
+  - Processing matches in reverse order preserves string indices during replacements
+  - Question detection by checking for question words at start of sentence
+  - Mode-based filtering allows progressive cleanup intensity
+---
