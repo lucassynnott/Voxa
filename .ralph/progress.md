@@ -854,3 +854,51 @@ Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260113-193017-47944-it
   - Box-style headers with Unicode borders make pipeline stages visually distinct
   - Including variance percentage helps quantify how significant any mismatch is
 ---
+
+## [2026-01-13 19:55] - US-304: Fix Whisper Model Downloads
+Thread: codex exec session
+Run: 20260113-193017-47944 (iteration 4)
+Run log: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260113-193017-47944-iter-4.log
+Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260113-193017-47944-iter-4.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: b05cd63 feat(US-304): add Whisper model download error handling, progress bar, and retry
+- Post-commit status: clean
+- Verification:
+  - Command: `swift build` -> PASS (build complete, no errors)
+- Files changed:
+  - Sources/WispFlow/WhisperManager.swift (error handling, progress, verification, retry)
+  - Sources/WispFlow/SettingsWindow.swift (progress bar, error alert, retry button)
+  - .agents/tasks/prd-v4.md (mark US-304 complete)
+  - .ralph/IMPLEMENTATION_PLAN.md (update task status for US-304)
+- What was implemented:
+  - Add try/catch around WhisperKit initialization with error logging:
+    - Added `createDetailedErrorMessage()` to parse error types and provide specific suggestions
+    - Added boxed console logging with model info, directory status, error type
+    - Enhanced ErrorLogger with comprehensive context (directory exists, writable, error type)
+  - Show download progress bar in settings UI:
+    - Added `ProgressView` with linear style showing percentage complete
+    - Progress bar only shown during `.downloading` state
+  - Log actual download URL being used:
+    - Boxed log at download start shows repository URL (https://huggingface.co/argmaxinc/whisperkit-coreml)
+    - Logs model pattern, directory path, and whether already downloaded
+  - Verify model directory exists after download:
+    - Added `verifyModelsDirectory()` pre-download check for existence and write permission
+    - Added `verifyModelFilesAfterDownload()` post-download check listing files and total size
+    - Clear error if directory cannot be created or is not writable
+  - Show clear error message if download fails:
+    - Added `lastErrorMessage` published property for detailed UI display
+    - Added `showErrorAlert` state that triggers automatically on failure
+    - Error message includes cause analysis and specific suggestions for each error type
+    - Added "Error Details" button to view error info after dismissing initial alert
+  - Add retry button for failed downloads:
+    - Added `retryLoadModel()` method that resets status and retries
+    - "Retry Download" button appears when `modelStatus == .error`
+    - Shows error alert if retry also fails
+- **Learnings for future iterations:**
+  - WhisperKit doesn't expose download progress callbacks; status messages simulate progress
+  - Error message parsing by keyword allows specific suggestions without coupling to error types
+  - Pre-download directory verification catches permission issues before download starts
+  - Post-download file verification confirms model files are present with size info
+  - Timed Tasks for progress updates help show activity during long downloads
+---
