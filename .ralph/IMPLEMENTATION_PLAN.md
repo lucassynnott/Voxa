@@ -343,28 +343,42 @@ As a user, I want the General settings to look beautiful.
 ### US-406: Audio Settings Tab Polish
 As a user, I want the Audio settings to be visually refined.
 
-- [ ] Create dedicated AudioSettingsView tab
+- [x] Create dedicated AudioSettingsView tab
   - Scope: Add new `AudioSettingsView` struct in `Sources/WispFlow/SettingsWindow.swift`
   - Move audio device selection from menu bar to settings
   - Add audio level preview with real-time meter
   - Add input gain slider (if supported by Core Audio)
-  - Acceptance: Audio settings has its own tab with device picker and level preview
-  - Verification: `swift build` passes
+  - Acceptance: Audio settings has its own tab with device picker and level preview ✓
+  - Verification: `swift build` passes ✓
 
-- [ ] Style device picker as elegant dropdown
+- [x] Style device picker as elegant dropdown
   - Scope: Create device picker in AudioSettingsView
   - Use Picker with custom styling
   - Add device icons (speaker.wave.2 for each device)
   - Show current device clearly
-  - Acceptance: Device picker uses design system styling
-  - Verification: `swift build` passes
+  - Acceptance: Device picker uses design system styling ✓
+  - Verification: `swift build` passes ✓
 
-- [ ] Add live audio level meter in settings
+- [x] Add live audio level meter in settings
   - Scope: Add real-time level meter component in AudioSettingsView
   - Connect to AudioManager.currentAudioLevel publisher
   - Use design system colors (sage green for normal, coral for loud)
-  - Acceptance: Audio level displays in real-time when settings open
-  - Verification: `swift build` passes
+  - Acceptance: Audio level displays in real-time when settings open ✓
+  - Verification: `swift build` passes ✓
+
+**Implementation Notes (US-406):**
+- Created AudioSettingsView struct with 4 polished cards: Device Selection, Audio Level Preview, Input Sensitivity, and Audio Info
+- Created AudioDevicePicker component with elegant dropdown animation and device-specific icons (AirPods, laptop, USB, etc.)
+- Created AudioDeviceRow for individual device items with hover states and checkmark for selection
+- Created AudioLevelMeterView with 30-segment visual meter that shows coral/green/red based on level
+- Added live preview functionality that starts/stops audio capture for testing microphone
+- Created CustomSlider with coral accent gradient and animated thumb with hover/drag states
+- Input Sensitivity slider allows users to adjust visual meter display gain (0.5x-2.0x)
+- Level indicator shows real-time dB value and status (Good/Quiet/Silent/Too Loud) with color-coded badges
+- All components use design system colors, fonts, spacing, and corner radius constants
+- Updated SettingsWindowController to accept AudioManager parameter
+- Updated AppDelegate to pass audioManager to SettingsWindowController
+- Audio tab added to TabView with speaker.wave.2 icon
 
 ---
 

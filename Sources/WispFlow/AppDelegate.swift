@@ -72,14 +72,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             textCleanupManager?.llmManager = llmManager
             
             // Set up settings window controller with all managers
-            if let whisper = whisperManager, let cleanup = textCleanupManager, let inserter = textInserter, let hotkey = hotkeyManager, let debug = debugManager, let llm = llmManager {
+            if let whisper = whisperManager, let cleanup = textCleanupManager, let inserter = textInserter, let hotkey = hotkeyManager, let debug = debugManager, let llm = llmManager, let audio = audioManager {
                 settingsWindowController = SettingsWindowController(
                     whisperManager: whisper,
                     textCleanupManager: cleanup,
                     llmManager: llm,
                     textInserter: inserter,
                     hotkeyManager: hotkey,
-                    debugManager: debug
+                    debugManager: debug,
+                    audioManager: audio
                 )
             }
             

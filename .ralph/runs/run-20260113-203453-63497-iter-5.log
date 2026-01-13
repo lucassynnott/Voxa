@@ -1,0 +1,13 @@
+US-405 is complete. There are still 5 unchecked stories remaining (US-406 through US-410), so the PRD is not yet fully complete.
+
+**Summary:**
+Successfully implemented US-405 (General Settings Tab Polish) with the following changes:
+- Redesigned GeneralSettingsView with a hero About section featuring an app logo (SF Symbol with gradient), app name in largeTitle font, and version with subtle pill styling
+- Created SubtleLinkButton component for GitHub/Website/Support links with hover effects
+- Enhanced HotkeyRecorderView with pulsing animation when recording, command symbol icon, coral glow shadow, and scale animations
+- Added icon headers to Hotkey and Startup sections
+- Updated launch at login toggle with properly indented description text
+
+Commits:
+- `b5179ee feat(US-405): add general settings tab polish with design system integration`
+- `d5fc882 docs: update progress log for US-405`

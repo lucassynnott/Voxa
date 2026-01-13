@@ -10,6 +10,7 @@ struct SettingsView: View {
     @ObservedObject var textInserter: TextInserter
     @ObservedObject var hotkeyManager: HotkeyManager
     @ObservedObject var debugManager: DebugManager
+    @ObservedObject var audioManager: AudioManager
     var onOpenDebugWindow: (() -> Void)?
     @State private var isLoadingWhisperModel = false
     @State private var isLoadingCleanupModel = false
@@ -30,6 +31,12 @@ struct SettingsView: View {
                 GeneralSettingsView(hotkeyManager: hotkeyManager)
                 .tabItem {
                     Label("General", systemImage: "gear")
+                }
+                
+                // Audio tab (US-406)
+                AudioSettingsView(audioManager: audioManager)
+                .tabItem {
+                    Label("Audio", systemImage: "speaker.wave.2")
                 }
                 
                 // Transcription tab
@@ -1870,6 +1877,585 @@ struct HotkeyRecorderView: View {
 
 import ServiceManagement
 
+// MARK: - Audio Settings (US-406)
+
+/// Audio Settings Tab - Device picker with level preview and input configuration
+struct AudioSettingsView: View {
+    @ObservedObject var audioManager: AudioManager
+    @State private var isPreviewingAudio = false
+    @State private var previewTimer: Timer?
+    @State private var currentLevel: Float = -60.0
+    @State private var inputGain: Double = 1.0
+    
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: Spacing.lg) {
+                // Audio Input Device card
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    HStack(spacing: Spacing.sm) {
+                        Image(systemName: "mic")
+                            .foregroundColor(Color.Wispflow.accent)
+                            .font(.system(size: 16, weight: .medium))
+                        Text("Audio Input Device")
+                            .font(Font.Wispflow.headline)
+                            .foregroundColor(Color.Wispflow.textPrimary)
+                    }
+                    
+                    Text("Select the microphone or audio input device to use for voice recording.")
+                        .font(Font.Wispflow.caption)
+                        .foregroundColor(Color.Wispflow.textSecondary)
+                    
+                    // Elegant device picker
+                    AudioDevicePicker(
+                        devices: audioManager.inputDevices,
+                        selectedDevice: audioManager.currentDevice,
+                        onDeviceSelected: { device in
+                            audioManager.selectDevice(device)
+                        }
+                    )
+                    
+                    // Refresh devices button
+                    HStack {
+                        Spacer()
+                        Button(action: {
+                            audioManager.refreshAvailableDevices()
+                        }) {
+                            HStack(spacing: Spacing.xs) {
+                                Image(systemName: "arrow.clockwise")
+                                Text("Refresh Devices")
+                            }
+                        }
+                        .buttonStyle(WispflowButtonStyle.ghost)
+                    }
+                }
+                .wispflowCard()
+                
+                // Audio Level Preview card
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    HStack(spacing: Spacing.sm) {
+                        Image(systemName: "waveform")
+                            .foregroundColor(Color.Wispflow.accent)
+                            .font(.system(size: 16, weight: .medium))
+                        Text("Audio Level Preview")
+                            .font(Font.Wispflow.headline)
+                            .foregroundColor(Color.Wispflow.textPrimary)
+                    }
+                    
+                    Text("Test your microphone to ensure it's working correctly. Speak into your microphone to see the input level.")
+                        .font(Font.Wispflow.caption)
+                        .foregroundColor(Color.Wispflow.textSecondary)
+                    
+                    // Live audio level meter
+                    AudioLevelMeterView(
+                        level: isPreviewingAudio ? currentLevel : -60.0,
+                        isActive: isPreviewingAudio
+                    )
+                    .frame(height: 44)
+                    .animation(.easeOut(duration: 0.1), value: currentLevel)
+                    
+                    // Level indicator text
+                    HStack {
+                        Text("Current Level:")
+                            .font(Font.Wispflow.caption)
+                            .foregroundColor(Color.Wispflow.textSecondary)
+                        
+                        Text(isPreviewingAudio ? String(format: "%.1f dB", currentLevel) : "—")
+                            .font(Font.Wispflow.mono)
+                            .foregroundColor(levelColor(for: currentLevel))
+                        
+                        Spacer()
+                        
+                        // Level status indicator
+                        if isPreviewingAudio {
+                            HStack(spacing: Spacing.xs) {
+                                Circle()
+                                    .fill(levelColor(for: currentLevel))
+                                    .frame(width: 8, height: 8)
+                                Text(levelStatus(for: currentLevel))
+                                    .font(Font.Wispflow.caption)
+                                    .foregroundColor(levelColor(for: currentLevel))
+                            }
+                            .padding(.horizontal, Spacing.sm)
+                            .padding(.vertical, Spacing.xs)
+                            .background(levelColor(for: currentLevel).opacity(0.15))
+                            .cornerRadius(CornerRadius.small)
+                        }
+                    }
+                    
+                    // Preview toggle button
+                    HStack {
+                        Button(action: {
+                            togglePreview()
+                        }) {
+                            HStack {
+                                Image(systemName: isPreviewingAudio ? "stop.fill" : "mic.fill")
+                                Text(isPreviewingAudio ? "Stop Preview" : "Start Preview")
+                            }
+                        }
+                        .buttonStyle(WispflowButtonStyle(variant: isPreviewingAudio ? .secondary : .primary))
+                        
+                        Spacer()
+                    }
+                }
+                .wispflowCard()
+                
+                // Input Gain Settings card
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    HStack(spacing: Spacing.sm) {
+                        Image(systemName: "slider.horizontal.3")
+                            .foregroundColor(Color.Wispflow.accent)
+                            .font(.system(size: 16, weight: .medium))
+                        Text("Input Level Sensitivity")
+                            .font(Font.Wispflow.headline)
+                            .foregroundColor(Color.Wispflow.textPrimary)
+                    }
+                    
+                    Text("Adjust the sensitivity for audio level detection. This affects the visual meter display only.")
+                        .font(Font.Wispflow.caption)
+                        .foregroundColor(Color.Wispflow.textSecondary)
+                    
+                    // Custom styled slider for gain
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        HStack {
+                            Text("Sensitivity")
+                                .font(Font.Wispflow.body)
+                                .foregroundColor(Color.Wispflow.textPrimary)
+                            Spacer()
+                            Text(String(format: "%.0f%%", inputGain * 100))
+                                .font(Font.Wispflow.mono)
+                                .foregroundColor(Color.Wispflow.accent)
+                                .padding(.horizontal, Spacing.sm)
+                                .padding(.vertical, Spacing.xs)
+                                .background(Color.Wispflow.accentLight)
+                                .cornerRadius(CornerRadius.small / 2)
+                        }
+                        
+                        // Custom slider
+                        CustomSlider(value: $inputGain, range: 0.5...2.0)
+                            .frame(height: 8)
+                        
+                        HStack {
+                            Text("Low")
+                                .font(Font.Wispflow.small)
+                                .foregroundColor(Color.Wispflow.textSecondary)
+                            Spacer()
+                            Text("High")
+                                .font(Font.Wispflow.small)
+                                .foregroundColor(Color.Wispflow.textSecondary)
+                        }
+                    }
+                    
+                    // Reset to default
+                    HStack {
+                        Spacer()
+                        Button(action: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                inputGain = 1.0
+                            }
+                        }) {
+                            HStack(spacing: Spacing.xs) {
+                                Image(systemName: "arrow.counterclockwise")
+                                Text("Reset to Default")
+                            }
+                        }
+                        .buttonStyle(WispflowButtonStyle.ghost)
+                        .disabled(inputGain == 1.0)
+                    }
+                }
+                .wispflowCard()
+                
+                // Audio Info card
+                VStack(alignment: .leading, spacing: Spacing.sm) {
+                    Text("About Audio Capture")
+                        .font(Font.Wispflow.headline)
+                        .foregroundColor(Color.Wispflow.textPrimary)
+                    
+                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                        AudioInfoRow(icon: "waveform.path.ecg", text: "Audio is captured at 16kHz for optimal transcription")
+                        AudioInfoRow(icon: "lock.shield", text: "All audio is processed locally on your device")
+                        AudioInfoRow(icon: "trash", text: "Audio data is discarded after transcription")
+                        AudioInfoRow(icon: "hand.raised", text: "No audio is ever sent to external servers")
+                    }
+                }
+                .wispflowCard()
+                
+                Spacer()
+            }
+            .padding(Spacing.xl)
+        }
+        .background(Color.Wispflow.background)
+        .onDisappear {
+            stopPreview()
+        }
+    }
+    
+    // MARK: - Preview Control
+    
+    private func togglePreview() {
+        if isPreviewingAudio {
+            stopPreview()
+        } else {
+            startPreview()
+        }
+    }
+    
+    private func startPreview() {
+        // Start audio capture for preview
+        do {
+            try audioManager.startCapturing()
+            isPreviewingAudio = true
+            
+            // Start timer to read audio level
+            previewTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
+                // Apply gain to the visual level display
+                let rawLevel = audioManager.currentAudioLevel
+                currentLevel = rawLevel + Float(20 * log10(inputGain)) // Convert gain to dB adjustment
+            }
+        } catch {
+            print("Failed to start audio preview: \(error)")
+        }
+    }
+    
+    private func stopPreview() {
+        previewTimer?.invalidate()
+        previewTimer = nil
+        audioManager.cancelCapturing()
+        isPreviewingAudio = false
+        currentLevel = -60.0
+    }
+    
+    // MARK: - Level Helpers
+    
+    private func levelColor(for level: Float) -> Color {
+        if level > -10 {
+            return Color.Wispflow.error // Clipping/too loud
+        } else if level > -30 {
+            return Color.Wispflow.success // Good level
+        } else if level > -50 {
+            return Color.Wispflow.warning // Quiet
+        } else {
+            return Color.Wispflow.textSecondary // Very quiet/silent
+        }
+    }
+    
+    private func levelStatus(for level: Float) -> String {
+        if level > -10 {
+            return "Too Loud"
+        } else if level > -30 {
+            return "Good"
+        } else if level > -50 {
+            return "Quiet"
+        } else {
+            return "Silent"
+        }
+    }
+}
+
+// MARK: - Audio Device Picker
+
+/// Elegant dropdown picker for audio input devices with device icons
+struct AudioDevicePicker: View {
+    let devices: [AudioManager.AudioInputDevice]
+    let selectedDevice: AudioManager.AudioInputDevice?
+    let onDeviceSelected: (AudioManager.AudioInputDevice) -> Void
+    
+    @State private var isExpanded = false
+    @State private var isHovering = false
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Selected device display / dropdown trigger
+            Button(action: {
+                withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                    isExpanded.toggle()
+                }
+            }) {
+                HStack(spacing: Spacing.md) {
+                    // Device icon
+                    Image(systemName: deviceIcon(for: selectedDevice))
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(Color.Wispflow.accent)
+                        .frame(width: 24)
+                    
+                    // Device name
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(selectedDevice?.name ?? "No device selected")
+                            .font(Font.Wispflow.body)
+                            .foregroundColor(Color.Wispflow.textPrimary)
+                        
+                        if let device = selectedDevice, device.isDefault {
+                            Text("System Default")
+                                .font(Font.Wispflow.small)
+                                .foregroundColor(Color.Wispflow.textSecondary)
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    // Dropdown indicator
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                }
+                .padding(Spacing.md)
+                .background(
+                    RoundedRectangle(cornerRadius: CornerRadius.medium)
+                        .fill(isHovering ? Color.Wispflow.border.opacity(0.3) : Color.Wispflow.surface)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: CornerRadius.medium)
+                        .stroke(isExpanded ? Color.Wispflow.accent : Color.Wispflow.border, lineWidth: 1)
+                )
+            }
+            .buttonStyle(.plain)
+            .onHover { hovering in
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    isHovering = hovering
+                }
+            }
+            
+            // Dropdown list
+            if isExpanded {
+                VStack(spacing: 0) {
+                    ForEach(devices) { device in
+                        AudioDeviceRow(
+                            device: device,
+                            isSelected: device.uid == selectedDevice?.uid,
+                            onSelect: {
+                                onDeviceSelected(device)
+                                withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                                    isExpanded = false
+                                }
+                            }
+                        )
+                    }
+                }
+                .background(Color.Wispflow.surface)
+                .cornerRadius(CornerRadius.medium)
+                .overlay(
+                    RoundedRectangle(cornerRadius: CornerRadius.medium)
+                        .stroke(Color.Wispflow.border, lineWidth: 1)
+                )
+                .wispflowShadow(.card)
+                .padding(.top, Spacing.xs)
+                .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .top)))
+            }
+        }
+    }
+    
+    private func deviceIcon(for device: AudioManager.AudioInputDevice?) -> String {
+        guard let device = device else { return "mic.slash" }
+        let name = device.name.lowercased()
+        
+        if name.contains("airpod") {
+            return "airpodspro"
+        } else if name.contains("bluetooth") || name.contains("wireless") {
+            return "wave.3.right"
+        } else if name.contains("usb") {
+            return "cable.connector"
+        } else if name.contains("built-in") || name.contains("macbook") || name.contains("internal") {
+            return "laptopcomputer"
+        } else if name.contains("headphone") || name.contains("headset") {
+            return "headphones"
+        } else {
+            return "mic"
+        }
+    }
+}
+
+/// Single row in the audio device picker dropdown
+struct AudioDeviceRow: View {
+    let device: AudioManager.AudioInputDevice
+    let isSelected: Bool
+    let onSelect: () -> Void
+    
+    @State private var isHovering = false
+    
+    var body: some View {
+        Button(action: onSelect) {
+            HStack(spacing: Spacing.md) {
+                // Device icon
+                Image(systemName: deviceIcon(for: device))
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(isSelected ? Color.Wispflow.accent : Color.Wispflow.textSecondary)
+                    .frame(width: 20)
+                
+                // Device name
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(device.name)
+                        .font(Font.Wispflow.body)
+                        .foregroundColor(isSelected ? Color.Wispflow.accent : Color.Wispflow.textPrimary)
+                    
+                    if device.isDefault {
+                        Text("System Default")
+                            .font(Font.Wispflow.small)
+                            .foregroundColor(Color.Wispflow.textSecondary)
+                    }
+                }
+                
+                Spacer()
+                
+                // Selected checkmark
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(Color.Wispflow.accent)
+                }
+            }
+            .padding(Spacing.md)
+            .background(
+                RoundedRectangle(cornerRadius: CornerRadius.small)
+                    .fill(isHovering ? Color.Wispflow.accentLight : Color.clear)
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.1)) {
+                isHovering = hovering
+            }
+        }
+    }
+    
+    private func deviceIcon(for device: AudioManager.AudioInputDevice) -> String {
+        let name = device.name.lowercased()
+        
+        if name.contains("airpod") {
+            return "airpodspro"
+        } else if name.contains("bluetooth") || name.contains("wireless") {
+            return "wave.3.right"
+        } else if name.contains("usb") {
+            return "cable.connector"
+        } else if name.contains("built-in") || name.contains("macbook") || name.contains("internal") {
+            return "laptopcomputer"
+        } else if name.contains("headphone") || name.contains("headset") {
+            return "headphones"
+        } else {
+            return "mic"
+        }
+    }
+}
+
+// MARK: - Audio Level Meter View
+
+/// Visual audio level meter with smooth animation
+struct AudioLevelMeterView: View {
+    let level: Float
+    let isActive: Bool
+    
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .leading) {
+                // Background track
+                RoundedRectangle(cornerRadius: CornerRadius.small)
+                    .fill(Color.Wispflow.border)
+                
+                // Segmented level indicator
+                HStack(spacing: 2) {
+                    ForEach(0..<30, id: \.self) { index in
+                        let segmentLevel = -60.0 + (Double(index) * 2.0) // Each segment = 2dB
+                        let isLit = isActive && Double(level) >= segmentLevel
+                        
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(segmentColor(for: Float(segmentLevel), isLit: isLit))
+                            .opacity(isLit ? 1.0 : 0.15)
+                    }
+                }
+                .padding(Spacing.xs)
+            }
+        }
+    }
+    
+    private func segmentColor(for segmentLevel: Float, isLit: Bool) -> Color {
+        if segmentLevel > -10 {
+            return Color.Wispflow.error
+        } else if segmentLevel > -30 {
+            return Color.Wispflow.success
+        } else {
+            return Color.Wispflow.accent
+        }
+    }
+}
+
+// MARK: - Custom Slider
+
+/// Custom styled slider with coral accent
+struct CustomSlider: View {
+    @Binding var value: Double
+    let range: ClosedRange<Double>
+    
+    @State private var isDragging = false
+    
+    var body: some View {
+        GeometryReader { geometry in
+            let width = geometry.size.width
+            let normalizedValue = (value - range.lowerBound) / (range.upperBound - range.lowerBound)
+            let thumbPosition = width * CGFloat(normalizedValue)
+            
+            ZStack(alignment: .leading) {
+                // Track background
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.Wispflow.border)
+                    .frame(height: 8)
+                
+                // Filled track
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.Wispflow.accent.opacity(0.7), Color.Wispflow.accent],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(width: max(0, thumbPosition), height: 8)
+                
+                // Thumb
+                Circle()
+                    .fill(Color.Wispflow.surface)
+                    .frame(width: 20, height: 20)
+                    .overlay(
+                        Circle()
+                            .stroke(Color.Wispflow.accent, lineWidth: 2)
+                    )
+                    .shadow(color: Color.Wispflow.accent.opacity(isDragging ? 0.4 : 0.2), radius: isDragging ? 8 : 4)
+                    .scaleEffect(isDragging ? 1.1 : 1.0)
+                    .offset(x: thumbPosition - 10)
+            }
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { gesture in
+                        isDragging = true
+                        let newValue = range.lowerBound + (range.upperBound - range.lowerBound) * Double(gesture.location.x / width)
+                        value = min(max(newValue, range.lowerBound), range.upperBound)
+                    }
+                    .onEnded { _ in
+                        isDragging = false
+                    }
+            )
+            .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isDragging)
+        }
+    }
+}
+
+// MARK: - Audio Info Row
+
+/// Info row for the Audio settings info section
+struct AudioInfoRow: View {
+    let icon: String
+    let text: String
+    
+    var body: some View {
+        HStack(spacing: Spacing.sm) {
+            Image(systemName: icon)
+                .foregroundColor(Color.Wispflow.textSecondary)
+                .frame(width: 16)
+            Text(text)
+                .font(Font.Wispflow.caption)
+                .foregroundColor(Color.Wispflow.textSecondary)
+        }
+    }
+}
+
 // MARK: - Settings Window Controller
 
 final class SettingsWindowController: NSObject {
@@ -1880,15 +2466,17 @@ final class SettingsWindowController: NSObject {
     private let textInserter: TextInserter
     private let hotkeyManager: HotkeyManager
     private let debugManager: DebugManager
+    private let audioManager: AudioManager
     private var debugLogWindowController: DebugLogWindowController?
     
-    init(whisperManager: WhisperManager, textCleanupManager: TextCleanupManager, llmManager: LLMManager, textInserter: TextInserter, hotkeyManager: HotkeyManager, debugManager: DebugManager) {
+    init(whisperManager: WhisperManager, textCleanupManager: TextCleanupManager, llmManager: LLMManager, textInserter: TextInserter, hotkeyManager: HotkeyManager, debugManager: DebugManager, audioManager: AudioManager) {
         self.whisperManager = whisperManager
         self.textCleanupManager = textCleanupManager
         self.llmManager = llmManager
         self.textInserter = textInserter
         self.hotkeyManager = hotkeyManager
         self.debugManager = debugManager
+        self.audioManager = audioManager
         self.debugLogWindowController = DebugLogWindowController(debugManager: debugManager)
         super.init()
     }
@@ -1907,6 +2495,7 @@ final class SettingsWindowController: NSObject {
             textInserter: textInserter,
             hotkeyManager: hotkeyManager,
             debugManager: debugManager,
+            audioManager: audioManager,
             onOpenDebugWindow: { [weak self] in
                 self?.showDebugWindow()
             }

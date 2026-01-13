@@ -129,12 +129,12 @@ As a user, I want the General settings to look beautiful.
 - [x] "About WispFlow" section with logo
 - [x] Links styled as subtle buttons
 
-### [ ] US-406: Audio Settings Tab Polish
+### [x] US-406: Audio Settings Tab Polish
 As a user, I want the Audio settings to be visually refined.
-- Device picker as elegant dropdown with device icons
-- Audio level preview with smooth animation
-- Input gain slider with custom styling
-- Visual meter showing current input level
+- [x] Device picker as elegant dropdown with device icons
+- [x] Audio level preview with smooth animation
+- [x] Input gain slider with custom styling
+- [x] Visual meter showing current input level
 
 ### [ ] US-407: Transcription Settings Tab Polish
 As a user, I want the Transcription settings to look premium.
