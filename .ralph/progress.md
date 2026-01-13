@@ -902,3 +902,64 @@ Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260113-193017-47944-it
   - Post-download file verification confirms model files are present with size info
   - Timed Tasks for progress updates help show activity during long downloads
 ---
+
+## [2026-01-13 20:10] - US-305: Fix LLM Model Downloads
+Thread: codex exec session
+Run: 20260113-193017-47944 (iteration 5)
+Run log: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260113-193017-47944-iter-5.log
+Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260113-193017-47944-iter-5.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: 7dd370d feat(US-305): add LLM model download error handling, progress bar, and retry
+- Post-commit status: clean
+- Verification:
+  - Command: `swift build` -> PASS (build complete, no errors, warnings are pre-existing)
+- Files changed:
+  - Sources/WispFlow/LLMManager.swift (error handling, network check, progress, verification, retry, custom path)
+  - Sources/WispFlow/SettingsWindow.swift (progress bar, error alert, retry button, manual path UI)
+  - .agents/tasks/prd-v4.md (mark US-305 complete)
+  - .ralph/IMPLEMENTATION_PLAN.md (update task status for US-305)
+- What was implemented:
+  - Add try/catch around llama.cpp model download with error logging:
+    - Added `createDetailedErrorMessage()` to parse HTTP status codes (401, 403, 404, 429, 5xx) and network errors
+    - Added `handleDownloadError()` for consistent error state management
+    - Added boxed console logging with [US-305] prefix for easy filtering
+    - Logs to ErrorLogger with model info context
+  - Show download progress percentage:
+    - Enhanced `DownloadProgressDelegate` to pass bytes written and total bytes
+    - Status message shows percentage and file size (e.g., "Downloading... 45% (450 MB / 1 GB)")
+    - Added `ProgressView` with linear style in UI showing percentage
+  - Log download URL and file size:
+    - Added `logDownloadStart()` with boxed output showing model name, expected size, download URL
+    - Added `logDownloadSuccess()` showing file name, actual size, and path
+    - Added `logVerificationFailure()` for warning when file size doesn't match
+    - Added `expectedMinimumSizeBytes` and `expectedSizeDescription` to ModelSize enum
+  - Verify model file exists after download:
+    - Added `verifyDownloadedModel()` that checks file exists and compares to minimum expected size
+    - Returns warning if file is suspiciously small (may indicate partial download)
+    - Added `formatBytes()` helper for human-readable file sizes
+  - Show clear error message if download fails:
+    - Added `lastErrorMessage` published property for detailed UI display
+    - Added error alert with "OK" and "Retry" buttons
+    - Added "Error Details" button when error state is active
+    - Error messages include download URL and actionable suggestions
+  - Add manual model path option as fallback:
+    - Added `customModelPath` and `useCustomModelPath` properties with UserDefaults persistence
+    - Added `loadModelFromCustomPath()` method that validates path and .gguf extension
+    - Added UI section with toggle, text field, Browse button, and Load Custom Model button
+    - Added `.fileImporter` modifier for file picker
+  - Add network reachability check before download:
+    - Added `checkNetworkConnectivity()` async method performing HEAD request
+    - Checks for HTTP status codes and network error types
+    - Clear message if network unavailable before download starts
+  - Add retry mechanism:
+    - Added `retryDownload()` method that resets error state and retries
+    - "Retry Download" button styled with orange tint for visibility
+- **Learnings for future iterations:**
+  - LLM download uses URLSessionDownloadDelegate for proper progress tracking unlike WhisperKit
+  - Network connectivity pre-check via HEAD request catches issues before large download starts
+  - File size verification helps detect partial downloads with minimum expected size thresholds
+  - Manual model path fallback provides workaround when automatic downloads fail
+  - Making `lastErrorMessage` publicly settable allows external components to set error info
+---
+
