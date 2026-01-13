@@ -812,3 +812,45 @@ Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260113-193017-47944-it
   - Timer scheduling requires proper cleanup in both normal stop and cancel paths
   - Expected callbacks calculation: duration * sampleRate / bufferSize gives rough approximation
 ---
+
+## [2026-01-13 19:55] - US-303: Buffer Integrity Logging
+Thread: codex exec session
+Run: 20260113-193017-47944 (iteration 3)
+Run log: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260113-193017-47944-iter-3.log
+Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260113-193017-47944-iter-3.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: bb5cad7 feat(US-303): add buffer integrity logging with trace points and count verification
+- Post-commit status: clean
+- Verification:
+  - Command: `swift build` -> PASS (build complete, no errors)
+- Files changed:
+  - Sources/WispFlow/AudioManager.swift (buffer integrity logging)
+  - .agents/tasks/prd-v4.md (mark US-303 complete)
+  - .ralph/IMPLEMENTATION_PLAN.md (update task status for US-303)
+- What was implemented:
+  - Log when masterBuffer is created/cleared:
+    - Prominent boxed log in startCapturing() showing previous and current sample counts
+    - Log after buffer read in stopCapturing() showing cleared sample count
+    - Boxed log in cancelCapturing() showing discarded samples and callback count
+  - Log every append with sample count and running total:
+    - Enhanced tap callback logging: logs first 5 appends, then every 10th
+    - Format: `[US-303] APPEND #N: +X samples | masterBuffer: before → after total | level: Y.YdB`
+  - Log when buffer is read for transcription:
+    - Prominent boxed header when getMasterBufferDataWithStats() is called
+    - Shows total samples retrieved from masterBuffer
+  - Log if buffer is empty when read:
+    - Explicit warning box when masterBuffer is empty at read time
+    - Lists possible causes: no tap callbacks, all empty/zero buffers, unexpected clear
+    - Guidance to check callback counts
+  - Compare final buffer count to expected count (duration * 16000):
+    - Boxed comparison log in stopCapturing() after duration calculated
+    - Shows: duration, target sample rate, expected samples, actual samples, difference, variance %
+    - Status indicator: ✓ for within 10%, ⚠️ for mismatch > 10%, ❌ for no samples
+- **Learnings for future iterations:**
+  - Buffer integrity logging provides end-to-end traceability for debugging audio capture issues
+  - Logging first 5 + every 10th strikes balance between visibility and log spam
+  - Expected vs actual sample count comparison helps identify data loss during recording
+  - Box-style headers with Unicode borders make pipeline stages visually distinct
+  - Including variance percentage helps quantify how significant any mismatch is
+---
