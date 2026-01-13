@@ -1,0 +1,34 @@
+US-406 is now complete with all acceptance criteria checked. The PRD shows there are still remaining stories (US-407 through US-410) that are unchecked, so I should NOT output the completion signal.
+
+Let me provide a summary of what was completed:
+
+## Summary
+
+**US-406: Audio Settings Tab Polish** has been successfully implemented and committed.
+
+### What was implemented:
+1. **AudioSettingsView** - A new dedicated tab in settings with 4 polished cards:
+   - **Audio Input Device card** - Elegant dropdown picker with device-specific icons (AirPods, laptop, USB, headphones, etc.)
+   - **Audio Level Preview card** - Live meter with 30-segment visualization and real-time dB display with status badges (Good/Quiet/Silent/Too Loud)
+   - **Input Level Sensitivity card** - Custom slider with coral accent, gradient fill, and animated thumb for visual gain adjustment
+   - **About Audio Capture card** - Privacy info about local processing
+
+2. **Supporting Components**:
+   - `AudioDevicePicker` - Custom dropdown with expand/collapse animation and hover states
+   - `AudioDeviceRow` - Individual device item with selection checkmarks
+   - `AudioLevelMeterView` - Color-coded 30-segment meter (coral→green→red)
+   - `CustomSlider` - Fully custom slider with gradient and drag states
+   - `AudioInfoRow` - Info section formatting
+
+3. **Integration**:
+   - Updated `SettingsWindowController` to accept `audioManager` parameter
+   - Updated `AppDelegate` to pass `audioManager` to settings
+   - Added Audio tab to TabView between General and Transcription
+
+### Commits:
+- `ecac9a1` - feat(US-406): add audio settings tab polish with design system integration
+- `81f7d72` - docs: update progress log for US-406
+
+### Verification:
+- `swift build` → PASS
+- Working tree is clean after commits

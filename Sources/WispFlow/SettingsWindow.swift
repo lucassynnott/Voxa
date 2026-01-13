@@ -431,7 +431,7 @@ struct DebugFeatureRow: View {
     }
 }
 
-// MARK: - Transcription Settings
+// MARK: - Transcription Settings (US-407 Polish)
 
 struct TranscriptionSettingsView: View {
     @ObservedObject var whisperManager: WhisperManager
@@ -439,93 +439,94 @@ struct TranscriptionSettingsView: View {
     @Binding var showDeleteConfirmation: Bool
     @Binding var modelToDelete: WhisperManager.ModelSize?
     @State private var showErrorAlert: Bool = false
+    @State private var selectedLanguage: TranscriptionLanguage = .automatic
     
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.lg) {
-                // Model selection card
+                // Hero section with current status
+                TranscriptionStatusHero(
+                    whisperManager: whisperManager,
+                    isLoadingModel: isLoadingModel
+                )
+                
+                // Model Selection card - Card-based picker (US-407)
                 VStack(alignment: .leading, spacing: Spacing.md) {
-                    Text("Whisper Model")
-                        .font(Font.Wispflow.headline)
-                        .foregroundColor(Color.Wispflow.textPrimary)
+                    HStack(spacing: Spacing.sm) {
+                        Image(systemName: "cpu")
+                            .foregroundColor(Color.Wispflow.accent)
+                            .font(.system(size: 16, weight: .medium))
+                        Text("Whisper Model")
+                            .font(Font.Wispflow.headline)
+                            .foregroundColor(Color.Wispflow.textPrimary)
+                    }
                     
                     Text("Select a model size. Larger models are more accurate but slower and use more memory.")
                         .font(Font.Wispflow.caption)
                         .foregroundColor(Color.Wispflow.textSecondary)
                     
-                    Picker("Model Size", selection: Binding(
-                        get: { whisperManager.selectedModel },
-                        set: { model in
-                            Task {
-                                await whisperManager.selectModel(model)
-                            }
-                        }
-                    )) {
+                    // Card-based model picker (US-407)
+                    VStack(spacing: Spacing.sm) {
                         ForEach(WhisperManager.ModelSize.allCases) { model in
-                            HStack {
-                                Text(model.displayName)
-                                    .foregroundColor(Color.Wispflow.textPrimary)
-                                if whisperManager.isModelDownloaded(model) {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(Color.Wispflow.success)
-                                        .font(.caption)
+                            ModelSelectionCard(
+                                model: model,
+                                isSelected: whisperManager.selectedModel == model,
+                                isDownloaded: whisperManager.isModelDownloaded(model),
+                                isActive: model == whisperManager.selectedModel && whisperManager.modelStatus == .ready,
+                                onSelect: {
+                                    Task {
+                                        await whisperManager.selectModel(model)
+                                    }
                                 }
-                            }
-                            .tag(model)
+                            )
                         }
                     }
-                    .pickerStyle(.radioGroup)
-                    
-                    // Model description
-                    Text(whisperManager.selectedModel.description)
-                        .font(Font.Wispflow.caption)
-                        .foregroundColor(Color.Wispflow.textSecondary)
-                        .padding(.leading, Spacing.xl)
                 }
                 .wispflowCard()
                 
-                // Status and Actions card
+                // Download & Load Actions card
                 VStack(alignment: .leading, spacing: Spacing.md) {
-                    // Status display
-                    HStack {
-                        Text("Status:")
-                            .font(Font.Wispflow.body)
-                            .foregroundColor(Color.Wispflow.textSecondary)
-                        
-                        StatusBadge(status: whisperManager.modelStatus)
+                    HStack(spacing: Spacing.sm) {
+                        Image(systemName: "arrow.down.circle")
+                            .foregroundColor(Color.Wispflow.accent)
+                            .font(.system(size: 16, weight: .medium))
+                        Text("Model Actions")
+                            .font(Font.Wispflow.headline)
+                            .foregroundColor(Color.Wispflow.textPrimary)
                     }
                     
+                    // Status message
                     Text(whisperManager.statusMessage)
-                        .font(Font.Wispflow.caption)
+                        .font(Font.Wispflow.body)
                         .foregroundColor(Color.Wispflow.textSecondary)
                     
-                    // US-304: Download progress bar (shown during download)
+                    // Download progress bar with gradient (US-407)
                     if case .downloading(let progress) = whisperManager.modelStatus {
-                        VStack(alignment: .leading, spacing: Spacing.xs) {
-                            // Custom gradient progress bar
-                            GeometryReader { geometry in
-                                ZStack(alignment: .leading) {
-                                    RoundedRectangle(cornerRadius: CornerRadius.small / 2)
-                                        .fill(Color.Wispflow.border)
-                                    RoundedRectangle(cornerRadius: CornerRadius.small / 2)
-                                        .fill(
-                                            LinearGradient(
-                                                colors: [Color.Wispflow.accent.opacity(0.8), Color.Wispflow.accent],
-                                                startPoint: .leading,
-                                                endPoint: .trailing
-                                            )
-                                        )
-                                        .frame(width: geometry.size.width * CGFloat(progress))
-                                }
+                        VStack(alignment: .leading, spacing: Spacing.sm) {
+                            // Progress percentage header
+                            HStack {
+                                Text("Downloading \(whisperManager.selectedModel.displayName.components(separatedBy: " ").first ?? "model")...")
+                                    .font(Font.Wispflow.body)
+                                    .foregroundColor(Color.Wispflow.textPrimary)
+                                Spacer()
+                                Text("\(Int(progress * 100))%")
+                                    .font(Font.Wispflow.mono)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(Color.Wispflow.accent)
                             }
-                            .frame(height: 8)
-                            .frame(maxWidth: 300)
                             
-                            Text("\(Int(progress * 100))% complete")
+                            // Gradient progress bar (US-407)
+                            GradientProgressBar(progress: progress)
+                                .frame(height: 10)
+                            
+                            // Estimated time/status
+                            Text("Please wait, this may take a few minutes...")
                                 .font(Font.Wispflow.small)
                                 .foregroundColor(Color.Wispflow.textSecondary)
                         }
-                        .padding(.top, Spacing.xs)
+                        .padding(Spacing.md)
+                        .background(Color.Wispflow.accentLight.opacity(0.5))
+                        .cornerRadius(CornerRadius.small)
                     }
                     
                     // Action buttons
@@ -536,14 +537,13 @@ struct TranscriptionSettingsView: View {
                                 isLoadingModel = true
                                 await whisperManager.loadModel()
                                 isLoadingModel = false
-                                // US-304: Show error alert if download failed
                                 if case .error = whisperManager.modelStatus {
                                     showErrorAlert = true
                                 }
                             }
                         }) {
                             HStack {
-                                if isLoadingModel {
+                                if isLoadingModel && whisperManager.modelStatus != .downloading(progress: 0) {
                                     ProgressView()
                                         .scaleEffect(0.7)
                                         .frame(width: 16, height: 16)
@@ -556,14 +556,13 @@ struct TranscriptionSettingsView: View {
                         .disabled(isLoadingModel || whisperManager.modelStatus == .ready)
                         .buttonStyle(WispflowButtonStyle.primary)
                         
-                        // US-304: Retry button (shown when there's an error)
+                        // Retry button (shown when there's an error)
                         if case .error = whisperManager.modelStatus {
                             Button(action: {
                                 Task {
                                     isLoadingModel = true
                                     await whisperManager.retryLoadModel()
                                     isLoadingModel = false
-                                    // Show error alert if retry also failed
                                     if case .error = whisperManager.modelStatus {
                                         showErrorAlert = true
                                     }
@@ -571,26 +570,25 @@ struct TranscriptionSettingsView: View {
                             }) {
                                 HStack {
                                     Image(systemName: "arrow.clockwise")
-                                    Text("Retry Download")
+                                    Text("Retry")
                                 }
                             }
                             .disabled(isLoadingModel)
                             .buttonStyle(WispflowButtonStyle.secondary)
                             
-                            // Show error details button
                             Button(action: {
                                 showErrorAlert = true
                             }) {
                                 HStack {
-                                    Image(systemName: "info.circle")
-                                    Text("Error Details")
+                                    Image(systemName: "exclamationmark.triangle")
+                                    Text("Details")
                                 }
                             }
                             .buttonStyle(WispflowButtonStyle.ghost)
                         }
                         
                         // Delete button (if model is downloaded)
-                        if whisperManager.isModelDownloaded(whisperManager.selectedModel) {
+                        if whisperManager.isModelDownloaded(whisperManager.selectedModel) && whisperManager.modelStatus != .downloading(progress: 0) {
                             Button(action: {
                                 modelToDelete = whisperManager.selectedModel
                                 showDeleteConfirmation = true
@@ -607,37 +605,37 @@ struct TranscriptionSettingsView: View {
                 }
                 .wispflowCard()
                 
-                // Downloaded Models card
+                // Language Selection card (US-407)
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    HStack(spacing: Spacing.sm) {
+                        Image(systemName: "globe")
+                            .foregroundColor(Color.Wispflow.accent)
+                            .font(.system(size: 16, weight: .medium))
+                        Text("Transcription Language")
+                            .font(Font.Wispflow.headline)
+                            .foregroundColor(Color.Wispflow.textPrimary)
+                    }
+                    
+                    Text("Select the language for speech recognition. Auto-detect works best for most cases.")
+                        .font(Font.Wispflow.caption)
+                        .foregroundColor(Color.Wispflow.textSecondary)
+                    
+                    // Language picker with flags (US-407)
+                    LanguagePicker(selectedLanguage: $selectedLanguage)
+                }
+                .wispflowCard()
+                
+                // About Whisper card
                 VStack(alignment: .leading, spacing: Spacing.sm) {
-                    Text("Downloaded Models")
+                    Text("About Whisper")
                         .font(Font.Wispflow.headline)
                         .foregroundColor(Color.Wispflow.textPrimary)
                     
-                    let downloadedModels = whisperManager.getDownloadedModels()
-                    if downloadedModels.isEmpty {
-                        Text("No models downloaded yet")
-                            .font(Font.Wispflow.caption)
-                            .foregroundColor(Color.Wispflow.textSecondary)
-                    } else {
-                        ForEach(downloadedModels) { model in
-                            HStack {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(Color.Wispflow.success)
-                                Text(model.displayName)
-                                    .font(Font.Wispflow.caption)
-                                    .foregroundColor(Color.Wispflow.textPrimary)
-                                Spacer()
-                                if model == whisperManager.selectedModel && whisperManager.modelStatus == .ready {
-                                    Text("Active")
-                                        .font(Font.Wispflow.small)
-                                        .padding(.horizontal, Spacing.sm)
-                                        .padding(.vertical, Spacing.xs)
-                                        .background(Color.Wispflow.accentLight)
-                                        .foregroundColor(Color.Wispflow.accent)
-                                        .cornerRadius(CornerRadius.small / 2)
-                                }
-                            }
-                        }
+                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                        TranscriptionFeatureRow(icon: "brain", text: "OpenAI's Whisper model for accurate speech recognition")
+                        TranscriptionFeatureRow(icon: "lock.shield", text: "All transcription happens locally on your device")
+                        TranscriptionFeatureRow(icon: "bolt", text: "Optimized for Apple Silicon with WhisperKit")
+                        TranscriptionFeatureRow(icon: "globe", text: "Supports 99+ languages and accents")
                     }
                 }
                 .wispflowCard()
@@ -647,7 +645,6 @@ struct TranscriptionSettingsView: View {
             .padding(Spacing.xl)
         }
         .background(Color.Wispflow.background)
-        // US-304: Error alert with detailed message
         .alert("Download Failed", isPresented: $showErrorAlert) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -688,6 +685,594 @@ struct TranscriptionSettingsView: View {
             return "play.circle"
         case .error:
             return "arrow.clockwise"
+        }
+    }
+}
+
+// MARK: - Transcription Status Hero (US-407)
+
+/// Hero section showing current transcription model status at a glance
+struct TranscriptionStatusHero: View {
+    @ObservedObject var whisperManager: WhisperManager
+    let isLoadingModel: Bool
+    
+    var body: some View {
+        HStack(spacing: Spacing.lg) {
+            // Status icon with animation
+            ZStack {
+                Circle()
+                    .fill(statusBackgroundColor.opacity(0.15))
+                    .frame(width: 64, height: 64)
+                
+                if isLoadingModel || whisperManager.modelStatus == .loading {
+                    ProgressView()
+                        .scaleEffect(1.2)
+                } else {
+                    Image(systemName: statusIconName)
+                        .font(.system(size: 28, weight: .medium))
+                        .foregroundColor(statusBackgroundColor)
+                }
+            }
+            
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text(statusTitle)
+                    .font(Font.Wispflow.title)
+                    .foregroundColor(Color.Wispflow.textPrimary)
+                
+                Text(statusSubtitle)
+                    .font(Font.Wispflow.body)
+                    .foregroundColor(Color.Wispflow.textSecondary)
+                
+                // Model badge
+                ModelStatusBadge(status: whisperManager.modelStatus)
+                    .padding(.top, Spacing.xs)
+            }
+            
+            Spacer()
+        }
+        .wispflowCard()
+    }
+    
+    private var statusTitle: String {
+        switch whisperManager.modelStatus {
+        case .ready:
+            return "Ready to Transcribe"
+        case .loading:
+            return "Loading Model..."
+        case .downloading:
+            return "Downloading Model..."
+        case .downloaded:
+            return "Model Downloaded"
+        case .notDownloaded:
+            return "No Model Loaded"
+        case .error:
+            return "Model Error"
+        }
+    }
+    
+    private var statusSubtitle: String {
+        switch whisperManager.modelStatus {
+        case .ready:
+            return "Using \(whisperManager.selectedModel.displayName.components(separatedBy: " ").first ?? "Whisper") model"
+        case .loading:
+            return "Please wait..."
+        case .downloading(let progress):
+            return "\(Int(progress * 100))% complete"
+        case .downloaded:
+            return "Ready to load"
+        case .notDownloaded:
+            return "Select and download a model to begin"
+        case .error:
+            return "Failed to load model"
+        }
+    }
+    
+    private var statusIconName: String {
+        switch whisperManager.modelStatus {
+        case .ready:
+            return "checkmark.circle.fill"
+        case .loading, .downloading:
+            return "arrow.down.circle"
+        case .downloaded:
+            return "checkmark.circle"
+        case .notDownloaded:
+            return "arrow.down.circle"
+        case .error:
+            return "exclamationmark.triangle.fill"
+        }
+    }
+    
+    private var statusBackgroundColor: Color {
+        switch whisperManager.modelStatus {
+        case .ready:
+            return Color.Wispflow.success
+        case .loading, .downloading, .downloaded:
+            return Color.Wispflow.accent
+        case .notDownloaded:
+            return Color.Wispflow.textSecondary
+        case .error:
+            return Color.Wispflow.error
+        }
+    }
+}
+
+// MARK: - Model Selection Card (US-407)
+
+/// Card-based model picker item with elegant design
+struct ModelSelectionCard: View {
+    let model: WhisperManager.ModelSize
+    let isSelected: Bool
+    let isDownloaded: Bool
+    let isActive: Bool
+    let onSelect: () -> Void
+    
+    @State private var isHovering = false
+    
+    // Model metadata
+    private var modelInfo: (size: String, speed: String, accuracy: String, icon: String) {
+        switch model {
+        case .tiny:
+            return ("~75 MB", "Fastest", "Basic", "hare")
+        case .base:
+            return ("~140 MB", "Fast", "Good", "tortoise")
+        case .small:
+            return ("~460 MB", "Medium", "Great", "gauge.with.dots.needle.33percent")
+        case .medium:
+            return ("~1.5 GB", "Slower", "Best", "gauge.with.dots.needle.67percent")
+        }
+    }
+    
+    var body: some View {
+        Button(action: onSelect) {
+            HStack(spacing: Spacing.md) {
+                // Model icon
+                ZStack {
+                    RoundedRectangle(cornerRadius: CornerRadius.small)
+                        .fill(isSelected ? Color.Wispflow.accentLight : Color.Wispflow.border.opacity(0.3))
+                        .frame(width: 44, height: 44)
+                    
+                    Image(systemName: modelInfo.icon)
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(isSelected ? Color.Wispflow.accent : Color.Wispflow.textSecondary)
+                }
+                
+                // Model info
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    HStack(spacing: Spacing.sm) {
+                        Text(model.displayName.components(separatedBy: " (").first ?? model.rawValue.capitalized)
+                            .font(Font.Wispflow.body)
+                            .fontWeight(.medium)
+                            .foregroundColor(Color.Wispflow.textPrimary)
+                        
+                        // Status badge (US-407)
+                        if isActive {
+                            ModelCardBadge(text: "Active", color: Color.Wispflow.success)
+                        } else if isDownloaded {
+                            ModelCardBadge(text: "Downloaded", color: Color.Wispflow.accent)
+                        }
+                    }
+                    
+                    // Model specs
+                    HStack(spacing: Spacing.md) {
+                        ModelSpec(icon: "internaldrive", text: modelInfo.size)
+                        ModelSpec(icon: "speedometer", text: modelInfo.speed)
+                        ModelSpec(icon: "star", text: modelInfo.accuracy)
+                    }
+                }
+                
+                Spacer()
+                
+                // Selection indicator
+                ZStack {
+                    Circle()
+                        .stroke(isSelected ? Color.Wispflow.accent : Color.Wispflow.border, lineWidth: 2)
+                        .frame(width: 22, height: 22)
+                    
+                    if isSelected {
+                        Circle()
+                            .fill(Color.Wispflow.accent)
+                            .frame(width: 14, height: 14)
+                    }
+                }
+            }
+            .padding(Spacing.md)
+            .background(
+                RoundedRectangle(cornerRadius: CornerRadius.medium)
+                    .fill(isHovering ? Color.Wispflow.border.opacity(0.2) : Color.Wispflow.surface)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: CornerRadius.medium)
+                    .stroke(isSelected ? Color.Wispflow.accent : Color.Wispflow.border.opacity(0.5), lineWidth: isSelected ? 2 : 1)
+            )
+            .shadow(
+                color: isSelected ? Color.Wispflow.accent.opacity(0.15) : Color.clear,
+                radius: 8,
+                x: 0,
+                y: 2
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovering = hovering
+            }
+        }
+    }
+}
+
+// MARK: - Model Card Badge (US-407)
+
+/// Small badge for model card status indicators
+struct ModelCardBadge: View {
+    let text: String
+    let color: Color
+    
+    var body: some View {
+        Text(text)
+            .font(Font.Wispflow.small)
+            .fontWeight(.medium)
+            .foregroundColor(color)
+            .padding(.horizontal, Spacing.sm)
+            .padding(.vertical, 2)
+            .background(color.opacity(0.15))
+            .cornerRadius(CornerRadius.small / 2)
+    }
+}
+
+// MARK: - Model Spec (US-407)
+
+/// Small spec indicator for model cards
+struct ModelSpec: View {
+    let icon: String
+    let text: String
+    
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 10))
+                .foregroundColor(Color.Wispflow.textSecondary)
+            Text(text)
+                .font(Font.Wispflow.small)
+                .foregroundColor(Color.Wispflow.textSecondary)
+        }
+    }
+}
+
+// MARK: - Model Status Badge (US-407)
+
+/// Enhanced status badge for transcription model
+struct ModelStatusBadge: View {
+    let status: WhisperManager.ModelStatus
+    
+    var body: some View {
+        HStack(spacing: Spacing.xs) {
+            // Animated dot for certain states
+            if case .downloading = status {
+                Circle()
+                    .fill(statusColor)
+                    .frame(width: 8, height: 8)
+                    .opacity(0.8)
+            } else if status == .loading {
+                Circle()
+                    .fill(statusColor)
+                    .frame(width: 8, height: 8)
+            } else {
+                Circle()
+                    .fill(statusColor)
+                    .frame(width: 8, height: 8)
+            }
+            
+            Text(statusText)
+                .font(Font.Wispflow.caption)
+                .fontWeight(.medium)
+                .foregroundColor(statusColor)
+        }
+        .padding(.horizontal, Spacing.sm)
+        .padding(.vertical, Spacing.xs)
+        .background(statusColor.opacity(0.12))
+        .cornerRadius(CornerRadius.small)
+    }
+    
+    private var statusColor: Color {
+        switch status {
+        case .notDownloaded:
+            return Color.Wispflow.textSecondary
+        case .downloading, .loading:
+            return Color.Wispflow.warning
+        case .downloaded:
+            return Color.Wispflow.accent
+        case .ready:
+            return Color.Wispflow.success
+        case .error:
+            return Color.Wispflow.error
+        }
+    }
+    
+    private var statusText: String {
+        switch status {
+        case .notDownloaded:
+            return "Not Downloaded"
+        case .downloading(let progress):
+            return "Downloading \(Int(progress * 100))%"
+        case .downloaded:
+            return "Downloaded"
+        case .loading:
+            return "Loading"
+        case .ready:
+            return "Ready"
+        case .error:
+            return "Error"
+        }
+    }
+}
+
+// MARK: - Gradient Progress Bar (US-407)
+
+/// Elegant gradient progress bar for downloads
+struct GradientProgressBar: View {
+    let progress: Double
+    
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .leading) {
+                // Background track
+                RoundedRectangle(cornerRadius: 5)
+                    .fill(Color.Wispflow.border)
+                
+                // Gradient fill
+                RoundedRectangle(cornerRadius: 5)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.Wispflow.accent.opacity(0.7),
+                                Color.Wispflow.accent,
+                                Color.Wispflow.accent.opacity(0.9)
+                            ],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(width: max(0, geometry.size.width * CGFloat(progress)))
+                    .animation(.easeOut(duration: 0.3), value: progress)
+                
+                // Shimmer effect overlay (subtle)
+                if progress > 0 && progress < 1 {
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(0),
+                                    Color.white.opacity(0.3),
+                                    Color.white.opacity(0)
+                                ],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(width: max(0, geometry.size.width * CGFloat(progress)))
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Transcription Language (US-407)
+
+/// Supported transcription languages with flags
+enum TranscriptionLanguage: String, CaseIterable, Identifiable {
+    case automatic = "auto"
+    case english = "en"
+    case spanish = "es"
+    case french = "fr"
+    case german = "de"
+    case italian = "it"
+    case portuguese = "pt"
+    case japanese = "ja"
+    case chinese = "zh"
+    case korean = "ko"
+    case russian = "ru"
+    case arabic = "ar"
+    
+    var id: String { rawValue }
+    
+    var displayName: String {
+        switch self {
+        case .automatic: return "Auto-Detect"
+        case .english: return "English"
+        case .spanish: return "Spanish"
+        case .french: return "French"
+        case .german: return "German"
+        case .italian: return "Italian"
+        case .portuguese: return "Portuguese"
+        case .japanese: return "Japanese"
+        case .chinese: return "Chinese"
+        case .korean: return "Korean"
+        case .russian: return "Russian"
+        case .arabic: return "Arabic"
+        }
+    }
+    
+    var flag: String {
+        switch self {
+        case .automatic: return "🌐"
+        case .english: return "🇺🇸"
+        case .spanish: return "🇪🇸"
+        case .french: return "🇫🇷"
+        case .german: return "🇩🇪"
+        case .italian: return "🇮🇹"
+        case .portuguese: return "🇵🇹"
+        case .japanese: return "🇯🇵"
+        case .chinese: return "🇨🇳"
+        case .korean: return "🇰🇷"
+        case .russian: return "🇷🇺"
+        case .arabic: return "🇸🇦"
+        }
+    }
+}
+
+// MARK: - Language Picker (US-407)
+
+/// Elegant language picker with flags
+struct LanguagePicker: View {
+    @Binding var selectedLanguage: TranscriptionLanguage
+    @State private var isExpanded = false
+    @State private var isHovering = false
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Selected language display / dropdown trigger
+            Button(action: {
+                withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                    isExpanded.toggle()
+                }
+            }) {
+                HStack(spacing: Spacing.md) {
+                    // Flag
+                    Text(selectedLanguage.flag)
+                        .font(.system(size: 24))
+                    
+                    // Language name
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(selectedLanguage.displayName)
+                            .font(Font.Wispflow.body)
+                            .foregroundColor(Color.Wispflow.textPrimary)
+                        
+                        if selectedLanguage == .automatic {
+                            Text("Recommended for mixed-language content")
+                                .font(Font.Wispflow.small)
+                                .foregroundColor(Color.Wispflow.textSecondary)
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    // Dropdown indicator
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                }
+                .padding(Spacing.md)
+                .background(
+                    RoundedRectangle(cornerRadius: CornerRadius.medium)
+                        .fill(isHovering ? Color.Wispflow.border.opacity(0.3) : Color.Wispflow.surface)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: CornerRadius.medium)
+                        .stroke(isExpanded ? Color.Wispflow.accent : Color.Wispflow.border, lineWidth: 1)
+                )
+            }
+            .buttonStyle(.plain)
+            .onHover { hovering in
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    isHovering = hovering
+                }
+            }
+            
+            // Dropdown list
+            if isExpanded {
+                ScrollView {
+                    VStack(spacing: 0) {
+                        ForEach(TranscriptionLanguage.allCases) { language in
+                            LanguageRow(
+                                language: language,
+                                isSelected: language == selectedLanguage,
+                                onSelect: {
+                                    selectedLanguage = language
+                                    withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                                        isExpanded = false
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+                .frame(maxHeight: 250)
+                .background(Color.Wispflow.surface)
+                .cornerRadius(CornerRadius.medium)
+                .overlay(
+                    RoundedRectangle(cornerRadius: CornerRadius.medium)
+                        .stroke(Color.Wispflow.border, lineWidth: 1)
+                )
+                .wispflowShadow(.card)
+                .padding(.top, Spacing.xs)
+                .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .top)))
+            }
+        }
+    }
+}
+
+// MARK: - Language Row (US-407)
+
+/// Single row in the language picker
+struct LanguageRow: View {
+    let language: TranscriptionLanguage
+    let isSelected: Bool
+    let onSelect: () -> Void
+    
+    @State private var isHovering = false
+    
+    var body: some View {
+        Button(action: onSelect) {
+            HStack(spacing: Spacing.md) {
+                // Flag
+                Text(language.flag)
+                    .font(.system(size: 20))
+                
+                // Language name
+                Text(language.displayName)
+                    .font(Font.Wispflow.body)
+                    .foregroundColor(isSelected ? Color.Wispflow.accent : Color.Wispflow.textPrimary)
+                
+                if language == .automatic {
+                    Text("Recommended")
+                        .font(Font.Wispflow.small)
+                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .padding(.horizontal, Spacing.sm)
+                        .padding(.vertical, 2)
+                        .background(Color.Wispflow.border.opacity(0.5))
+                        .cornerRadius(CornerRadius.small / 2)
+                }
+                
+                Spacer()
+                
+                // Selected checkmark
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(Color.Wispflow.accent)
+                }
+            }
+            .padding(Spacing.md)
+            .background(
+                RoundedRectangle(cornerRadius: CornerRadius.small)
+                    .fill(isHovering ? Color.Wispflow.accentLight : Color.clear)
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.1)) {
+                isHovering = hovering
+            }
+        }
+    }
+}
+
+// MARK: - Transcription Feature Row (US-407)
+
+/// Feature row for the About Whisper section
+struct TranscriptionFeatureRow: View {
+    let icon: String
+    let text: String
+    
+    var body: some View {
+        HStack(spacing: Spacing.sm) {
+            Image(systemName: icon)
+                .foregroundColor(Color.Wispflow.textSecondary)
+                .frame(width: 16)
+            Text(text)
+                .font(Font.Wispflow.caption)
+                .foregroundColor(Color.Wispflow.textSecondary)
         }
     }
 }

@@ -136,13 +136,13 @@ As a user, I want the Audio settings to be visually refined.
 - [x] Input gain slider with custom styling
 - [x] Visual meter showing current input level
 
-### [ ] US-407: Transcription Settings Tab Polish
+### [x] US-407: Transcription Settings Tab Polish
 As a user, I want the Transcription settings to look premium.
-- Model selector as elegant card-based picker
-- Download progress with gradient bar
-- Model status badges (Downloaded, Ready, Error)
-- Language selector with flag icons
-- Clear visual hierarchy
+- [x] Model selector as elegant card-based picker
+- [x] Download progress with gradient bar
+- [x] Model status badges (Downloaded, Ready, Error)
+- [x] Language selector with flag icons
+- [x] Clear visual hierarchy
 
 ### [ ] US-408: Text Cleanup Settings Tab Polish
 As a user, I want the Text Cleanup settings beautifully designed.

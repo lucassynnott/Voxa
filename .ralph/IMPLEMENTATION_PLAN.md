@@ -385,27 +385,64 @@ As a user, I want the Audio settings to be visually refined.
 ### US-407: Transcription Settings Tab Polish
 As a user, I want the Transcription settings to look premium.
 
-- [ ] Redesign model selector as card-based picker
+- [x] Redesign model selector as card-based picker
   - Scope: Modify `TranscriptionSettingsView` Picker in SettingsWindow.swift
   - Replace radio group with card-based selection
   - Each model as a card with name, size, and download status
   - Selected card has coral border
-  - Acceptance: Model selection uses elegant card UI
-  - Verification: `swift build` passes
+  - Acceptance: Model selection uses elegant card UI ✓
+  - Verification: `swift build` passes ✓
 
-- [ ] Style progress bar with gradient fill
+- [x] Style progress bar with gradient fill
   - Scope: Modify download progress ProgressView in TranscriptionSettingsView
   - Use coral gradient fill instead of system blue
   - Add percentage text styled with design system
-  - Acceptance: Download progress shows coral gradient
-  - Verification: `swift build` passes
+  - Acceptance: Download progress shows coral gradient ✓
+  - Verification: `swift build` passes ✓
 
-- [ ] Improve model status badges
+- [x] Improve model status badges
   - Scope: Modify `StatusBadge` in SettingsWindow.swift
   - Use design system colors: coral for error, sage for ready
   - Improve badge styling with proper padding
-  - Acceptance: Status badges use design system colors
-  - Verification: `swift build` passes
+  - Acceptance: Status badges use design system colors ✓
+  - Verification: `swift build` passes ✓
+
+- [x] Add language selector with flag icons
+  - Scope: Add `LanguagePicker` component in TranscriptionSettingsView
+  - Support 12+ languages with emoji flags
+  - Auto-detect as default option
+  - Elegant dropdown with hover states
+  - Acceptance: Language selector displays flags and is functional ✓
+  - Verification: `swift build` passes ✓
+
+- [x] Create hero status section
+  - Scope: Add `TranscriptionStatusHero` component
+  - Shows current transcription status at a glance
+  - Large status icon with contextual colors
+  - Status badge and description
+  - Acceptance: Hero section provides clear visual hierarchy ✓
+  - Verification: `swift build` passes ✓
+
+**Implementation Notes (US-407):**
+- Completely redesigned TranscriptionSettingsView with 4 main sections:
+  1. TranscriptionStatusHero - Hero section with status icon, title, subtitle and badge
+  2. Model Selection Card Grid - Card-based picker with ModelSelectionCard components
+  3. Model Actions Card - Download/load controls with GradientProgressBar
+  4. Language Selection Card - LanguagePicker with flag emoji support
+- Created new components:
+  - TranscriptionStatusHero: Shows current model status prominently
+  - ModelSelectionCard: Card-based model picker with specs (size/speed/accuracy)
+  - ModelCardBadge: Small status badges (Active, Downloaded)
+  - ModelSpec: Compact model specification display
+  - ModelStatusBadge: Enhanced status badge with colors for all states
+  - GradientProgressBar: Elegant progress bar with shimmer effect
+  - TranscriptionLanguage enum: 12 supported languages with emoji flags
+  - LanguagePicker: Dropdown picker with flag icons
+  - LanguageRow: Individual language option in picker
+  - TranscriptionFeatureRow: Feature list item for About section
+- Fixed model enum to use .medium instead of .large (matching WhisperManager.ModelSize)
+- All components use design system colors, fonts, spacing, and corner radius
+- Hover states and animations throughout for premium feel
 
 ---
 
