@@ -963,3 +963,62 @@ Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260113-193017-47944-it
   - Making `lastErrorMessage` publicly settable allows external components to set error info
 ---
 
+
+## [2026-01-13 20:30] - US-306: Audio Debug Export
+Thread: codex exec session
+Run: 20260113-193017-47944 (iteration 6)
+Run log: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260113-193017-47944-iter-6.log
+Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260113-193017-47944-iter-6.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: 3cab35e feat(US-306): add audio debug export with auto-save, playback, and detailed logging
+- Post-commit status: clean
+- Verification:
+  - Command: `swift build` -> PASS (build complete, no errors)
+- Files changed:
+  - Sources/WispFlow/AudioExporter.swift (enhanced with auto-save, playback, detailed logging)
+  - Sources/WispFlow/DebugManager.swift (added isAutoSaveEnabled property)
+  - Sources/WispFlow/SettingsWindow.swift (new debug export UI controls)
+  - Sources/WispFlow/AppDelegate.swift (auto-save integration)
+  - .agents/tasks/prd-v4.md (mark US-306 and all acceptance criteria complete)
+  - .ralph/IMPLEMENTATION_PLAN.md (update task status for US-306)
+- What was implemented:
+  - Add "Export Last Recording" button in debug settings:
+    - Existing "Export Audio" button with NSSavePanel
+    - New "Quick Export" button that saves directly to Documents folder
+    - "Show in Finder" button to reveal exported file
+  - Save masterBuffer to WAV file in Documents folder:
+    - Added `exportToDocuments()` method that saves to ~/Documents/WispFlow/DebugRecordings/
+    - Added `getDebugRecordingsDirectory()` helper that creates directory if needed
+    - Files saved with timestamp: WispFlow_Recording_YYYY-MM-DD_HH-mm-ss.wav
+  - Show file path after export:
+    - Added `ExportDetails` struct with sample count, duration, file size, path
+    - Added `lastExportDetails` and `lastExportedURL` published properties
+    - Inline display of last export path in Debug Settings
+    - Enhanced alert with "Show in Finder" and "Play Audio" buttons
+  - Allow playback of exported file:
+    - Added AVAudioPlayer integration with AVAudioPlayerDelegate
+    - AudioExporter now inherits from NSObject for delegate conformance
+    - Added `playLastExport()`, `playFile(at:)`, `stopPlayback()` methods
+    - Added Play/Stop toggle button with dynamic icon (play.fill/stop.fill)
+    - Added `isPlaying` published property for UI state
+    - Added `onPlaybackComplete` callback for UI updates
+  - Log export success/failure:
+    - Added `logExportSuccess()` with boxed output: sample count, duration, sample rate, file size, path
+    - Added `logExportFailure()` with reason for failure
+    - All logs tagged with `[US-306]` prefix
+    - Logs print at start of export with target path
+  - Add option to auto-save recordings in debug mode:
+    - Added `isAutoSaveEnabled` to DebugManager with UserDefaults persistence
+    - Added "Auto-Save Recordings" toggle in Debug Settings
+    - Added "Open Recordings Folder" button when auto-save enabled
+    - Integrated in AppDelegate: auto-saves after storeAudioData when enabled
+    - Auto-save results logged to DebugManager with category .audio
+- **Learnings for future iterations:**
+  - AVAudioPlayerDelegate requires NSObject inheritance - use `class AudioExporter: NSObject`
+  - @Published properties in final class require `override init()` calling `super.init()`
+  - Export to Documents folder requires creating intermediate directories first
+  - File size formatting helps users understand export results (KB/MB)
+  - Separate Quick Export (to Documents) from Save Panel export gives flexibility
+  - Auto-save toggle provides hands-free debugging workflow for audio issues
+---
