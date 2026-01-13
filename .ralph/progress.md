@@ -701,3 +701,40 @@ Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260113-181417-30393-it
   - NSApplication.didBecomeActiveNotification + polling timer ensures permission detection even without explicit user action
   - Use x-apple.systempreferences: URL scheme for direct System Settings deep links
 ---
+
+## [2026-01-13 18:35] - US-205: Silence Detection Fix
+Thread: codex exec session
+Run: 20260113-181417-30393 (iteration 5)
+Run log: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260113-181417-30393-iter-5.log
+Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260113-181417-30393-iter-5.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: 05083da feat(US-205): improve silence detection with near-zero sample analysis
+- Post-commit status: clean
+- Verification:
+  - Command: `swift build` -> PASS (build complete, no errors)
+- Files changed:
+  - Sources/WispFlow/AudioManager.swift (improved silence detection with nearZeroPercentage)
+  - Sources/WispFlow/AppDelegate.swift (show measured dB level, bypass silence check in debug mode)
+  - Sources/WispFlow/DebugManager.swift (add isSilenceDetectionDisabled toggle)
+  - Sources/WispFlow/SettingsWindow.swift (add silence detection disable toggle in debug settings)
+  - Sources/WispFlow/WhisperManager.swift (update -40dB to -55dB reference)
+  - Sources/WispFlow/DebugLogWindow.swift (update -40dB to -55dB quality threshold)
+  - .agents/tasks/prd-v3.md (mark US-205 complete)
+  - .ralph/IMPLEMENTATION_PLAN.md (update task status for US-205)
+- What was implemented:
+  - Improved silence detection: now requires BOTH peak < -55dB AND >95% near-zero samples
+  - Added nearZeroPercentage field to AudioBufferStats for more nuanced analysis
+  - Show actual measured dB level in silence warning dialog (e.g., "Measured level: -72.3dB, Threshold: -55dB")
+  - Added isSilenceDetectionDisabled toggle to DebugManager (persisted via UserDefaults)
+  - Added toggle in Debug Settings view to disable silence detection when debug mode is enabled
+  - Updated all -40dB references to -55dB for consistency across codebase
+  - Pass measuredDbLevel through onSilenceDetected callback for accurate error messages
+  - Bypass silence warning and proceed with transcription when debug mode has silence detection disabled
+- **Learnings for future iterations:**
+  - The -55dB threshold was already set in AudioManager and RecordingIndicatorWindow from previous commits
+  - Peak-only silence detection was too aggressive for speech with pauses - adding near-zero percentage check prevents false positives
+  - MainActor-isolated properties (like DebugManager) need DispatchQueue.main.async or Task { @MainActor } to access from non-main contexts
+  - Debug mode settings can provide useful bypass mechanisms for testing edge cases
+  - Always check existing code before implementing to avoid duplicate work (threshold was already -55dB)
+---
