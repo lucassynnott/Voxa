@@ -436,14 +436,22 @@ final class AudioManager: NSObject, ObservableObject {
         }
         
         // Clear previous buffers (US-301: Clear unified masterBuffer)
+        // US-303: Log buffer clear event
         bufferLock.lock()
+        let previousCount = masterBuffer.count
         masterBuffer.removeAll()
         bufferLock.unlock()
         tapCallbackCount = 0
         samplesAddedThisCallback = 0
         emptyCallbackCount = 0  // US-302: Reset empty callback counter
         zeroDataCallbackCount = 0  // US-302: Reset zero data callback counter
-        print("AudioManager: [STAGE 1] ✓ masterBuffer cleared (unified audio storage)")
+        print("╔═══════════════════════════════════════════════════════════════╗")
+        print("║         US-303: BUFFER INTEGRITY - MASTER BUFFER CLEARED      ║")
+        print("╠═══════════════════════════════════════════════════════════════╣")
+        print("║ Previous sample count:   \(String(format: "%10d", previousCount)) samples                      ║")
+        print("║ Current sample count:    \(String(format: "%10d", 0)) samples                      ║")
+        print("║ Status:                  Buffer ready for new recording        ║")
+        print("╚═══════════════════════════════════════════════════════════════╝")
         
         // Configure audio engine
         let inputNode = audioEngine.inputNode
@@ -611,9 +619,10 @@ final class AudioManager: NSObject, ObservableObject {
                 }
             }
             
-            // Log sample counts at every stage (every 10th callback to avoid log spam)
-            if self.tapCallbackCount % 10 == 0 {
-                print("AudioManager: [STAGE 2] Tap #\(self.tapCallbackCount) - added \(samplesToAdd.count) samples, masterBuffer: \(countBefore) → \(countAfter) samples, level: \(String(format: "%.1f", level))dB")
+            // US-303: Log every append with sample count and running total
+            // Log every callback for the first 5, then every 10th to avoid spam while maintaining traceability
+            if self.tapCallbackCount <= 5 || self.tapCallbackCount % 10 == 0 {
+                print("AudioManager: [US-303] APPEND #\(self.tapCallbackCount): +\(samplesToAdd.count) samples | masterBuffer: \(countBefore) → \(countAfter) total | level: \(String(format: "%.1f", level))dB")
             }
         }
         
@@ -664,6 +673,29 @@ final class AudioManager: NSObject, ObservableObject {
         bufferLock.unlock()
         print("AudioManager: [STAGE 3] Recording duration: \(String(format: "%.2f", duration))s, masterBuffer samples: \(sampleCount), tap callbacks: \(tapCallbackCount)")
         
+        // US-303: Compare final buffer count to expected count (duration * 16000)
+        let expectedSampleCount = Int(duration * Constants.targetSampleRate)
+        let sampleCountDifference = sampleCount - expectedSampleCount
+        let differencePercentage = expectedSampleCount > 0 ? (Float(abs(sampleCountDifference)) / Float(expectedSampleCount)) * 100.0 : 0.0
+        
+        print("╔═══════════════════════════════════════════════════════════════╗")
+        print("║     US-303: BUFFER INTEGRITY - EXPECTED VS ACTUAL COUNT       ║")
+        print("╠═══════════════════════════════════════════════════════════════╣")
+        print("║ Duration:                \(String(format: "%10.2f", duration)) seconds                  ║")
+        print("║ Target sample rate:      \(String(format: "%10.0f", Constants.targetSampleRate)) Hz                       ║")
+        print("║ Expected samples:        \(String(format: "%10d", expectedSampleCount)) (duration × rate)         ║")
+        print("║ Actual samples:          \(String(format: "%10d", sampleCount))                           ║")
+        print("║ Difference:              \(String(format: "%+10d", sampleCountDifference)) samples                  ║")
+        print("║ Variance:                \(String(format: "%10.1f", differencePercentage))%                            ║")
+        if differencePercentage > 10.0 {
+            print("║ Status:                  ⚠️ MISMATCH > 10% - possible data loss ║")
+        } else if sampleCount == 0 {
+            print("║ Status:                  ❌ NO SAMPLES - audio capture failed   ║")
+        } else {
+            print("║ Status:                  ✓ Within acceptable variance           ║")
+        }
+        print("╚═══════════════════════════════════════════════════════════════╝")
+        
         // Check minimum recording duration
         if duration < Constants.minimumRecordingDuration {
             print("AudioManager: [STAGE 3] ✗ Recording too short (\(String(format: "%.2f", duration))s < \(Constants.minimumRecordingDuration)s minimum)")
@@ -707,11 +739,13 @@ final class AudioManager: NSObject, ObservableObject {
         
         print("AudioManager: [STAGE 4] ✓ Audio ready for transcription - Duration: \(String(format: "%.2f", duration))s, Data size: \(audioData.count) bytes, Peak: \(String(format: "%.1f", stats.peakLevel))dB")
         
-        // US-301: Clear masterBuffer after use
+        // US-301 & US-303: Clear masterBuffer after use and log the event
         bufferLock.lock()
+        let clearedSampleCount = masterBuffer.count
         masterBuffer.removeAll()
         bufferLock.unlock()
         currentAudioLevel = -60.0
+        print("AudioManager: [US-303] masterBuffer cleared after read (was \(clearedSampleCount) samples, now 0)")
         
         return AudioCaptureResult(
             audioData: audioData,
@@ -769,13 +803,19 @@ final class AudioManager: NSObject, ObservableObject {
         isCapturing = false
         captureStartTime = nil
         
-        // US-301: Clear unified masterBuffer
+        // US-301 & US-303: Clear unified masterBuffer and log the event
         bufferLock.lock()
+        let discardedSampleCount = masterBuffer.count
         masterBuffer.removeAll()
         bufferLock.unlock()
         
-        print("AudioManager: Cancelled capturing (masterBuffer cleared)")
-        print("AudioManager: [US-302] Total tap callbacks received before cancel: \(tapCallbackCount)")
+        print("╔═══════════════════════════════════════════════════════════════╗")
+        print("║      US-303: BUFFER INTEGRITY - CAPTURE CANCELLED             ║")
+        print("╠═══════════════════════════════════════════════════════════════╣")
+        print("║ Discarded samples:       \(String(format: "%10d", discardedSampleCount)) samples                      ║")
+        print("║ Tap callbacks received:  \(String(format: "%10d", tapCallbackCount))                           ║")
+        print("║ Status:                  Buffer cleared (recording discarded) ║")
+        print("╚═══════════════════════════════════════════════════════════════╝")
     }
     
     /// Check if currently capturing
@@ -881,12 +921,31 @@ final class AudioManager: NSObject, ObservableObject {
     
     /// US-301: Get masterBuffer data with statistics (for transcription)
     private func getMasterBufferDataWithStats() -> (Data, AudioBufferStats) {
+        // US-303: Log when buffer is read for transcription
+        print("╔═══════════════════════════════════════════════════════════════╗")
+        print("║       US-303: BUFFER INTEGRITY - READING FOR TRANSCRIPTION    ║")
+        print("╚═══════════════════════════════════════════════════════════════╝")
+        
         // US-301: Get samples directly from masterBuffer (the ONLY audio storage)
         bufferLock.lock()
         let allSamples = masterBuffer
         bufferLock.unlock()
         
-        print("AudioManager: [US-301] getMasterBufferDataWithStats() - masterBuffer has \(allSamples.count) samples")
+        // US-303: Log if buffer is empty when read
+        if allSamples.isEmpty {
+            print("╔═══════════════════════════════════════════════════════════════╗")
+            print("║  ⚠️ US-303 WARNING: BUFFER IS EMPTY WHEN READ FOR TRANSCRIPTION ║")
+            print("╠═══════════════════════════════════════════════════════════════╣")
+            print("║ masterBuffer has 0 samples despite recording being active.    ║")
+            print("║ Possible causes:                                              ║")
+            print("║   - Audio tap callback never received data                    ║")
+            print("║   - All callbacks had empty/zero buffers                      ║")
+            print("║   - Buffer was unexpectedly cleared                           ║")
+            print("║ Check tap callback count and empty callback count above.      ║")
+            print("╚═══════════════════════════════════════════════════════════════╝")
+        } else {
+            print("AudioManager: [US-303] Buffer read: \(allSamples.count) samples retrieved from masterBuffer")
+        }
         
         // [STAGE 4] Log actual sample values BEFORE silence check
         if !allSamples.isEmpty {

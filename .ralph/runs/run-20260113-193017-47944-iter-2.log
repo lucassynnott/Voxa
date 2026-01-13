@@ -1,0 +1,17 @@
+US-302 has been successfully completed. There are still unchecked stories remaining in the PRD (US-303 through US-306), so this is not the final story.
+
+## Summary
+
+I implemented **US-302: Audio Tap Verification** with the following changes to `Sources/WispFlow/AudioManager.swift`:
+
+1. **Counter for tap callbacks received**: Added `tapCallbackCount`, `emptyCallbackCount`, and `zeroDataCallbackCount` properties to track different callback types.
+
+2. **First callback with full details**: Enhanced first tap callback logging with comprehensive boxed format showing input buffer (frame count, sample rate, channels), converted buffer details, and sample count extracted.
+
+3. **Every 10th callback logging**: Existing logging every 10th callback was already in place.
+
+4. **Empty/zero data logging**: Added detection for empty buffers (`emptyCallbackCount`) and buffers where ALL samples are near-zero (`zeroDataCallbackCount`), logging first occurrence immediately then every 10th.
+
+5. **2-second no-callback alert**: Added `noCallbackAlertTimer` that fires after 2 seconds and logs a prominent warning with possible causes if no callbacks were received. Added `onNoTapCallbacks` callback for external notification.
+
+6. **Added `logTapCallbackStats()`**: Logs comprehensive statistics after recording stops including total callbacks, callbacks/second, expected callbacks, and empty/zero-data counts.
