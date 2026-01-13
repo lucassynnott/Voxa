@@ -1,0 +1,13 @@
+There are 4 remaining unchecked stories in the PRD (US-202, US-203, US-204, US-205). Since I was only tasked with completing US-201 and there are other incomplete stories, I should NOT output the completion signal.
+
+## Summary
+
+Successfully implemented **US-201: Fix Accessibility Permission Detection** for WispFlow v0.3. The changes include:
+
+1. **TextInserter.swift**: Added `NSApplication.didBecomeActiveNotification` observer, 1-second polling timer, and changed `hasAccessibilityPermission` from computed to `@Published` property for reactive UI updates. Polling automatically stops once permission is granted.
+
+2. **SettingsWindow.swift**: Updated `TextInsertionSettingsView` with checkmark/x permission status indicators (green/red), a "Check Again" button for manual re-checks, step-by-step permission instructions, and an "Open System Settings" button. Added animated "Permission Granted!" success message when permission status changes.
+
+**Commits:**
+- `a360310` feat(US-201): implement accessibility permission detection fix
+- `0825599` docs: update progress log for US-201

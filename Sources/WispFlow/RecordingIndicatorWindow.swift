@@ -281,7 +281,7 @@ final class AudioLevelMeterView: NSView {
     private struct Constants {
         static let minDB: Float = -60.0
         static let maxDB: Float = 0.0
-        static let silenceThreshold: Float = -40.0  // Matches AudioManager threshold
+        static let silenceThreshold: Float = -55.0  // Matches AudioManager threshold (lowered from -40dB)
         static let cornerRadius: CGFloat = 2.0
     }
     

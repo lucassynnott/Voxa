@@ -148,7 +148,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 "Silent audio detected - recording appears to have no audio input",
                 category: .audio,
                 severity: .warning,
-                context: ["threshold": "-40dB"]
+                context: ["threshold": "\(Int(AudioManager.silenceThreshold))dB"]
             )
             self?.showSilenceWarning()
         }
@@ -169,7 +169,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DispatchQueue.main.async {
             let alert = NSAlert()
             alert.messageText = "No Audio Detected"
-            alert.informativeText = "The recording appears to be silent (below -40dB threshold). Please check that:\n• Your microphone is connected\n• The correct input device is selected in Settings\n• You're speaking into the microphone"
+            // Use actual threshold from AudioManager
+            let threshold = AudioManager.silenceThreshold
+            alert.informativeText = "The recording appears to be silent (below \(Int(threshold))dB threshold). Please check that:\n• Your microphone is connected\n• The correct input device is selected in Settings\n• You're speaking into the microphone"
             alert.alertStyle = .warning
             alert.addButton(withTitle: "Open Settings")
             alert.addButton(withTitle: "OK")

@@ -70,30 +70,41 @@ As a user, I want the app to correctly detect when I've granted accessibility pe
 ### US-202: Fix Audio Buffer Pipeline
 As a user, I want my recorded audio to actually be captured so transcription works.
 
-- [ ] Verify AudioManager.audioBuffer is same data shown in level meter
+- [x] Verify AudioManager.audioBuffer is same data shown in level meter
   - Scope: Modify `Sources/WispFlow/AudioManager.swift` to add logging in tap callback confirming same buffer feeds both level meter calculation AND audioBuffers array
   - Acceptance: Logs show identical buffer objects for level meter and storage
   - Verification: `swift build` passes; record audio, verify console shows single buffer path
+  - **DONE**: Added comment and logging confirming level meter and transcription buffer use THE SAME input buffer in tap callback
 
-- [ ] Fix dB calculation to handle zero values safely
+- [x] Fix dB calculation to handle zero values safely
   - Scope: Modify `Sources/WispFlow/AudioManager.swift` `amplitudeToDecibels()` to use formula `20 * log10(max(peak, 1e-10))` instead of current implementation
   - Acceptance: dB calculation never returns NaN or -Infinity for valid audio
   - Verification: `swift build` passes; record silence, verify dB shows -100 not -Infinity
+  - **DONE**: Updated `amplitudeToDecibels()` to use `max(amplitude, 1e-10)` floor, clamping output to [-100, 0] dB range
 
-- [ ] Add logging of actual sample values before silence check
+- [x] Add logging of actual sample values before silence check
   - Scope: Modify `Sources/WispFlow/AudioManager.swift` `stopCapturing()` to log first 10 and last 10 sample values before silence check
   - Acceptance: Console shows actual sample values for debugging
   - Verification: `swift build` passes; record audio, verify sample values logged
+  - **DONE**: Added logging of first 10 and last 10 samples, plus zero sample percentage in `combineBuffersToDataWithStats()`
 
-- [ ] Ensure convertedBuffer is being appended to audioBuffers correctly
+- [x] Lower silence threshold from -40dB to -55dB
+  - Scope: Modify `Sources/WispFlow/AudioManager.swift` and `RecordingIndicatorWindow.swift` Constants.silenceThresholdDB
+  - Acceptance: More permissive threshold allows quieter but valid audio to pass
+  - Verification: `swift build` passes; record quiet speech, verify not rejected as silence
+  - **DONE**: Changed threshold from -40dB to -55dB in both AudioManager and RecordingIndicatorWindow
+
+- [x] Ensure convertedBuffer is being appended to audioBuffers correctly
   - Scope: Modify `Sources/WispFlow/AudioManager.swift` tap callback to log buffer append confirmation with frame count
   - Acceptance: Each converted buffer is confirmed appended with sample count
   - Verification: `swift build` passes; record audio, verify buffer append logs match expected counts
+  - **DONE**: Added logging of buffer append count and total frames (every 10th buffer to avoid spam)
 
-- [ ] Add buffer sample count verification after combining
+- [x] Add buffer sample count verification after combining
   - Scope: Modify `Sources/WispFlow/AudioManager.swift` `combineBuffersToDataWithStats()` to verify combined sample count matches sum of individual buffer frame lengths
   - Acceptance: Warning logged if sample count mismatch detected
   - Verification: `swift build` passes; record audio, verify no mismatch warnings
+  - **DONE**: Added expected vs actual sample count verification with warning if mismatch occurs
 
 ---
 

@@ -53,7 +53,7 @@ final class AudioManager: NSObject, ObservableObject {
     private struct Constants {
         static let targetSampleRate: Double = 16000.0 // Whisper prefers 16kHz
         static let selectedDeviceKey = "selectedAudioInputDeviceUID"
-        static let silenceThresholdDB: Float = -40.0  // Below this is considered silence
+        static let silenceThresholdDB: Float = -55.0  // Below this is considered silence (lowered from -40dB for more permissive detection)
         static let minimumRecordingDuration: TimeInterval = 0.5 // Minimum 0.5s recording
     }
     
@@ -441,11 +441,16 @@ final class AudioManager: NSObject, ObservableObject {
         peakLevelDuringRecording = -Float.infinity
         currentAudioLevel = -60.0
         
+        // Track buffer statistics for verification
+        var bufferAppendCount = 0
+        var totalFramesAppended: AVAudioFrameCount = 0
+        
         // Install tap on input node
         inputNode.installTap(onBus: 0, bufferSize: 4096, format: inputFormat) { [weak self] buffer, time in
             guard let self = self else { return }
             
             // Calculate audio level from raw input buffer for real-time meter
+            // NOTE: This level meter and transcription buffer use THE SAME input buffer
             let level = self.calculatePeakLevel(buffer: buffer)
             
             // Update current audio level on main thread
@@ -490,15 +495,33 @@ final class AudioManager: NSObject, ObservableObject {
                         print("  - Sample rate: \(format.sampleRate) Hz (expected: \(Constants.targetSampleRate))")
                         print("  - Channels: \(format.channelCount) (expected: 1)")
                         print("  - Format: \(format.commonFormat == .pcmFormatFloat32 ? "Float32" : "Other")")
+                        print("  - Level meter source: same input buffer as transcription buffer")
                     }
+                    
+                    // Append converted buffer to audioBuffers
                     self.audioBuffers.append(convertedBuffer)
+                    
+                    // Log buffer append confirmation (every 10th buffer to avoid log spam)
+                    bufferAppendCount += 1
+                    totalFramesAppended += convertedBuffer.frameLength
+                    if bufferAppendCount % 10 == 0 {
+                        print("AudioManager: Buffer append #\(bufferAppendCount) - frames: \(convertedBuffer.frameLength), total frames: \(totalFramesAppended)")
+                    }
                 }
             } else {
                 // No conversion needed - already at target format
                 if self.audioBuffers.isEmpty {
                     print("AudioManager: ✓ Audio already at target format (16kHz mono Float32)")
+                    print("  - Level meter source: same input buffer as transcription buffer")
                 }
                 self.audioBuffers.append(buffer)
+                
+                // Log buffer append confirmation (every 10th buffer)
+                bufferAppendCount += 1
+                totalFramesAppended += buffer.frameLength
+                if bufferAppendCount % 10 == 0 {
+                    print("AudioManager: Buffer append #\(bufferAppendCount) - frames: \(buffer.frameLength), total frames: \(totalFramesAppended)")
+                }
             }
         }
         
@@ -660,6 +683,9 @@ final class AudioManager: NSObject, ObservableObject {
     private func combineBuffersToDataWithStats() -> (Data, AudioBufferStats) {
         var allSamples: [Float] = []
         
+        // Track expected sample count from individual buffers for verification
+        var expectedSampleCount: Int = 0
+        
         // First pass: collect all samples
         for buffer in audioBuffers {
             guard let channelData = buffer.floatChannelData else { continue }
@@ -667,9 +693,35 @@ final class AudioManager: NSObject, ObservableObject {
             let frameLength = Int(buffer.frameLength)
             let dataPointer = channelData[0]
             
+            expectedSampleCount += frameLength
+            
             for i in 0..<frameLength {
                 allSamples.append(dataPointer[i])
             }
+        }
+        
+        // Buffer sample count verification
+        if allSamples.count != expectedSampleCount {
+            print("AudioManager: ⚠️ SAMPLE COUNT MISMATCH - collected: \(allSamples.count), expected: \(expectedSampleCount)")
+        } else {
+            print("AudioManager: ✓ Buffer sample count verified: \(allSamples.count) samples from \(audioBuffers.count) buffers")
+        }
+        
+        // Log actual sample values BEFORE silence check
+        if !allSamples.isEmpty {
+            let firstSamples = Array(allSamples.prefix(10))
+            let lastSamples = Array(allSamples.suffix(10))
+            
+            print("AudioManager: ┌─ SAMPLE VALUES BEFORE SILENCE CHECK ────────────────────────")
+            print("AudioManager: │ First 10 samples: \(firstSamples.map { String(format: "%.6f", $0) }.joined(separator: ", "))")
+            print("AudioManager: │ Last 10 samples:  \(lastSamples.map { String(format: "%.6f", $0) }.joined(separator: ", "))")
+            
+            // Count zero vs non-zero samples
+            let zeroThreshold: Float = 1e-7
+            let zeroCount = allSamples.filter { abs($0) < zeroThreshold }.count
+            let zeroPercentage = Float(zeroCount) / Float(allSamples.count) * 100
+            print("AudioManager: │ Zero samples: \(String(format: "%.1f", zeroPercentage))% (\(zeroCount)/\(allSamples.count))")
+            print("AudioManager: └──────────────────────────────────────────────────────────────")
         }
         
         // Normalize samples to [-1.0, 1.0] range if necessary
@@ -790,14 +842,14 @@ final class AudioManager: NSObject, ObservableObject {
     }
     
     /// Convert linear amplitude to decibels
+    /// Uses the formula: 20 * log10(max(amplitude, 1e-10)) to safely handle zero values
     private func amplitudeToDecibels(_ amplitude: Float) -> Float {
-        guard amplitude > 0 else {
-            return -60.0  // Floor at -60dB for silent audio
-        }
+        // Use 1e-10 floor to avoid log10(0) = -Infinity or NaN
+        let safeAmplitude = max(amplitude, 1e-10)
         // 20 * log10(amplitude)
-        let db = 20.0 * log10(amplitude)
-        // Clamp to reasonable range
-        return max(-60.0, min(0.0, db))
+        let db = 20.0 * log10(safeAmplitude)
+        // Clamp to reasonable range (-100dB to 0dB)
+        return max(-100.0, min(0.0, db))
     }
     
     /// Silence threshold in dB

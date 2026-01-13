@@ -101,14 +101,14 @@ As a user, I want the app to correctly detect when I've granted accessibility pe
 - [x] Show real-time permission status with checkmark/x indicator
 - [x] Stop polling once permission is granted
 
-### [ ] US-202: Fix Audio Buffer Pipeline
+### [x] US-202: Fix Audio Buffer Pipeline
 As a user, I want my recorded audio to actually be captured so transcription works.
-- Verify AudioManager.audioBuffer is same data shown in level meter
-- Fix dB calculation to handle zero values: `20 * log10(max(peak, 1e-10))`
-- Add logging of actual sample values before silence check
-- Lower silence threshold from -40dB to -55dB
-- Ensure convertedBuffer is being appended to audioBuffer correctly
-- Add buffer sample count verification
+- [x] Verify AudioManager.audioBuffer is same data shown in level meter
+- [x] Fix dB calculation to handle zero values: `20 * log10(max(peak, 1e-10))`
+- [x] Add logging of actual sample values before silence check
+- [x] Lower silence threshold from -40dB to -55dB
+- [x] Ensure convertedBuffer is being appended to audioBuffer correctly
+- [x] Add buffer sample count verification
 
 ### [ ] US-203: Audio Capture Diagnostics
 As a developer, I want detailed audio diagnostics so I can debug capture issues.
