@@ -119,28 +119,38 @@ As a developer, I want a centralized design system so all UI components are cons
 ### US-402: Refined Menu Bar Experience
 As a user, I want an elegant menu bar presence that feels premium.
 
-- [ ] Update menu bar icon with custom tinting
+- [x] Update menu bar icon with custom tinting
   - Scope: Modify `Sources/WispFlow/StatusBarController.swift`
   - Use warm charcoal (#2D3436) tint for idle icon
   - Use coral (#E07A5F) tint for recording state
   - Keep existing SF Symbols but apply custom tinting
   - Acceptance: Menu bar icon uses warm colors instead of system defaults
-  - Verification: `swift build` passes
+  - Verification: `swift build` passes ✓
 
-- [ ] Redesign dropdown menu with warm styling
+- [x] Redesign dropdown menu with warm styling
   - Scope: Modify `Sources/WispFlow/StatusBarController.swift` setupMenu()
   - Apply warm ivory background if possible via NSAppearance
   - Add subtle icons to menu items (gear for settings, speaker for audio, power for quit)
   - Improve menu item typography with proper spacing
   - Acceptance: Menu has consistent styling with design system colors
-  - Verification: `swift build` passes
+  - Verification: `swift build` passes ✓
 
-- [ ] Add recording state visual feedback
+- [x] Add recording state visual feedback
   - Scope: Modify `Sources/WispFlow/StatusBarController.swift` updateIcon()
   - Pulsing effect on menu bar icon during recording (via NSTimer animation)
   - Coral tint during active recording
   - Acceptance: Menu bar icon pulses/glows when recording is active
-  - Verification: `swift build` passes
+  - Verification: `swift build` passes ✓
+
+**Implementation Notes (US-402):**
+- Added warm color tinting to menu bar icon using NSColor.Wispflow palette
+- Idle state uses warm charcoal (#2D3436) for ready icon, textSecondary for other states
+- Recording state uses coral accent (#E07A5F) with pulsing animation
+- Added icons to dropdown menu items: gear for Settings, mic for Audio Input, arrow.counterclockwise.circle for Launch at Login, power for Quit
+- Implemented pulse animation using Timer at 0.05s intervals with sine wave oscillation
+- Pulse varies alpha between 0.7-1.0 and adjusts coral brightness for glow effect
+- Created helper methods: createTintedStatusIcon(), createMenuIcon(), startPulseAnimation(), stopPulseAnimation()
+- Animation properly cleans up on state change and controller deallocation
 
 ---
 

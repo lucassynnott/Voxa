@@ -11,6 +11,10 @@ final class StatusBarController: NSObject {
     private var modelStatusObserver: AnyCancellable?
     private var currentModelStatus: WhisperManager.ModelStatus = .notDownloaded
     
+    // Animation timer for recording pulse effect
+    private var pulseTimer: Timer?
+    private var pulsePhase: CGFloat = 0
+    
     // Callback for when recording state changes
     var onRecordingStateChanged: ((RecordingState) -> Void)?
     
@@ -30,6 +34,10 @@ final class StatusBarController: NSObject {
     override init() {
         super.init()
         setupStatusItem()
+    }
+    
+    deinit {
+        stopPulseAnimation()
     }
     
     // MARK: - Setup
@@ -58,6 +66,9 @@ final class StatusBarController: NSObject {
         let menu = NSMenu()
         menu.delegate = self
         
+        // Apply warm appearance to menu
+        applyWarmMenuAppearance(to: menu)
+        
         // Model status item (non-clickable, just shows status)
         let modelStatusItem = NSMenuItem(title: "Model: Loading...", action: nil, keyEquivalent: "")
         modelStatusItem.tag = 100 // Tag to identify for updates
@@ -66,35 +77,66 @@ final class StatusBarController: NSObject {
         
         menu.addItem(NSMenuItem.separator())
         
-        // Settings item
+        // Settings item with gear icon
         let settingsItem = NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ",")
         settingsItem.target = self
+        settingsItem.image = createMenuIcon(systemName: "gearshape", tint: NSColor.Wispflow.textSecondary)
         menu.addItem(settingsItem)
         
         menu.addItem(NSMenuItem.separator())
         
-        // Audio Input Device submenu
+        // Audio Input Device submenu with speaker icon
         let audioDeviceItem = NSMenuItem(title: "Audio Input", action: nil, keyEquivalent: "")
+        audioDeviceItem.image = createMenuIcon(systemName: "mic", tint: NSColor.Wispflow.textSecondary)
         let audioDeviceSubmenu = NSMenu()
         audioDeviceItem.submenu = audioDeviceSubmenu
         menu.addItem(audioDeviceItem)
         
         menu.addItem(NSMenuItem.separator())
         
-        // Launch at login item
+        // Launch at login item with checkmark icon when enabled
         let launchAtLoginItem = NSMenuItem(title: "Launch at Login", action: #selector(toggleLaunchAtLogin(_:)), keyEquivalent: "")
         launchAtLoginItem.target = self
         launchAtLoginItem.state = isLaunchAtLoginEnabled() ? .on : .off
+        launchAtLoginItem.image = createMenuIcon(systemName: "arrow.counterclockwise.circle", tint: NSColor.Wispflow.textSecondary)
         menu.addItem(launchAtLoginItem)
         
         menu.addItem(NSMenuItem.separator())
         
-        // Quit item
+        // Quit item with power icon
         let quitItem = NSMenuItem(title: "Quit WispFlow", action: #selector(quitApp), keyEquivalent: "q")
         quitItem.target = self
+        quitItem.image = createMenuIcon(systemName: "power", tint: NSColor.Wispflow.textSecondary)
         menu.addItem(quitItem)
         
         statusItem?.menu = menu
+    }
+    
+    /// Apply warm ivory background tint to menu (limited by macOS API)
+    private func applyWarmMenuAppearance(to menu: NSMenu) {
+        // Note: NSMenu background customization is limited in macOS
+        // We apply tinting to menu item icons instead for warm feel
+        // The menu will use system appearance but icons use our warm palette
+    }
+    
+    /// Create a tinted SF Symbol image for menu items
+    private func createMenuIcon(systemName: String, tint: NSColor, pointSize: CGFloat = 13) -> NSImage? {
+        guard let image = NSImage(systemSymbolName: systemName, accessibilityDescription: nil) else {
+            return nil
+        }
+        
+        let config = NSImage.SymbolConfiguration(pointSize: pointSize, weight: .medium)
+        let configuredImage = image.withSymbolConfiguration(config)
+        
+        // Create a tinted version of the image
+        let tintedImage = configuredImage?.copy() as? NSImage
+        tintedImage?.lockFocus()
+        tint.set()
+        let imageRect = NSRect(origin: .zero, size: tintedImage?.size ?? .zero)
+        imageRect.fill(using: .sourceAtop)
+        tintedImage?.unlockFocus()
+        
+        return tintedImage
     }
     
     /// Update the model status menu item
@@ -201,35 +243,132 @@ final class StatusBarController: NSObject {
         // Determine the icon based on recording state and model status
         let iconName: String
         let tooltip: String
+        let iconTint: NSColor
         
         if recordingState == .recording {
-            // When recording, use recording icon
+            // When recording, use recording icon with coral accent
             iconName = recordingState.iconName
             tooltip = recordingState.accessibilityLabel
+            iconTint = NSColor.Wispflow.accent
+            
+            // Start pulsing animation for recording state
+            startPulseAnimation()
         } else {
+            // Stop pulsing animation when not recording
+            stopPulseAnimation()
+            
             // When idle, show model status in icon
             switch currentModelStatus {
             case .notDownloaded, .downloaded:
                 iconName = "waveform.slash"
                 tooltip = "WispFlow - Model not loaded"
+                iconTint = NSColor.Wispflow.textSecondary
             case .downloading(let progress):
                 iconName = "arrow.down.circle"
                 tooltip = "WispFlow - Downloading model (\(Int(progress * 100))%)"
+                iconTint = NSColor.Wispflow.accent
             case .loading:
                 iconName = "arrow.clockwise.circle"
                 tooltip = "WispFlow - Loading model..."
+                iconTint = NSColor.Wispflow.accent
             case .ready:
                 iconName = "waveform"
                 tooltip = "WispFlow - Ready"
+                iconTint = NSColor.Wispflow.textPrimary  // Warm charcoal for ready state
             case .error(let message):
                 iconName = "exclamationmark.triangle"
                 tooltip = "WispFlow - Error: \(message)"
+                iconTint = NSColor.Wispflow.error
             }
         }
         
-        let image = NSImage(systemSymbolName: iconName, accessibilityDescription: tooltip)
-        button.image = image?.withSymbolConfiguration(configuration)
+        // Create and apply the tinted icon
+        if let image = NSImage(systemSymbolName: iconName, accessibilityDescription: tooltip) {
+            button.image = createTintedStatusIcon(image: image, tint: iconTint, configuration: configuration)
+        }
         button.toolTip = tooltip
+    }
+    
+    /// Create a tinted status bar icon
+    private func createTintedStatusIcon(image: NSImage, tint: NSColor, configuration: NSImage.SymbolConfiguration) -> NSImage? {
+        guard let configuredImage = image.withSymbolConfiguration(configuration) else {
+            return image
+        }
+        
+        // Create a template image and apply tint
+        let tintedImage = configuredImage.copy() as? NSImage
+        tintedImage?.isTemplate = false
+        
+        guard let size = tintedImage?.size, size.width > 0, size.height > 0 else {
+            return tintedImage
+        }
+        
+        tintedImage?.lockFocus()
+        tint.set()
+        let imageRect = NSRect(origin: .zero, size: size)
+        imageRect.fill(using: .sourceAtop)
+        tintedImage?.unlockFocus()
+        
+        return tintedImage
+    }
+    
+    // MARK: - Pulse Animation for Recording State
+    
+    /// Start the pulsing glow animation for recording state
+    private func startPulseAnimation() {
+        // Don't start if already running
+        guard pulseTimer == nil else { return }
+        
+        pulsePhase = 0
+        pulseTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
+            self?.updatePulseEffect()
+        }
+    }
+    
+    /// Stop the pulsing animation
+    private func stopPulseAnimation() {
+        pulseTimer?.invalidate()
+        pulseTimer = nil
+        pulsePhase = 0
+        
+        // Reset button appearance
+        statusItem?.button?.alphaValue = 1.0
+    }
+    
+    /// Update the pulse effect (coral pulsing glow)
+    private func updatePulseEffect() {
+        guard let button = statusItem?.button else { return }
+        
+        // Increment phase for smooth sine wave animation
+        pulsePhase += 0.1
+        
+        // Calculate alpha value: oscillate between 0.7 and 1.0 for subtle pulse
+        let alpha = 0.85 + 0.15 * sin(pulsePhase)
+        button.alphaValue = CGFloat(alpha)
+        
+        // Re-tint the icon with varying intensity for glow effect
+        updateRecordingIconWithPulse(intensity: CGFloat(alpha))
+    }
+    
+    /// Update the recording icon with pulse intensity
+    private func updateRecordingIconWithPulse(intensity: CGFloat) {
+        guard let button = statusItem?.button,
+              recordingState == .recording else { return }
+        
+        let configuration = NSImage.SymbolConfiguration(pointSize: 16, weight: .medium)
+        let iconName = recordingState.iconName
+        
+        // Create coral color with varying brightness for pulse effect
+        let pulseColor = NSColor(
+            calibratedRed: NSColor.Wispflow.accent.redComponent * intensity + 0.1 * (1 - intensity),
+            green: NSColor.Wispflow.accent.greenComponent * intensity,
+            blue: NSColor.Wispflow.accent.blueComponent * intensity,
+            alpha: 1.0
+        )
+        
+        if let image = NSImage(systemSymbolName: iconName, accessibilityDescription: "Recording") {
+            button.image = createTintedStatusIcon(image: image, tint: pulseColor, configuration: configuration)
+        }
     }
     
     /// Get human-readable text for model status
