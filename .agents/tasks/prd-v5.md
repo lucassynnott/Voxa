@@ -121,13 +121,13 @@ As a user, I want a settings window that feels like a premium app.
 - [x] Input fields with focus glow
 - [x] Generous spacing throughout
 
-### [ ] US-405: General Settings Tab Polish
+### [x] US-405: General Settings Tab Polish
 As a user, I want the General settings to look beautiful.
-- Hotkey recorder with elegant focus state
-- Launch at Login toggle with description
-- App version display with subtle styling
-- "About WispFlow" section with logo
-- Links styled as subtle buttons
+- [x] Hotkey recorder with elegant focus state
+- [x] Launch at Login toggle with description
+- [x] App version display with subtle styling
+- [x] "About WispFlow" section with logo
+- [x] Links styled as subtle buttons
 
 ### [ ] US-406: Audio Settings Tab Polish
 As a user, I want the Audio settings to be visually refined.

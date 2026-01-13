@@ -292,28 +292,51 @@ As a user, I want a settings window that feels like a premium app.
 ### US-405: General Settings Tab Polish
 As a user, I want the General settings to look beautiful.
 
-- [ ] Style hotkey recorder with elegant focus state
-  - Scope: Modify `HotkeyRecorderView` in `Sources/WispFlow/SettingsWindow.swift` (lines ~1430+)
+- [x] Style hotkey recorder with elegant focus state
+  - Scope: Modify `HotkeyRecorderView` in `Sources/WispFlow/SettingsWindow.swift`
   - Add coral border glow on focus
   - Use design system colors for background/text
   - Rounded corners (12px)
-  - Acceptance: Hotkey recorder looks polished with focus glow
-  - Verification: `swift build` passes
+  - Acceptance: Hotkey recorder looks polished with focus glow ✓
+  - Verification: `swift build` passes ✓
 
-- [ ] Add About WispFlow section with logo
+- [x] Add About WispFlow section with logo
   - Scope: Modify `GeneralSettingsView` in `Sources/WispFlow/SettingsWindow.swift`
-  - Add app icon/logo display
+  - Add app icon/logo display using SF Symbol waveform.circle.fill with gradient
   - Show app name with design system largeTitle font
-  - Show version number styled subtly
-  - Acceptance: About section displays app branding
-  - Verification: `swift build` passes
+  - Show version number styled subtly with pill background
+  - Acceptance: About section displays app branding ✓
+  - Verification: `swift build` passes ✓
 
-- [ ] Style launch at login toggle
+- [x] Style launch at login toggle
   - Scope: Modify `GeneralSettingsView` toggle for launch at login
   - Add helpful description text below toggle
   - Use WispflowToggleStyle
-  - Acceptance: Toggle is styled consistently with description
-  - Verification: `swift build` passes
+  - Acceptance: Toggle is styled consistently with description ✓
+  - Verification: `swift build` passes ✓
+
+- [x] Add links styled as subtle buttons
+  - Scope: Created SubtleLinkButton component
+  - GitHub, Website, Support links with hover effects
+  - Uses design system colors and hover animations
+  - Acceptance: Links appear as elegant buttons with hover state ✓
+  - Verification: `swift build` passes ✓
+
+**Implementation Notes (US-405):**
+- Completely redesigned GeneralSettingsView with hero About section at top
+- Created app logo representation using SF Symbol waveform.circle.fill with gradient overlay
+- App name displayed in largeTitle font (28pt, bold, rounded)
+- Version number displayed with subtle pill-style background
+- Created SubtleLinkButton component with hover animations for GitHub/Website/Support links
+- Enhanced HotkeyRecorderView with:
+  - Pulsing coral dot animation when recording
+  - Command symbol icon with hover color change
+  - Coral glow shadow on focus/recording
+  - Scale animation on recording state
+  - Increased corner radius to medium (12px)
+- Launch at Login section now has icon header and indented description text
+- Global Hotkey section has keyboard icon header
+- All sections use consistent card styling with wispflowCard() modifier
 
 ---
 

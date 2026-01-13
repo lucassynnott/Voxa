@@ -1485,14 +1485,102 @@ struct GeneralSettingsView: View {
     @State private var isRecordingHotkey = false
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     
+    /// Get the app version from the bundle
+    private var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.5"
+    }
+    
+    /// Get the build number from the bundle
+    private var buildNumber: String {
+        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+    }
+    
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.lg) {
+                // About WispFlow card - Hero section with logo
+                VStack(spacing: Spacing.lg) {
+                    // Logo and branding
+                    VStack(spacing: Spacing.md) {
+                        // App Icon representation using SF Symbols
+                        ZStack {
+                            Circle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color.Wispflow.accent.opacity(0.15), Color.Wispflow.accent.opacity(0.05)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .frame(width: 80, height: 80)
+                            
+                            Image(systemName: "waveform.circle.fill")
+                                .font(.system(size: 44, weight: .medium))
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: [Color.Wispflow.accent, Color.Wispflow.accent.opacity(0.8)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                        }
+                        
+                        // App name with design system typography
+                        Text("WispFlow")
+                            .font(Font.Wispflow.largeTitle)
+                            .foregroundColor(Color.Wispflow.textPrimary)
+                        
+                        // Version display with subtle styling
+                        Text("Version \(appVersion)")
+                            .font(Font.Wispflow.caption)
+                            .foregroundColor(Color.Wispflow.textSecondary)
+                            .padding(.horizontal, Spacing.md)
+                            .padding(.vertical, Spacing.xs)
+                            .background(Color.Wispflow.border.opacity(0.5))
+                            .cornerRadius(CornerRadius.small / 2)
+                    }
+                    
+                    // Tagline
+                    Text("Voice-to-text dictation with AI-powered transcription and auto-editing. All processing happens locally on your device.")
+                        .font(Font.Wispflow.body)
+                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                    
+                    // Links styled as subtle buttons
+                    HStack(spacing: Spacing.md) {
+                        SubtleLinkButton(
+                            title: "GitHub",
+                            icon: "chevron.left.forwardslash.chevron.right",
+                            url: "https://github.com"
+                        )
+                        
+                        SubtleLinkButton(
+                            title: "Website",
+                            icon: "globe",
+                            url: "https://wispflow.app"
+                        )
+                        
+                        SubtleLinkButton(
+                            title: "Support",
+                            icon: "questionmark.circle",
+                            url: "https://wispflow.app/support"
+                        )
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .wispflowCard()
+                
                 // Hotkey configuration card
                 VStack(alignment: .leading, spacing: Spacing.md) {
-                    Text("Global Hotkey")
-                        .font(Font.Wispflow.headline)
-                        .foregroundColor(Color.Wispflow.textPrimary)
+                    HStack(spacing: Spacing.sm) {
+                        Image(systemName: "keyboard")
+                            .foregroundColor(Color.Wispflow.accent)
+                            .font(.system(size: 16, weight: .medium))
+                        Text("Global Hotkey")
+                            .font(Font.Wispflow.headline)
+                            .foregroundColor(Color.Wispflow.textPrimary)
+                    }
                     
                     Text("Press this keyboard shortcut from any app to start/stop voice recording.")
                         .font(Font.Wispflow.caption)
@@ -1509,53 +1597,55 @@ struct GeneralSettingsView: View {
                         Button(action: {
                             hotkeyManager.resetToDefault()
                         }) {
-                            Text("Reset")
+                            HStack(spacing: Spacing.xs) {
+                                Image(systemName: "arrow.counterclockwise")
+                                Text("Reset")
+                            }
                         }
                         .buttonStyle(WispflowButtonStyle.secondary)
                         .disabled(hotkeyManager.configuration == .defaultHotkey)
                     }
                     
                     if isRecordingHotkey {
-                        Text("Press your desired key combination...")
-                            .font(Font.Wispflow.caption)
-                            .foregroundColor(Color.Wispflow.accent)
+                        HStack(spacing: Spacing.sm) {
+                            ProgressView()
+                                .scaleEffect(0.6)
+                                .frame(width: 12, height: 12)
+                            Text("Press your desired key combination...")
+                                .font(Font.Wispflow.caption)
+                                .foregroundColor(Color.Wispflow.accent)
+                        }
+                        .transition(.opacity.combined(with: .move(edge: .top)))
                     }
                 }
                 .wispflowCard()
+                .animation(.easeInOut(duration: 0.2), value: isRecordingHotkey)
                 
                 // Launch at Login card
                 VStack(alignment: .leading, spacing: Spacing.md) {
-                    Text("Startup")
-                        .font(Font.Wispflow.headline)
-                        .foregroundColor(Color.Wispflow.textPrimary)
+                    HStack(spacing: Spacing.sm) {
+                        Image(systemName: "power")
+                            .foregroundColor(Color.Wispflow.accent)
+                            .font(.system(size: 16, weight: .medium))
+                        Text("Startup")
+                            .font(Font.Wispflow.headline)
+                            .foregroundColor(Color.Wispflow.textPrimary)
+                    }
                     
-                    Toggle("Launch WispFlow at Login", isOn: $launchAtLogin)
-                        .toggleStyle(WispflowToggleStyle())
-                        .font(Font.Wispflow.body)
-                        .foregroundColor(Color.Wispflow.textPrimary)
-                        .onChange(of: launchAtLogin) { _, newValue in
-                            setLaunchAtLogin(enabled: newValue)
-                        }
-                    
-                    Text("Automatically start WispFlow when you log in to your Mac.")
-                        .font(Font.Wispflow.caption)
-                        .foregroundColor(Color.Wispflow.textSecondary)
-                }
-                .wispflowCard()
-                
-                // About WispFlow card
-                VStack(alignment: .leading, spacing: Spacing.sm) {
-                    Text("About WispFlow")
-                        .font(Font.Wispflow.headline)
-                        .foregroundColor(Color.Wispflow.textPrimary)
-                    
-                    Text("Version 0.5")
-                        .font(Font.Wispflow.caption)
-                        .foregroundColor(Color.Wispflow.textSecondary)
-                    
-                    Text("Voice-to-text dictation with AI-powered transcription and auto-editing. All processing happens locally on your device.")
-                        .font(Font.Wispflow.caption)
-                        .foregroundColor(Color.Wispflow.textSecondary)
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        Toggle("Launch WispFlow at Login", isOn: $launchAtLogin)
+                            .toggleStyle(WispflowToggleStyle())
+                            .font(Font.Wispflow.body)
+                            .foregroundColor(Color.Wispflow.textPrimary)
+                            .onChange(of: launchAtLogin) { _, newValue in
+                                setLaunchAtLogin(enabled: newValue)
+                            }
+                        
+                        Text("Automatically start WispFlow when you log in to your Mac. WispFlow runs quietly in the menu bar.")
+                            .font(Font.Wispflow.caption)
+                            .foregroundColor(Color.Wispflow.textSecondary)
+                            .padding(.leading, Spacing.xxl + Spacing.md) // Align with toggle label
+                    }
                 }
                 .wispflowCard()
                 
@@ -1587,6 +1677,43 @@ struct GeneralSettingsView: View {
     }
 }
 
+// MARK: - Subtle Link Button
+
+/// A subtle button-styled link for the About section
+struct SubtleLinkButton: View {
+    let title: String
+    let icon: String
+    let url: String
+    
+    @State private var isHovering = false
+    
+    var body: some View {
+        Button(action: {
+            if let linkURL = URL(string: url) {
+                NSWorkspace.shared.open(linkURL)
+            }
+        }) {
+            HStack(spacing: Spacing.xs) {
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .medium))
+                Text(title)
+                    .font(Font.Wispflow.caption)
+            }
+            .foregroundColor(isHovering ? Color.Wispflow.accent : Color.Wispflow.textSecondary)
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.sm)
+            .background(isHovering ? Color.Wispflow.accentLight : Color.Wispflow.border.opacity(0.3))
+            .cornerRadius(CornerRadius.small)
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovering = hovering
+            }
+        }
+    }
+}
+
 // MARK: - Hotkey Recorder View
 
 struct HotkeyRecorderView: View {
@@ -1594,6 +1721,7 @@ struct HotkeyRecorderView: View {
     @Binding var isRecording: Bool
     @State private var localEventMonitor: Any?
     @State private var isHovering = false
+    @State private var pulseAnimation = false
     
     var body: some View {
         Button(action: {
@@ -1603,28 +1731,61 @@ struct HotkeyRecorderView: View {
                 startRecording()
             }
         }) {
-            HStack {
+            HStack(spacing: Spacing.sm) {
                 if isRecording {
-                    Image(systemName: "keyboard")
-                        .foregroundColor(Color.Wispflow.accent)
+                    // Animated recording indicator
+                    Circle()
+                        .fill(Color.Wispflow.accent)
+                        .frame(width: 8, height: 8)
+                        .scaleEffect(pulseAnimation ? 1.2 : 0.8)
+                        .opacity(pulseAnimation ? 1.0 : 0.6)
+                    
                     Text("Recording...")
+                        .font(Font.Wispflow.body)
+                        .fontWeight(.medium)
                         .foregroundColor(Color.Wispflow.accent)
                 } else {
+                    // Keyboard icon with subtle styling
+                    Image(systemName: "command")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(isHovering ? Color.Wispflow.accent : Color.Wispflow.textSecondary)
+                    
                     Text(hotkeyManager.hotkeyDisplayString)
                         .font(Font.Wispflow.mono)
+                        .fontWeight(.medium)
                         .foregroundColor(Color.Wispflow.textPrimary)
                 }
             }
-            .frame(minWidth: 140)
+            .frame(minWidth: 160)
             .padding(.horizontal, Spacing.lg)
-            .padding(.vertical, Spacing.sm)
-            .background(isRecording ? Color.Wispflow.accentLight : (isHovering ? Color.Wispflow.border.opacity(0.5) : Color.Wispflow.surface))
-            .cornerRadius(CornerRadius.small)
-            .overlay(
-                RoundedRectangle(cornerRadius: CornerRadius.small)
-                    .stroke(isRecording ? Color.Wispflow.accent : Color.Wispflow.border, lineWidth: isRecording ? 2 : 1)
+            .padding(.vertical, Spacing.md)
+            .background(
+                ZStack {
+                    // Base background
+                    RoundedRectangle(cornerRadius: CornerRadius.medium)
+                        .fill(isRecording ? Color.Wispflow.accentLight : (isHovering ? Color.Wispflow.border.opacity(0.3) : Color.Wispflow.surface))
+                    
+                    // Subtle inner shadow for depth
+                    if !isRecording {
+                        RoundedRectangle(cornerRadius: CornerRadius.medium)
+                            .stroke(Color.Wispflow.border.opacity(0.5), lineWidth: 1)
+                    }
+                }
             )
-            .shadow(color: isRecording ? Color.Wispflow.accent.opacity(0.3) : Color.clear, radius: 8, x: 0, y: 0)
+            .overlay(
+                RoundedRectangle(cornerRadius: CornerRadius.medium)
+                    .stroke(
+                        isRecording ? Color.Wispflow.accent : (isHovering ? Color.Wispflow.accent.opacity(0.5) : Color.Wispflow.border),
+                        lineWidth: isRecording ? 2 : 1
+                    )
+            )
+            .shadow(
+                color: isRecording ? Color.Wispflow.accent.opacity(0.4) : (isHovering ? Color.Wispflow.accent.opacity(0.15) : Color.clear),
+                radius: isRecording ? 12 : 6,
+                x: 0,
+                y: 0
+            )
+            .scaleEffect(isRecording ? 1.02 : 1.0)
         }
         .buttonStyle(.plain)
         .onHover { hovering in
@@ -1635,6 +1796,21 @@ struct HotkeyRecorderView: View {
         .onDisappear {
             stopRecording()
         }
+        .onChange(of: isRecording) { _, newValue in
+            if newValue {
+                // Start pulse animation when recording
+                withAnimation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true)) {
+                    pulseAnimation = true
+                }
+            } else {
+                // Stop pulse animation
+                withAnimation(.easeOut(duration: 0.2)) {
+                    pulseAnimation = false
+                }
+            }
+        }
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isRecording)
+        .animation(.easeInOut(duration: 0.15), value: isHovering)
     }
     
     private func startRecording() {
