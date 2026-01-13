@@ -1334,3 +1334,58 @@ Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260113-203453-63497-it
   - Model specs (size/speed/accuracy) help users make informed choices
   - Fixed model enum mismatch: WhisperManager uses .medium not .large
 ---
+
+## [2026-01-13 21:18] - US-408: Text Cleanup Settings Tab Polish
+Thread: codex exec session
+Run: 20260113-203453-63497 (iteration 8)
+Run log: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260113-203453-63497-iter-8.log
+Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260113-203453-63497-iter-8.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: c5d7e07 feat(US-408): add text cleanup settings tab polish with design system integration
+- Post-commit status: clean
+- Verification:
+  - Command: swift build -> PASS
+- Files changed:
+  - Sources/WispFlow/SettingsWindow.swift
+  - .agents/tasks/prd-v5.md
+  - .ralph/IMPLEMENTATION_PLAN.md
+- What was implemented:
+  - Completely redesigned TextCleanupSettingsView with 6 main sections:
+    - CleanupStatusHero - Hero section showing cleanup status and mode at a glance
+    - Enable/Disable Card - Toggle with icon header and enhanced description
+    - Mode Selection Card - CleanupModeSegmentedControl with 4 mode options (Basic, Standard, Thorough, AI)
+    - CleanupPreviewCard - Before/after text comparison showing cleanup effect for each mode
+    - LLM Model Selection Card - Card-based picker with LLMModelSelectionCard components
+    - LLM Actions Card - Download/load controls with gradient progress bar
+  - CleanupStatusHero component:
+    - Large status icon with contextual colors (success/accent/textSecondary)
+    - Status title and subtitle based on cleanup enabled state and mode
+    - Mode badge showing current cleanup mode
+    - Dynamic icon based on selected mode (hare, dial, sparkles, brain)
+  - CleanupModeSegmentedControl component:
+    - Horizontal segmented picker with icons for all 4 modes
+    - CleanupModeSegment buttons with hover states
+    - LLM status indicator dot for AI mode when model loaded
+    - Visual distinction with coral accent for selected segment
+  - CleanupPreviewCard component:
+    - Sample "Before" text with common filler words
+    - Mode-specific "After" text showing cleanup effect
+    - Visual differentiation with error/success tinted backgrounds
+    - Arrow indicator between before and after sections
+  - LLMModelSelectionCard component:
+    - Card-based picker matching Transcription tab pattern
+    - Model specs (size/speed/quality) via ModelSpec component
+    - Status badges (Active, Downloaded) via ModelCardBadge
+    - Selection indicator with coral accent
+    - Hover states and animations
+  - Added modeDescriptionIcon computed property for contextual icons
+  - Fixed LLM model cases to match LLMManager.ModelSize enum (qwen1_5b, phi3_mini, gemma2b)
+- **Learnings for future iterations:**
+  - Segmented control provides cleaner UI than radio picker for mode selection
+  - Preview cards help users understand feature behavior
+  - Reusing components (ModelCardBadge, ModelSpec) maintains consistency
+  - Hero sections at top give users immediate status feedback
+  - Sample text previews are effective for demonstrating text transformation
+---
+
