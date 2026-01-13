@@ -626,3 +626,47 @@ Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260113-181417-30393-it
   - Zero sample percentage helps diagnose silence vs. signal issues
   - Dynamic threshold references prevent stale hardcoded values
 ---
+
+## [2026-01-13 18:45] - US-203: Audio Capture Diagnostics
+Thread: codex exec session
+Run: 20260113-181417-30393 (iteration 3)
+Run log: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260113-181417-30393-iter-3.log
+Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260113-181417-30393-iter-3.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: eb4420c feat(US-203): add audio capture diagnostics with pipeline stage logging
+- Post-commit status: clean
+- Verification:
+  - Command: `swift build` -> PASS (build complete, no errors)
+- Files changed:
+  - Sources/WispFlow/AudioManager.swift (modified - added 5 pipeline stage markers with detailed logging)
+  - Sources/WispFlow/WhisperManager.swift (modified - enhanced Stage 5 transcription handoff diagnostics)
+  - .agents/tasks/prd-v3.md (updated acceptance criteria for US-203)
+  - .ralph/IMPLEMENTATION_PLAN.md (updated task status for US-203)
+- What was implemented:
+  - 5 clearly labeled audio pipeline stages with console output:
+    - Stage 1: CAPTURE START (permission, device selection, format setup, engine start)
+    - Stage 2: TAP INSTALLED (audio conversion, buffer appends with frame counts)
+    - Stage 3: CAPTURE STOP (engine shutdown, duration calculation, buffer count)
+    - Stage 4: BUFFER COMBINE (sample values, statistics, zero% check, silence detection)
+    - Stage 5: TRANSCRIPTION HANDOFF (final diagnostics before WhisperKit)
+  - Buffer state logging before transcription:
+    - Byte count, sample count, sample rate, duration
+    - Peak amplitude (linear and dB), RMS level
+    - Sample range [min, max], clipping percentage
+  - First and last 10 samples logged:
+    - In Stage 4 (AudioManager.combineBuffersToDataWithStats)
+    - In Stage 5 (WhisperManager.logAudioDiagnostics)
+    - Values shown with 4-6 decimal precision
+  - Zero vs non-zero sample percentage:
+    - Zero samples: count and percentage with (count/total) format
+    - Non-zero samples: count and percentage added to Stage 4
+    - Zero threshold: abs(sample) < 1e-7
+  - Formatted console output with box headers for each stage
+- **Learnings for future iterations:**
+  - Clear stage markers ([STAGE N]) make audio pipeline flow visible in logs
+  - Box-style headers (╔═══╗) visually separate pipeline stages in console
+  - Logging both in AudioManager (capture) and WhisperManager (transcription) shows full flow
+  - Zero sample percentage helps identify silence vs. signal issues early
+  - Dual logging in Stage 4 and Stage 5 provides redundant verification points
+---
