@@ -27,7 +27,8 @@ final class AudioManager: NSObject, ObservableObject {
         let sampleRate: Double
         let peakLevel: Float    // Peak level in dB
         let sampleCount: Int    // Total number of samples
-        let wasSilent: Bool     // True if audio appeared silent (peak < -40dB)
+        let wasSilent: Bool     // True if audio appeared silent (peak < -55dB and >95% near-zero samples)
+        let measuredDbLevel: Float  // Actual measured dB level for error messages
     }
     
     /// Audio buffer statistics for debugging
@@ -38,6 +39,7 @@ final class AudioManager: NSObject, ObservableObject {
         let rmsLevel: Float     // dB
         let minSample: Float
         let maxSample: Float
+        let nearZeroPercentage: Float  // Percentage of samples that are near-zero (< 1e-7)
     }
     
     /// Permission status for microphone access
@@ -76,7 +78,7 @@ final class AudioManager: NSObject, ObservableObject {
     var onPermissionDenied: (() -> Void)?
     var onCaptureError: ((Error) -> Void)?
     var onDevicesChanged: (([AudioInputDevice]) -> Void)?
-    var onSilenceDetected: (() -> Void)?  // Called if recording stops with only silence
+    var onSilenceDetected: ((Float) -> Void)?  // Called if recording stops with only silence, passes measured dB level
     var onRecordingTooShort: (() -> Void)?  // Called if recording is below minimum duration
     
     // MARK: - Initialization
@@ -590,11 +592,20 @@ final class AudioManager: NSObject, ObservableObject {
         // Log detailed audio buffer statistics
         logAudioBufferStatistics(stats: stats, duration: duration)
         
-        // Check for silence
-        let wasSilent = stats.peakLevel < Constants.silenceThresholdDB
+        // Check for silence - must BOTH be below threshold AND have >95% near-zero samples
+        // This prevents rejecting audio that has brief speech surrounded by silence
+        let isPeakBelowThreshold = stats.peakLevel < Constants.silenceThresholdDB
+        let isMostlyZeroSamples = stats.nearZeroPercentage > 95.0
+        let wasSilent = isPeakBelowThreshold && isMostlyZeroSamples
+        
         if wasSilent {
-            print("AudioManager: [STAGE 4] ⚠️ WARNING - Audio appears silent (peak \(String(format: "%.1f", stats.peakLevel))dB < \(Constants.silenceThresholdDB)dB threshold)")
-            onSilenceDetected?()
+            print("AudioManager: [STAGE 4] ⚠️ WARNING - Audio appears silent:")
+            print("AudioManager: [STAGE 4]   - Peak level: \(String(format: "%.1f", stats.peakLevel))dB (threshold: \(Constants.silenceThresholdDB)dB)")
+            print("AudioManager: [STAGE 4]   - Near-zero samples: \(String(format: "%.1f", stats.nearZeroPercentage))% (threshold: 95%)")
+            onSilenceDetected?(stats.peakLevel)
+        } else if isPeakBelowThreshold {
+            // Peak is low but there's some audio content
+            print("AudioManager: [STAGE 4] ⚠️ Note: Audio level is quiet (\(String(format: "%.1f", stats.peakLevel))dB) but contains \(String(format: "%.1f", 100 - stats.nearZeroPercentage))% non-zero samples - proceeding with transcription")
         } else {
             print("AudioManager: [STAGE 4] ✓ Audio level check passed (peak \(String(format: "%.1f", stats.peakLevel))dB)")
         }
@@ -610,7 +621,8 @@ final class AudioManager: NSObject, ObservableObject {
             sampleRate: Constants.targetSampleRate,
             peakLevel: stats.peakLevel,
             sampleCount: stats.sampleCount,
-            wasSilent: wasSilent
+            wasSilent: wasSilent,
+            measuredDbLevel: stats.peakLevel
         )
     }
     
@@ -623,6 +635,11 @@ final class AudioManager: NSObject, ObservableObject {
     
     /// Log detailed audio buffer statistics
     private func logAudioBufferStatistics(stats: AudioBufferStats, duration: TimeInterval) {
+        // Determine silence status using the improved criteria
+        let isPeakBelowThreshold = stats.peakLevel < Constants.silenceThresholdDB
+        let isMostlyZeroSamples = stats.nearZeroPercentage > 95.0
+        let isSilent = isPeakBelowThreshold && isMostlyZeroSamples
+        
         print("AudioManager: [STAGE 4] ╔═══════════════════════════════════════════════════════════════╗")
         print("AudioManager: [STAGE 4] ║              AUDIO BUFFER STATISTICS (COMBINED)               ║")
         print("AudioManager: [STAGE 4] ╠═══════════════════════════════════════════════════════════════╣")
@@ -633,7 +650,8 @@ final class AudioManager: NSObject, ObservableObject {
         print("AudioManager: [STAGE 4] ║ RMS Level:       \(String(format: "%10.1f", stats.rmsLevel)) dB                             ║")
         print("AudioManager: [STAGE 4] ║ Min Sample:      \(String(format: "%10.4f", stats.minSample))                                ║")
         print("AudioManager: [STAGE 4] ║ Max Sample:      \(String(format: "%10.4f", stats.maxSample))                                ║")
-        print("AudioManager: [STAGE 4] ║ Silent:          \(stats.peakLevel < Constants.silenceThresholdDB ? "       YES ⚠️" : "        NO ✓")                                ║")
+        print("AudioManager: [STAGE 4] ║ Near-Zero:       \(String(format: "%10.1f", stats.nearZeroPercentage))%                              ║")
+        print("AudioManager: [STAGE 4] ║ Silent:          \(isSilent ? "       YES ⚠️" : "        NO ✓")                                ║")
         print("AudioManager: [STAGE 4] ╚═══════════════════════════════════════════════════════════════╝")
         
         // Store for potential debug display
@@ -814,18 +832,24 @@ final class AudioManager: NSObject, ObservableObject {
                 peakLevel: -Float.infinity,
                 rmsLevel: -Float.infinity,
                 minSample: 0,
-                maxSample: 0
+                maxSample: 0,
+                nearZeroPercentage: 100.0
             )
         }
         
         var minSample: Float = Float.infinity
         var maxSample: Float = -Float.infinity
         var sumSquares: Float = 0
+        var zeroCount: Int = 0
+        let zeroThreshold: Float = 1e-7
         
         for sample in samples {
             minSample = min(minSample, sample)
             maxSample = max(maxSample, sample)
             sumSquares += sample * sample
+            if abs(sample) < zeroThreshold {
+                zeroCount += 1
+            }
         }
         
         // Peak level is max absolute value converted to dB
@@ -838,13 +862,17 @@ final class AudioManager: NSObject, ObservableObject {
         
         let duration = TimeInterval(samples.count) / Constants.targetSampleRate
         
+        // Calculate near-zero percentage
+        let nearZeroPercentage = Float(zeroCount) / Float(samples.count) * 100.0
+        
         return AudioBufferStats(
             sampleCount: samples.count,
             duration: duration,
             peakLevel: peakLevel,
             rmsLevel: rmsLevel,
             minSample: minSample,
-            maxSample: maxSample
+            maxSample: maxSample,
+            nearZeroPercentage: nearZeroPercentage
         )
     }
     

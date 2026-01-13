@@ -60,6 +60,7 @@ final class DebugManager: ObservableObject {
     
     private struct Constants {
         static let debugModeKey = "debugModeEnabled"
+        static let silenceDetectionDisabledKey = "silenceDetectionDisabled"
         static let maxLogEntries = 500
     }
     
@@ -77,6 +78,22 @@ final class DebugManager: ObservableObject {
                 addLogEntry(category: .system, message: "Debug mode enabled")
             } else {
                 addLogEntry(category: .system, message: "Debug mode disabled")
+                // Re-enable silence detection when debug mode is disabled
+                if isSilenceDetectionDisabled {
+                    isSilenceDetectionDisabled = false
+                }
+            }
+        }
+    }
+    
+    /// Whether silence detection is disabled (only available in debug mode)
+    @Published var isSilenceDetectionDisabled: Bool {
+        didSet {
+            UserDefaults.standard.set(isSilenceDetectionDisabled, forKey: Constants.silenceDetectionDisabledKey)
+            if isSilenceDetectionDisabled {
+                addLogEntry(category: .system, message: "Silence detection disabled (debug override)")
+            } else {
+                addLogEntry(category: .system, message: "Silence detection enabled")
             }
         }
     }
@@ -105,6 +122,7 @@ final class DebugManager: ObservableObject {
     
     private init() {
         isDebugModeEnabled = UserDefaults.standard.bool(forKey: Constants.debugModeKey)
+        isSilenceDetectionDisabled = UserDefaults.standard.bool(forKey: Constants.silenceDetectionDisabledKey)
         
         // Add initial log entry
         addLogEntry(category: .system, message: "Debug manager initialized")

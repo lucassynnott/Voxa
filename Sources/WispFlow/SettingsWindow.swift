@@ -106,6 +106,18 @@ struct DebugSettingsView: View {
                     Text("When enabled, WispFlow will log detailed information about audio capture, transcription, and text cleanup. Use this to troubleshoot transcription issues.")
                         .font(.caption)
                         .foregroundColor(.secondary)
+                    
+                    // Silence detection override (only available in debug mode)
+                    if debugManager.isDebugModeEnabled {
+                        Divider()
+                        
+                        Toggle("Disable Silence Detection", isOn: $debugManager.isSilenceDetectionDisabled)
+                            .toggleStyle(.switch)
+                        
+                        Text("When enabled, audio will not be rejected for being too quiet. Useful for testing with silent or near-silent recordings.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
             
@@ -187,7 +199,7 @@ struct DebugSettingsView: View {
                                 Text("Peak Level:")
                                     .foregroundColor(.secondary)
                                 Text(String(format: "%.1f dB", audioData.peakLevel))
-                                    .foregroundColor(audioData.peakLevel > -40 ? .green : .orange)
+                                    .foregroundColor(audioData.peakLevel > -55 ? .green : .orange)
                             }
                             .font(.caption)
                             

@@ -126,13 +126,13 @@ As a user, I want clear guidance on granting permissions so I can set up the app
 - [x] Show "Permission Granted!" confirmation when detected
 - [x] Remember and skip permission prompts once granted
 
-### [ ] US-205: Silence Detection Fix
+### [x] US-205: Silence Detection Fix
 As a user, I want accurate silence detection so valid audio isn't rejected.
-- Fix peak level calculation to use actual max absolute value
-- Change threshold from -40dB to -55dB (more permissive)
-- Add "Silence detected" only if ALL samples are near-zero
-- Show actual measured dB level in error message
-- Allow user to disable silence detection in debug mode
+- [x] Fix peak level calculation to use actual max absolute value
+- [x] Change threshold from -40dB to -55dB (more permissive)
+- [x] Add "Silence detected" only if ALL samples are near-zero
+- [x] Show actual measured dB level in error message
+- [x] Allow user to disable silence detection in debug mode
 
 ## Success Criteria
 

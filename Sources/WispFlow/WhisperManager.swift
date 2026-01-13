@@ -672,7 +672,7 @@ final class WhisperManager: ObservableObject {
         
         var message = "No speech was detected in your recording. "
         
-        if peakDb < -40 {
+        if peakDb < -55 {
             message += "The audio appears to be very quiet or silent. Check that your microphone is working and positioned correctly."
         } else if peakDb < -20 {
             message += "The audio level is low. Try speaking closer to the microphone."

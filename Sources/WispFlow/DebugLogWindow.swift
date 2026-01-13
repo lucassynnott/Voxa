@@ -112,7 +112,7 @@ struct DebugLogView: View {
                         HStack {
                             StatRow(label: "RMS Level", value: String(format: "%.1f dB", audioData.rmsLevel))
                             Spacer()
-                            StatRow(label: "Quality", value: audioData.peakLevel > -40 ? "Good ✓" : "Quiet ⚠️")
+                            StatRow(label: "Quality", value: audioData.peakLevel > -55 ? "Good ✓" : "Quiet ⚠️")
                         }
                     }
                     .padding(.vertical, 4)

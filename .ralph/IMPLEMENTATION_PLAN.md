@@ -186,35 +186,47 @@ As a user, I want clear guidance on granting permissions so I can set up the app
 ### US-205: Silence Detection Fix
 As a user, I want accurate silence detection so valid audio isn't rejected.
 
-- [ ] Change silence threshold from -40dB to -55dB
+- [x] Change silence threshold from -40dB to -55dB
   - Scope: Modify `Sources/WispFlow/AudioManager.swift` `Constants.silenceThresholdDB` from -40.0 to -55.0
   - Acceptance: More permissive threshold allows quieter but valid audio to pass
   - Verification: `swift build` passes; record quiet speech, verify not rejected as silence
+  - **DONE**: Threshold was already -55dB in AudioManager; verified and documented
 
-- [ ] Update RecordingIndicatorWindow level meter threshold to match
+- [x] Update RecordingIndicatorWindow level meter threshold to match
   - Scope: Modify `Sources/WispFlow/RecordingIndicatorWindow.swift` `Constants.silenceThreshold` from -40 to -55
   - Acceptance: Level meter visual threshold matches AudioManager threshold
   - Verification: `swift build` passes; verify level meter shows gray only below -55dB
+  - **DONE**: Threshold was already -55dB in RecordingIndicatorWindow; verified and documented
 
-- [ ] Fix peak level calculation to use actual max absolute value
+- [x] Fix peak level calculation to use actual max absolute value
   - Scope: Verify `Sources/WispFlow/AudioManager.swift` `calculateBufferStatistics()` correctly computes max(abs(minSample), abs(maxSample))
   - Acceptance: Peak level accurately reflects loudest sample in recording
   - Verification: `swift build` passes; verify peak level calculation is correct
+  - **DONE**: Verified calculateBufferStatistics() correctly uses max(abs(minSample), abs(maxSample)) for peak calculation
 
-- [ ] Add "Silence detected" only if ALL samples are near-zero
+- [x] Add "Silence detected" only if ALL samples are near-zero
   - Scope: Modify `Sources/WispFlow/AudioManager.swift` silence detection to check if >95% of samples are below threshold, not just peak
   - Acceptance: Recordings with brief speech surrounded by silence are not rejected
   - Verification: `swift build` passes; record short phrase, verify not marked as silence
+  - **DONE**: Added nearZeroPercentage to AudioBufferStats; silence detection now requires BOTH peak < -55dB AND >95% near-zero samples
 
-- [ ] Show actual measured dB level in error message
+- [x] Show actual measured dB level in error message
   - Scope: Modify `Sources/WispFlow/AppDelegate.swift` `showSilenceWarning()` to include actual peak dB level in alert text
   - Acceptance: User can see what level was detected vs threshold
   - Verification: `swift build` passes; trigger silence warning, verify shows actual dB value
+  - **DONE**: showSilenceWarning(measuredDbLevel:) now displays actual measured level alongside threshold in alert
 
-- [ ] Update all -40dB references in error messages to -55dB
+- [x] Update all -40dB references in error messages to -55dB
   - Scope: Search and update all hardcoded -40dB strings in AppDelegate, SettingsWindow, WhisperManager
   - Acceptance: All user-facing messages reflect correct -55dB threshold
   - Verification: `swift build` passes; verify no -40dB references remain in user messages
+  - **DONE**: Updated WhisperManager (line 675), SettingsWindow (line 190), DebugLogWindow (line 115); updated comment in AudioCaptureResult struct
+
+- [x] Allow user to disable silence detection in debug mode
+  - Scope: Add `isSilenceDetectionDisabled` toggle to DebugManager and DebugSettingsView
+  - Acceptance: When enabled, silent audio is not rejected and transcription proceeds
+  - Verification: `swift build` passes; enable debug mode, disable silence detection, verify silent audio proceeds to transcription
+  - **DONE**: Added isSilenceDetectionDisabled toggle to DebugManager with persistence; added toggle to DebugSettingsView; AppDelegate checks this flag before rejecting silent audio
 
 ---
 

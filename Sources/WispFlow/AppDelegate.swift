@@ -143,14 +143,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         
         // Handle silence detection warning
-        audioManager?.onSilenceDetected = { [weak self] in
-            ErrorLogger.shared.log(
-                "Silent audio detected - recording appears to have no audio input",
-                category: .audio,
-                severity: .warning,
-                context: ["threshold": "\(Int(AudioManager.silenceThreshold))dB"]
-            )
-            self?.showSilenceWarning()
+        audioManager?.onSilenceDetected = { [weak self] measuredDbLevel in
+            // Access MainActor properties on main thread
+            DispatchQueue.main.async {
+                // Check if silence detection is bypassed in debug mode
+                let bypassSilenceCheck = DebugManager.shared.isDebugModeEnabled && DebugManager.shared.isSilenceDetectionDisabled
+                
+                ErrorLogger.shared.log(
+                    bypassSilenceCheck ? "Silent audio detected (bypassed in debug mode)" : "Silent audio detected - recording appears to have no audio input",
+                    category: .audio,
+                    severity: bypassSilenceCheck ? .info : .warning,
+                    context: [
+                        "threshold": "\(Int(AudioManager.silenceThreshold))dB",
+                        "measuredLevel": "\(String(format: "%.1f", measuredDbLevel))dB",
+                        "silenceDetectionBypassed": "\(bypassSilenceCheck)"
+                    ]
+                )
+                
+                // Only show warning if silence detection is not bypassed
+                if !bypassSilenceCheck {
+                    self?.showSilenceWarning(measuredDbLevel: measuredDbLevel)
+                }
+            }
         }
         
         // Handle recording too short
@@ -165,13 +179,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
     
-    private func showSilenceWarning() {
+    private func showSilenceWarning(measuredDbLevel: Float) {
         DispatchQueue.main.async {
             let alert = NSAlert()
             alert.messageText = "No Audio Detected"
-            // Use actual threshold from AudioManager
+            // Use actual threshold from AudioManager and show measured level
             let threshold = AudioManager.silenceThreshold
-            alert.informativeText = "The recording appears to be silent (below \(Int(threshold))dB threshold). Please check that:\n• Your microphone is connected\n• The correct input device is selected in Settings\n• You're speaking into the microphone"
+            alert.informativeText = "The recording appears to be silent.\n\n• Measured level: \(String(format: "%.1f", measuredDbLevel))dB\n• Threshold: \(Int(threshold))dB\n\nPlease check that:\n• Your microphone is connected\n• The correct input device is selected in Settings\n• You're speaking into the microphone"
             alert.alertStyle = .warning
             alert.addButton(withTitle: "Open Settings")
             alert.addButton(withTitle: "OK")
@@ -384,19 +398,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 recordingIndicator?.updateStatus(String(format: "%.1fs", result.duration))
                 recordingIndicator?.showWithAnimation()
                 
-                // If audio was silent, the callback already shows a warning
-                // Only proceed with transcription if we have valid audio
-                if !result.wasSilent {
-                    // Process transcription with Whisper on MainActor
-                    let audioData = result.audioData
-                    let sampleRate = result.sampleRate
-                    Task { @MainActor in
-                        processTranscription(audioData: audioData, sampleRate: sampleRate)
-                    }
-                } else {
-                    // Hide indicator after showing duration for silent audio
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-                        self?.recordingIndicator?.hideWithAnimation()
+                // Process transcription on MainActor where we can check DebugManager
+                let audioData = result.audioData
+                let sampleRate = result.sampleRate
+                let wasSilent = result.wasSilent
+                
+                Task { @MainActor [weak self] in
+                    // Check if silence detection is disabled in debug mode
+                    let bypassSilenceCheck = DebugManager.shared.isDebugModeEnabled && DebugManager.shared.isSilenceDetectionDisabled
+                    
+                    // If audio was silent (and silence detection is not bypassed), the callback already shows a warning
+                    // Only proceed with transcription if we have valid audio OR silence detection is bypassed
+                    if !wasSilent || bypassSilenceCheck {
+                        if wasSilent && bypassSilenceCheck {
+                            print("Audio is silent but silence detection is disabled in debug mode - proceeding with transcription")
+                        }
+                        // Process transcription with Whisper
+                        self?.processTranscription(audioData: audioData, sampleRate: sampleRate)
+                    } else {
+                        // Hide indicator after showing duration for silent audio
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                            self?.recordingIndicator?.hideWithAnimation()
+                        }
                     }
                 }
             } else {
