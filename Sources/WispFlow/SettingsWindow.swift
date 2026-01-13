@@ -5,6 +5,7 @@ import SwiftUI
 struct SettingsView: View {
     @ObservedObject var whisperManager: WhisperManager
     @ObservedObject var textCleanupManager: TextCleanupManager
+    @ObservedObject var textInserter: TextInserter
     @State private var isLoadingWhisperModel = false
     @State private var isLoadingCleanupModel = false
     @State private var showDeleteConfirmation = false
@@ -32,13 +33,19 @@ struct SettingsView: View {
                 Label("Text Cleanup", systemImage: "text.badge.checkmark")
             }
             
+            // Text Insertion tab
+            TextInsertionSettingsView(textInserter: textInserter)
+            .tabItem {
+                Label("Text Insertion", systemImage: "doc.on.clipboard")
+            }
+            
             // General tab (placeholder for future settings)
             GeneralSettingsView()
             .tabItem {
                 Label("General", systemImage: "gear")
             }
         }
-        .frame(width: 520, height: 480)
+        .frame(width: 520, height: 520)
         .alert("Delete Model?", isPresented: $showDeleteConfirmation, presenting: modelToDelete) { model in
             Button("Delete", role: .destructive) {
                 Task {
@@ -445,6 +452,123 @@ struct CleanupFeatureRow: View {
     }
 }
 
+// MARK: - Text Insertion Settings
+
+struct TextInsertionSettingsView: View {
+    @ObservedObject var textInserter: TextInserter
+    
+    var body: some View {
+        Form {
+            Section {
+                VStack(alignment: .leading, spacing: 16) {
+                    // Accessibility permission status
+                    Text("Accessibility Permission")
+                        .font(.headline)
+                    
+                    HStack {
+                        Circle()
+                            .fill(textInserter.hasAccessibilityPermission ? Color.green : Color.orange)
+                            .frame(width: 8, height: 8)
+                        Text(textInserter.hasAccessibilityPermission ? "Granted" : "Not Granted")
+                            .font(.caption)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background((textInserter.hasAccessibilityPermission ? Color.green : Color.orange).opacity(0.15))
+                    .cornerRadius(8)
+                    
+                    if !textInserter.hasAccessibilityPermission {
+                        Text("WispFlow needs accessibility permission to insert text into other applications. Click the button below to grant permission.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        Button(action: {
+                            _ = textInserter.requestAccessibilityPermission(showPrompt: true)
+                        }) {
+                            HStack {
+                                Image(systemName: "hand.raised")
+                                Text("Grant Permission")
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                    } else {
+                        Text("Text insertion is enabled. Transcribed text will be automatically inserted into the active text field.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            
+            Divider()
+            
+            Section {
+                VStack(alignment: .leading, spacing: 16) {
+                    // Clipboard preservation toggle
+                    Text("Clipboard Options")
+                        .font(.headline)
+                    
+                    Toggle("Preserve Clipboard Contents", isOn: $textInserter.preserveClipboard)
+                        .toggleStyle(.switch)
+                    
+                    Text("When enabled, the original clipboard contents will be restored after text insertion.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    if textInserter.preserveClipboard {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Restore Delay: \(String(format: "%.1f", textInserter.clipboardRestoreDelay))s")
+                                .font(.caption)
+                            
+                            Slider(value: $textInserter.clipboardRestoreDelay, in: 0.2...2.0, step: 0.1)
+                                .frame(width: 200)
+                            
+                            Text("Time to wait before restoring the clipboard. Increase if the inserted text is getting cut off.")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.leading, 20)
+                    }
+                }
+            }
+            
+            Divider()
+            
+            Section {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("How Text Insertion Works")
+                        .font(.headline)
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        InsertionFeatureRow(icon: "doc.on.clipboard", text: "Text is copied to the clipboard")
+                        InsertionFeatureRow(icon: "command", text: "Cmd+V is simulated to paste")
+                        InsertionFeatureRow(icon: "arrow.uturn.backward", text: "Original clipboard is restored (optional)")
+                        InsertionFeatureRow(icon: "checkmark.circle", text: "Works in any text field")
+                    }
+                }
+            }
+        }
+        .padding()
+    }
+}
+
+// MARK: - Insertion Feature Row
+
+struct InsertionFeatureRow: View {
+    let icon: String
+    let text: String
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .foregroundColor(.secondary)
+                .frame(width: 16)
+            Text(text)
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+    }
+}
+
 // MARK: - General Settings
 
 struct GeneralSettingsView: View {
@@ -471,10 +595,12 @@ final class SettingsWindowController: NSObject {
     private var settingsWindow: NSWindow?
     private let whisperManager: WhisperManager
     private let textCleanupManager: TextCleanupManager
+    private let textInserter: TextInserter
     
-    init(whisperManager: WhisperManager, textCleanupManager: TextCleanupManager) {
+    init(whisperManager: WhisperManager, textCleanupManager: TextCleanupManager, textInserter: TextInserter) {
         self.whisperManager = whisperManager
         self.textCleanupManager = textCleanupManager
+        self.textInserter = textInserter
         super.init()
     }
     
@@ -485,7 +611,11 @@ final class SettingsWindowController: NSObject {
             return
         }
         
-        let settingsView = SettingsView(whisperManager: whisperManager, textCleanupManager: textCleanupManager)
+        let settingsView = SettingsView(
+            whisperManager: whisperManager,
+            textCleanupManager: textCleanupManager,
+            textInserter: textInserter
+        )
         let hostingController = NSHostingController(rootView: settingsView)
         
         let window = NSWindow(contentViewController: hostingController)

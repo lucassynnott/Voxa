@@ -182,27 +182,31 @@ The implementation should proceed in dependency order: project scaffolding → m
 
 ---
 
-### US-006: Text Insertion
+### US-006: Text Insertion ✅
 
-- [ ] Implement accessibility permission request
+- [x] Implement accessibility permission request
   - Scope: Check and request accessibility permissions. Guide user to System Preferences if needed.
   - Acceptance: App prompts for accessibility permission; provides guidance if denied
   - Verification: Reset accessibility permissions, launch app, verify permission guidance
+  - **Completed**: TextInserter.swift with hasAccessibilityPermission property, requestAccessibilityPermission() method using AXIsProcessTrustedWithOptions, showAccessibilityPermissionAlert() to guide users, and openAccessibilitySettings() to open System Settings.
 
-- [ ] Implement pasteboard text insertion
+- [x] Implement pasteboard text insertion
   - Scope: Create `TextInserter.swift`. Copy text to pasteboard. Simulate Cmd+V keystroke using CGEvent.
   - Acceptance: Text is inserted into active text field
   - Verification: Focus a text field, trigger insertion, verify text appears
+  - **Completed**: TextInserter.swift with insertText() method that copies text to NSPasteboard.general, then simulates Cmd+V using CGEvent keyboardEventSource with virtual key 0x09 (V) and maskCommand flag. Integrated with AppDelegate.processTextCleanup() to automatically insert cleaned text.
 
-- [ ] Add clipboard preservation option
+- [x] Add clipboard preservation option
   - Scope: Save current clipboard contents before insertion. Optionally restore after insertion (with short delay).
   - Acceptance: Original clipboard contents can be preserved
   - Verification: Copy something, trigger insertion, verify original clipboard restored
+  - **Completed**: saveClipboardContents() copies all NSPasteboardItem data types, restoreClipboardContents() writes them back after configurable delay (0.2-2.0s). Settings UI toggle with slider for restore delay in TextInsertionSettingsView.
 
-- [ ] Handle insertion errors gracefully
+- [x] Handle insertion errors gracefully
   - Scope: Detect and handle cases where insertion fails (no text field focused, permission denied).
   - Acceptance: Errors show helpful feedback; app doesn't crash
   - Verification: Try to insert with no text field focused, verify helpful error message
+  - **Completed**: InsertionResult enum with success/noAccessibilityPermission/insertionFailed cases. showTextInsertionError() shows NSAlert for failures. Accessibility permission check before insertion with guidance alert.
 
 ---
 

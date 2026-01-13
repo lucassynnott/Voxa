@@ -143,12 +143,12 @@ As a user, I want my transcribed text cleaned up automatically so I get polished
 - [x] Format naturally while preserving intent
 - [x] Use local LLM (llama.cpp/MLX) for cleanup
 
-### [ ] US-006: Text Insertion
+### [x] US-006: Text Insertion
 As a user, I want the cleaned text inserted into my active application so I can dictate directly into any text field.
-- Insert text via pasteboard (Cmd+V simulation)
-- Works in any text field (Slack, email, VS Code, browsers, Notes)
-- Request accessibility permissions
-- Preserve clipboard contents (optional restore)
+- [x] Insert text via pasteboard (Cmd+V simulation)
+- [x] Works in any text field (Slack, email, VS Code, browsers, Notes)
+- [x] Request accessibility permissions
+- [x] Preserve clipboard contents (optional restore)
 
 ### [ ] US-007: Settings Persistence
 As a user, I want my settings to persist between sessions so I don't have to reconfigure the app.

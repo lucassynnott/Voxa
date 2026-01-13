@@ -1,0 +1,26 @@
+US-005: AI Text Cleanup is now complete. Here's a summary of what was accomplished:
+
+## Summary
+
+**US-005: AI Text Cleanup** has been successfully implemented:
+
+1. **TextCleanupManager.swift** - Rule-based text cleanup that:
+   - Removes filler words ("um", "uh", "like", "you know", etc.) with 20+ regex patterns
+   - Fixes grammar (25+ contraction patterns: im→I'm, dont→don't, etc.)
+   - Proper capitalization (sentence starts, after punctuation)
+   - Natural formatting with three modes: Basic, Standard, Thorough
+
+2. **Integration** - Connected to the transcription pipeline in AppDelegate via `processTextCleanup()`
+
+3. **Settings UI** - Text Cleanup tab in SettingsWindow.swift with:
+   - Enable/disable toggle
+   - Mode selection
+   - Feature description
+
+4. **Verification**: `swift build` passes successfully
+
+**Commits:**
+- `d2298c1` feat(US-005): implement AI text cleanup
+- `33de064` docs: update progress log for US-005
+
+The PRD shows 2 remaining stories (US-006, US-007), so the COMPLETE signal is not output.

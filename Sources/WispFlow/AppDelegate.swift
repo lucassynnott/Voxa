@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var audioManager: AudioManager?
     private var whisperManager: WhisperManager?
     private var textCleanupManager: TextCleanupManager?
+    private var textInserter: TextInserter?
     private var settingsWindowController: SettingsWindowController?
     
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -47,19 +48,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         
-        // Initialize Whisper manager, text cleanup manager, and auto-load models on main actor
+        // Initialize Whisper manager, text cleanup manager, text inserter, and auto-load models on main actor
         Task { @MainActor in
             setupWhisperManager()
             setupTextCleanupManager()
+            setupTextInserter()
             
             // Provide whisper manager to status bar controller
             statusBarController?.whisperManager = whisperManager
             
-            // Set up settings window controller with both managers
-            if let whisper = whisperManager, let cleanup = textCleanupManager {
+            // Set up settings window controller with all managers
+            if let whisper = whisperManager, let cleanup = textCleanupManager, let inserter = textInserter {
                 settingsWindowController = SettingsWindowController(
                     whisperManager: whisper,
-                    textCleanupManager: cleanup
+                    textCleanupManager: cleanup,
+                    textInserter: inserter
                 )
             }
             
@@ -69,6 +72,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             
             // Text cleanup is ready immediately (rule-based, no model download needed)
             print("Text cleanup ready with mode: \(textCleanupManager?.selectedMode.rawValue ?? "unknown")")
+            
+            // Check accessibility permission on launch (without prompt)
+            if let inserter = textInserter {
+                if inserter.hasAccessibilityPermission {
+                    print("Accessibility permission already granted")
+                } else {
+                    print("Accessibility permission not granted - will prompt on first text insertion")
+                }
+            }
         }
     }
     
@@ -126,11 +138,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Set up callbacks
         textCleanupManager?.onCleanupComplete = { text in
             print("Text cleanup complete: \(text)")
-            // Future: Pass to text insertion (US-006)
         }
         
         textCleanupManager?.onError = { error in
             print("Text cleanup error: \(error)")
+        }
+    }
+    
+    @MainActor
+    private func setupTextInserter() {
+        textInserter = TextInserter()
+        
+        // Set up callbacks
+        textInserter?.onInsertionComplete = {
+            print("Text insertion complete")
+        }
+        
+        textInserter?.onError = { error in
+            print("Text insertion error: \(error)")
         }
     }
     
@@ -253,8 +278,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let cleanup = textCleanupManager else {
             print("TextCleanupManager not available, using raw text")
             recordingIndicator?.hideWithAnimation()
-            // Future: Pass to text insertion (US-006)
-            print("Ready for text insertion: \(transcribedText)")
+            // Insert raw text directly
+            await performTextInsertion(transcribedText)
             return
         }
         
@@ -266,16 +291,63 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Perform text cleanup
         let cleanedText = await cleanup.cleanupText(transcribedText)
         
-        // Hide the indicator after cleanup
-        recordingIndicator?.hideWithAnimation()
-        
         print("Final text (after cleanup): \(cleanedText)")
         
-        // Future: Pass to text insertion (US-006)
-        print("Ready for text insertion: \(cleanedText)")
+        // Hide the indicator and perform text insertion
+        recordingIndicator?.updateStatus("Inserting...")
+        
+        // Insert cleaned text into active application
+        await performTextInsertion(cleanedText)
+        
+        // Hide the indicator after insertion
+        recordingIndicator?.hideWithAnimation()
         
         // Reset cleanup status
         cleanup.resetStatus()
+    }
+    
+    @MainActor
+    private func performTextInsertion(_ text: String) async {
+        guard let inserter = textInserter else {
+            print("TextInserter not available")
+            showTextInsertionError("Text insertion not available")
+            return
+        }
+        
+        // Skip empty text
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            print("Skipping insertion of empty text")
+            return
+        }
+        
+        let result = await inserter.insertText(text)
+        
+        switch result {
+        case .success:
+            print("Text inserted successfully")
+            
+        case .noAccessibilityPermission:
+            // Alert is already shown by TextInserter
+            print("Text insertion failed: No accessibility permission")
+            
+        case .insertionFailed(let message):
+            print("Text insertion failed: \(message)")
+            showTextInsertionError(message)
+        }
+        
+        // Reset inserter status
+        inserter.resetStatus()
+    }
+    
+    private func showTextInsertionError(_ message: String) {
+        DispatchQueue.main.async {
+            let alert = NSAlert()
+            alert.messageText = "Text Insertion Error"
+            alert.informativeText = message
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
+        }
     }
     
     private func showTranscriptionError(_ message: String) {
