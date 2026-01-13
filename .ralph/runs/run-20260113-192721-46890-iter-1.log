@@ -1,0 +1,24 @@
+The build passes. Let me provide a summary of what was done:
+
+## Summary
+
+I created the **Implementation Plan for WispFlow v0.4** at `/Users/lucasnolan/WispFlow/.ralph/IMPLEMENTATION_PLAN.md`.
+
+### Key Analysis Findings:
+1. **Audio buffer architecture is already unified** - The level meter and transcription buffer use the same tap callback. The likely root cause of the "disconnect" is the **audio converter** (native sample rate → 16kHz) potentially producing zeros or failing silently.
+
+2. **WhisperKit download limitations** - WhisperKit doesn't expose download progress through its API. The plan includes workarounds with status messages and error handling improvements.
+
+3. **LLM download already has progress tracking** - The `LLMManager` implementation is more complete. Plan focuses on error handling enhancements.
+
+4. **Audio export already implemented** - `AudioExporter.swift` and debug settings already support WAV export. Plan focuses on verification and minor UX improvements.
+
+### Plan Structure (6 stories, 25 tasks):
+- **US-301**: Verify/fix audio converter (not separate buffers as PRD suspected)
+- **US-302**: Audio tap verification with callback counting and format logging
+- **US-303**: Buffer integrity logging (mostly already implemented, minor gaps)
+- **US-304**: Whisper model download improvements (error handling, progress visibility)
+- **US-305**: LLM model download error handling enhancements
+- **US-306**: Audio debug export verification (already functional)
+
+The PRD already had correct story heading markers (`### [ ] US-XXX:`) and the Routing Policy section, so no changes were needed there.

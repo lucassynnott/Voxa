@@ -62,7 +62,18 @@ final class AudioManager: NSObject, ObservableObject {
     // MARK: - Properties
     
     private let audioEngine = AVAudioEngine()
-    private var audioBuffers: [AVAudioPCMBuffer] = []
+    
+    /// UNIFIED AUDIO BUFFER (US-301): Single masterBuffer is the ONLY audio storage
+    /// Both level meter and transcription read from this same buffer
+    private var masterBuffer: [Float] = []
+    
+    /// Lock for thread-safe access to masterBuffer
+    private let bufferLock = NSLock()
+    
+    /// Track sample count for logging at each stage
+    private var tapCallbackCount: Int = 0
+    private var samplesAddedThisCallback: Int = 0
+    
     private var isCapturing = false
     private var captureStartTime: Date?
     
@@ -418,9 +429,13 @@ final class AudioManager: NSObject, ObservableObject {
             print("AudioManager: [STAGE 1] ✓ Input device set: \(device.name)")
         }
         
-        // Clear previous buffers
-        audioBuffers.removeAll()
-        print("AudioManager: [STAGE 1] ✓ Audio buffers cleared")
+        // Clear previous buffers (US-301: Clear unified masterBuffer)
+        bufferLock.lock()
+        masterBuffer.removeAll()
+        bufferLock.unlock()
+        tapCallbackCount = 0
+        samplesAddedThisCallback = 0
+        print("AudioManager: [STAGE 1] ✓ masterBuffer cleared (unified audio storage)")
         
         // Configure audio engine
         let inputNode = audioEngine.inputNode
@@ -454,33 +469,22 @@ final class AudioManager: NSObject, ObservableObject {
         peakLevelDuringRecording = -Float.infinity
         currentAudioLevel = -60.0
         
-        // Track buffer statistics for verification
-        var bufferAppendCount = 0
-        var totalFramesAppended: AVAudioFrameCount = 0
-        
         print("╔═══════════════════════════════════════════════════════════════╗")
         print("║            AUDIO PIPELINE STAGE 2: TAP INSTALLED              ║")
+        print("║         US-301: Unified masterBuffer Architecture             ║")
         print("╚═══════════════════════════════════════════════════════════════╝")
         
-        // Install tap on input node
+        // Install tap on input node - US-301: All audio goes to single masterBuffer
         inputNode.installTap(onBus: 0, bufferSize: 4096, format: inputFormat) { [weak self] buffer, time in
             guard let self = self else { return }
             
-            // [STAGE 2] Calculate audio level from raw input buffer for real-time meter
-            // NOTE: This level meter and transcription buffer use THE SAME input buffer
-            let level = self.calculatePeakLevel(buffer: buffer)
+            self.tapCallbackCount += 1
             
-            // Update current audio level on main thread
-            DispatchQueue.main.async {
-                self.currentAudioLevel = level
-                // Track peak level during entire recording
-                if level > self.peakLevelDuringRecording {
-                    self.peakLevelDuringRecording = level
-                }
-            }
+            // US-301: Convert samples and append to masterBuffer
+            var samplesToAdd: [Float] = []
             
             if let converter = converter {
-                // [STAGE 2] Convert to target format (16kHz mono)
+                // Convert to target format (16kHz mono)
                 let frameCapacity = AVAudioFrameCount(
                     Double(buffer.frameLength) * Constants.targetSampleRate / inputFormat.sampleRate
                 )
@@ -503,42 +507,67 @@ final class AudioManager: NSObject, ObservableObject {
                 
                 if let error = error {
                     print("AudioManager: [STAGE 2] ⚠️ Audio conversion error: \(error.localizedDescription)")
-                } else if convertedBuffer.frameLength > 0 {
-                    // Verify the converted buffer format matches expected format
-                    if self.audioBuffers.isEmpty {
-                        // Log format verification on first buffer
-                        let format = convertedBuffer.format
-                        print("AudioManager: [STAGE 2] ✓ First converted buffer format verified:")
-                        print("  - Sample rate: \(format.sampleRate) Hz (expected: \(Constants.targetSampleRate))")
-                        print("  - Channels: \(format.channelCount) (expected: 1)")
-                        print("  - Format: \(format.commonFormat == .pcmFormatFloat32 ? "Float32" : "Other")")
-                        print("  - Level meter source: same input buffer as transcription buffer")
-                    }
-                    
-                    // [STAGE 2] Append converted buffer to audioBuffers
-                    self.audioBuffers.append(convertedBuffer)
-                    
-                    // Log buffer append confirmation (every 10th buffer to avoid log spam)
-                    bufferAppendCount += 1
-                    totalFramesAppended += convertedBuffer.frameLength
-                    if bufferAppendCount % 10 == 0 {
-                        print("AudioManager: [STAGE 2] Buffer append #\(bufferAppendCount) - frames: \(convertedBuffer.frameLength), total frames: \(totalFramesAppended)")
-                    }
+                    return
+                }
+                
+                // Extract Float samples from converted buffer
+                if let channelData = convertedBuffer.floatChannelData {
+                    let frameLength = Int(convertedBuffer.frameLength)
+                    samplesToAdd = Array(UnsafeBufferPointer(start: channelData[0], count: frameLength))
+                }
+                
+                // Log first callback with detailed format info
+                if self.tapCallbackCount == 1 {
+                    let format = convertedBuffer.format
+                    print("AudioManager: [STAGE 2] ✓ First tap callback - converted buffer format:")
+                    print("  - Sample rate: \(format.sampleRate) Hz (expected: \(Constants.targetSampleRate))")
+                    print("  - Channels: \(format.channelCount) (expected: 1)")
+                    print("  - Format: \(format.commonFormat == .pcmFormatFloat32 ? "Float32" : "Other")")
+                    print("  - US-301: Level meter AND transcription use SAME masterBuffer")
                 }
             } else {
                 // No conversion needed - already at target format
-                if self.audioBuffers.isEmpty {
-                    print("AudioManager: [STAGE 2] ✓ Audio already at target format (16kHz mono Float32)")
-                    print("  - Level meter source: same input buffer as transcription buffer")
+                if let channelData = buffer.floatChannelData {
+                    let frameLength = Int(buffer.frameLength)
+                    samplesToAdd = Array(UnsafeBufferPointer(start: channelData[0], count: frameLength))
                 }
-                self.audioBuffers.append(buffer)
                 
-                // Log buffer append confirmation (every 10th buffer)
-                bufferAppendCount += 1
-                totalFramesAppended += buffer.frameLength
-                if bufferAppendCount % 10 == 0 {
-                    print("AudioManager: [STAGE 2] Buffer append #\(bufferAppendCount) - frames: \(buffer.frameLength), total frames: \(totalFramesAppended)")
+                if self.tapCallbackCount == 1 {
+                    print("AudioManager: [STAGE 2] ✓ First tap callback - already at target format (16kHz mono Float32)")
+                    print("  - US-301: Level meter AND transcription use SAME masterBuffer")
                 }
+            }
+            
+            guard !samplesToAdd.isEmpty else {
+                if self.tapCallbackCount % 50 == 0 {
+                    print("AudioManager: [STAGE 2] ⚠️ Tap callback #\(self.tapCallbackCount) received empty data")
+                }
+                return
+            }
+            
+            // US-301: Calculate level from samples JUST ADDED to masterBuffer (same data!)
+            let level = self.calculatePeakLevelFromSamples(samplesToAdd)
+            
+            // US-301: Append samples to unified masterBuffer
+            self.bufferLock.lock()
+            let countBefore = self.masterBuffer.count
+            self.masterBuffer.append(contentsOf: samplesToAdd)
+            let countAfter = self.masterBuffer.count
+            self.bufferLock.unlock()
+            
+            self.samplesAddedThisCallback = samplesToAdd.count
+            
+            // Update audio level on main thread (calculated from SAME samples added to buffer)
+            DispatchQueue.main.async {
+                self.currentAudioLevel = level
+                if level > self.peakLevelDuringRecording {
+                    self.peakLevelDuringRecording = level
+                }
+            }
+            
+            // Log sample counts at every stage (every 10th callback to avoid log spam)
+            if self.tapCallbackCount % 10 == 0 {
+                print("AudioManager: [STAGE 2] Tap #\(self.tapCallbackCount) - added \(samplesToAdd.count) samples, masterBuffer: \(countBefore) → \(countAfter) samples, level: \(String(format: "%.1f", level))dB")
             }
         }
         
@@ -558,6 +587,7 @@ final class AudioManager: NSObject, ObservableObject {
         
         print("╔═══════════════════════════════════════════════════════════════╗")
         print("║            AUDIO PIPELINE STAGE 3: CAPTURE STOP               ║")
+        print("║         US-301: Unified masterBuffer Architecture             ║")
         print("╚═══════════════════════════════════════════════════════════════╝")
         
         // Stop engine and remove tap
@@ -570,24 +600,32 @@ final class AudioManager: NSObject, ObservableObject {
         // Calculate duration
         let duration = captureStartTime.map { Date().timeIntervalSince($0) } ?? 0
         captureStartTime = nil
-        print("AudioManager: [STAGE 3] Recording duration: \(String(format: "%.2f", duration))s, Buffers collected: \(audioBuffers.count)")
+        
+        // US-301: Log sample counts - masterBuffer is the ONLY audio storage
+        bufferLock.lock()
+        let sampleCount = masterBuffer.count
+        bufferLock.unlock()
+        print("AudioManager: [STAGE 3] Recording duration: \(String(format: "%.2f", duration))s, masterBuffer samples: \(sampleCount), tap callbacks: \(tapCallbackCount)")
         
         // Check minimum recording duration
         if duration < Constants.minimumRecordingDuration {
             print("AudioManager: [STAGE 3] ✗ Recording too short (\(String(format: "%.2f", duration))s < \(Constants.minimumRecordingDuration)s minimum)")
-            audioBuffers.removeAll()
+            bufferLock.lock()
+            masterBuffer.removeAll()
+            bufferLock.unlock()
             currentAudioLevel = -60.0
             onRecordingTooShort?()
             return nil
         }
         
         print("╔═══════════════════════════════════════════════════════════════╗")
-        print("║            AUDIO PIPELINE STAGE 4: BUFFER COMBINE             ║")
+        print("║            AUDIO PIPELINE STAGE 4: BUFFER PROCESSING          ║")
+        print("║   US-301: getAudioBuffer() returns masterBuffer directly      ║")
         print("╚═══════════════════════════════════════════════════════════════╝")
         
-        // Combine buffers into single data and compute statistics
-        let (audioData, stats) = combineBuffersToDataWithStats()
-        print("AudioManager: [STAGE 4] ✓ Buffers combined into \(audioData.count) bytes")
+        // US-301: Get audio directly from masterBuffer (no combining needed!)
+        let (audioData, stats) = getMasterBufferDataWithStats()
+        print("AudioManager: [STAGE 4] ✓ masterBuffer converted to \(audioData.count) bytes (\(stats.sampleCount) samples)")
         
         // Log detailed audio buffer statistics
         logAudioBufferStatistics(stats: stats, duration: duration)
@@ -612,7 +650,10 @@ final class AudioManager: NSObject, ObservableObject {
         
         print("AudioManager: [STAGE 4] ✓ Audio ready for transcription - Duration: \(String(format: "%.2f", duration))s, Data size: \(audioData.count) bytes, Peak: \(String(format: "%.1f", stats.peakLevel))dB")
         
-        audioBuffers.removeAll()
+        // US-301: Clear masterBuffer after use
+        bufferLock.lock()
+        masterBuffer.removeAll()
+        bufferLock.unlock()
         currentAudioLevel = -60.0
         
         return AudioCaptureResult(
@@ -667,9 +708,13 @@ final class AudioManager: NSObject, ObservableObject {
         
         isCapturing = false
         captureStartTime = nil
-        audioBuffers.removeAll()
         
-        print("AudioManager: Cancelled capturing")
+        // US-301: Clear unified masterBuffer
+        bufferLock.lock()
+        masterBuffer.removeAll()
+        bufferLock.unlock()
+        
+        print("AudioManager: Cancelled capturing (masterBuffer cleared)")
     }
     
     /// Check if currently capturing
@@ -708,57 +753,33 @@ final class AudioManager: NSObject, ObservableObject {
         #endif
     }
     
-    private func combineBuffersToData() -> Data {
-        var combinedData = Data()
-        
-        for buffer in audioBuffers {
-            guard let channelData = buffer.floatChannelData else { continue }
-            
-            let frameLength = Int(buffer.frameLength)
-            let dataPointer = channelData[0]
-            
-            // Convert Float32 samples to Data
-            let byteSize = frameLength * MemoryLayout<Float>.size
-            combinedData.append(Data(bytes: dataPointer, count: byteSize))
-        }
-        
-        return combinedData
+    // MARK: - US-301: Unified Buffer Access
+    
+    /// US-301: Get audio buffer directly - returns masterBuffer contents
+    /// This is the ONLY way to access audio data, ensuring level meter and transcription use same data
+    func getAudioBuffer() -> [Float] {
+        bufferLock.lock()
+        let buffer = masterBuffer
+        bufferLock.unlock()
+        print("AudioManager: [US-301] getAudioBuffer() returning \(buffer.count) samples from masterBuffer")
+        return buffer
     }
     
-    /// Combine buffers, normalize to [-1.0, 1.0] range, and compute statistics
-    private func combineBuffersToDataWithStats() -> (Data, AudioBufferStats) {
-        var allSamples: [Float] = []
+    /// US-301: Get masterBuffer data with statistics (for transcription)
+    private func getMasterBufferDataWithStats() -> (Data, AudioBufferStats) {
+        // US-301: Get samples directly from masterBuffer (the ONLY audio storage)
+        bufferLock.lock()
+        let allSamples = masterBuffer
+        bufferLock.unlock()
         
-        // Track expected sample count from individual buffers for verification
-        var expectedSampleCount: Int = 0
-        
-        // First pass: collect all samples
-        for buffer in audioBuffers {
-            guard let channelData = buffer.floatChannelData else { continue }
-            
-            let frameLength = Int(buffer.frameLength)
-            let dataPointer = channelData[0]
-            
-            expectedSampleCount += frameLength
-            
-            for i in 0..<frameLength {
-                allSamples.append(dataPointer[i])
-            }
-        }
-        
-        // Buffer sample count verification
-        if allSamples.count != expectedSampleCount {
-            print("AudioManager: ⚠️ SAMPLE COUNT MISMATCH - collected: \(allSamples.count), expected: \(expectedSampleCount)")
-        } else {
-            print("AudioManager: ✓ Buffer sample count verified: \(allSamples.count) samples from \(audioBuffers.count) buffers")
-        }
+        print("AudioManager: [US-301] getMasterBufferDataWithStats() - masterBuffer has \(allSamples.count) samples")
         
         // [STAGE 4] Log actual sample values BEFORE silence check
         if !allSamples.isEmpty {
             let firstSamples = Array(allSamples.prefix(10))
             let lastSamples = Array(allSamples.suffix(10))
             
-            print("AudioManager: [STAGE 4] ┌─ SAMPLE VALUES BEFORE SILENCE CHECK ────────────────────────")
+            print("AudioManager: [STAGE 4] ┌─ SAMPLE VALUES FROM masterBuffer ────────────────────────")
             print("AudioManager: [STAGE 4] │ First 10 samples: \(firstSamples.map { String(format: "%.6f", $0) }.joined(separator: ", "))")
             print("AudioManager: [STAGE 4] │ Last 10 samples:  \(lastSamples.map { String(format: "%.6f", $0) }.joined(separator: ", "))")
             
@@ -892,6 +913,23 @@ final class AudioManager: NSObject, ObservableObject {
         
         for i in 0..<frameLength {
             let amplitude = abs(dataPointer[i])
+            if amplitude > maxAmplitude {
+                maxAmplitude = amplitude
+            }
+        }
+        
+        return amplitudeToDecibels(maxAmplitude)
+    }
+    
+    /// US-301: Calculate peak level from Float samples array (for unified buffer level metering)
+    private func calculatePeakLevelFromSamples(_ samples: [Float]) -> Float {
+        guard !samples.isEmpty else {
+            return -60.0
+        }
+        
+        var maxAmplitude: Float = 0
+        for sample in samples {
+            let amplitude = abs(sample)
             if amplitude > maxAmplitude {
                 maxAmplitude = amplitude
             }
