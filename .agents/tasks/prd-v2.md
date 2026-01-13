@@ -111,13 +111,13 @@ As a user, I want my audio properly converted for Whisper so transcription works
 - [x] Add audio preprocessing validation
 - [x] Log format details before transcription
 
-### [ ] US-103: Improve Model Loading
+### [x] US-103: Improve Model Loading
 As a user, I want the Whisper model to load reliably so I can transcribe immediately.
-- Auto-load last-used model on app launch
-- Show loading progress in menu bar
-- Block recording until model ready
-- Display clear error if model fails to load
-- Add "Model Ready" indicator
+- [x] Auto-load last-used model on app launch
+- [x] Show loading progress in menu bar
+- [x] Block recording until model ready
+- [x] Display clear error if model fails to load
+- [x] Add "Model Ready" indicator
 
 ### [ ] US-104: Better Error Handling
 As a user, I want clear error messages instead of BLANK_AUDIO so I know what went wrong.

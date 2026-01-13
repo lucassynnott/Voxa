@@ -222,7 +222,55 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     
     private func toggleRecordingFromHotkey() {
         print("Hotkey triggered - toggling recording")
-        statusBarController?.toggle()
+        
+        // Block recording if trying to START and model is not ready
+        // Use Task to access MainActor-isolated whisperManager
+        Task { @MainActor in
+            if statusBarController?.currentState == .idle {
+                // About to start recording, check if model is ready
+                guard let whisper = whisperManager, whisper.isReady else {
+                    print("Cannot start recording - model not ready")
+                    showModelNotReadyAlert()
+                    return
+                }
+            }
+            
+            statusBarController?.toggle()
+        }
+    }
+    
+    @MainActor
+    private func showModelNotReadyAlert() {
+        let alert = NSAlert()
+        
+        // Determine message based on model status
+        var detailMessage = "Please wait for the Whisper model to finish loading."
+        if let whisper = whisperManager {
+            switch whisper.modelStatus {
+            case .notDownloaded:
+                detailMessage = "No Whisper model is downloaded. Please open Settings and download a model."
+            case .downloading(let progress):
+                detailMessage = "Model is downloading (\(Int(progress * 100))%). Please wait for the download to complete."
+            case .downloaded:
+                detailMessage = "Model is downloaded but not loaded. Please open Settings and load the model."
+            case .loading:
+                detailMessage = "Model is currently loading. Please wait a moment."
+            case .error(let message):
+                detailMessage = "Model failed to load: \(message)\n\nPlease open Settings to retry."
+            case .ready:
+                detailMessage = "Model is ready." // Should not happen
+            }
+        }
+        
+        alert.messageText = "Model Not Ready"
+        alert.informativeText = detailMessage
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Open Settings")
+        alert.addButton(withTitle: "OK")
+        
+        if alert.runModal() == .alertFirstButtonReturn {
+            openSettings()
+        }
     }
     
     private func cancelRecording() {

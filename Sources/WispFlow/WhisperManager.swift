@@ -177,8 +177,17 @@ final class WhisperManager: ObservableObject {
             return
         }
         
-        modelStatus = .loading
-        statusMessage = "Loading \(selectedModel.displayName)..."
+        // Check if model is downloaded
+        let isDownloaded = isModelDownloaded(selectedModel)
+        
+        if isDownloaded {
+            modelStatus = .loading
+            statusMessage = "Loading \(selectedModel.displayName)..."
+        } else {
+            modelStatus = .downloading(progress: 0.0)
+            downloadProgress = 0.0
+            statusMessage = "Downloading \(selectedModel.displayName)..."
+        }
         
         do {
             print("WhisperManager: Starting model load for \(selectedModel.rawValue)")
@@ -192,8 +201,21 @@ final class WhisperManager: ObservableObject {
             )
             
             // Initialize WhisperKit (this downloads if needed)
+            // WhisperKit downloads models automatically if not present
+            // Update status to loading once download would start
+            if !isDownloaded {
+                // Set to downloading state while WhisperKit initializes
+                // Note: WhisperKit doesn't expose progress callbacks directly,
+                // so we simulate progress stages during the download
+                modelStatus = .downloading(progress: 0.1)
+                downloadProgress = 0.1
+                statusMessage = "Downloading \(selectedModel.displayName)..."
+            }
+            
             whisperKit = try await WhisperKit(config)
             
+            // Update progress after successful download/load
+            downloadProgress = 1.0
             modelStatus = .ready
             statusMessage = "\(selectedModel.displayName) ready"
             print("WhisperManager: Model loaded successfully")
@@ -202,6 +224,7 @@ final class WhisperManager: ObservableObject {
             let errorMessage = "Failed to load model: \(error.localizedDescription)"
             modelStatus = .error(errorMessage)
             statusMessage = errorMessage
+            downloadProgress = 0.0
             print("WhisperManager: \(errorMessage)")
             onError?(errorMessage)
         }

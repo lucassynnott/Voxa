@@ -95,25 +95,29 @@ WispFlow v0.1 (US-001 through US-007) is complete with core functionality: menu 
 
 ### US-103: Improve Model Loading
 
-- [ ] Show model loading status in menu bar
+- [x] Show model loading status in menu bar
   - Scope: Modify `Sources/WispFlow/StatusBarController.swift` to update status item tooltip or add secondary icon state showing model status (loading spinner, checkmark, error).
   - Acceptance: Menu bar icon/tooltip reflects model state: "Loading model...", "Model ready", "Model error"
   - Verification: `swift build` passes; launch app, observe menu bar reflects model loading progress
+  - **DONE:** Added `setupModelStatusObserver()` to subscribe to WhisperManager's `modelStatus` using Combine. Menu bar icon changes based on status: waveform.slash (not loaded), arrow.down.circle (downloading), arrow.clockwise.circle (loading), waveform (ready), exclamationmark.triangle (error). Tooltip also updates with descriptive status.
 
-- [ ] Block recording until model is ready
+- [x] Block recording until model is ready
   - Scope: Modify `Sources/WispFlow/AppDelegate.swift` `handleRecordingStateChange()` to check `whisperManager.isReady` before starting recording. Show alert if model not ready.
   - Acceptance: Cannot start recording if model is not loaded; clear message guides user to wait or open settings
   - Verification: `swift build` passes; try to record before model loads, verify blocking alert
+  - **DONE:** Added `showModelNotReadyAlert()` method that displays context-aware messages based on model status. Modified `toggleRecordingFromHotkey()` to check `whisperManager.isReady` before allowing recording to start. Alert includes "Open Settings" button.
 
-- [ ] Add model loading progress indicator
+- [x] Add model loading progress indicator
   - Scope: Modify `Sources/WispFlow/WhisperManager.swift` to expose download progress via `@Published var downloadProgress: Double`. Update StatusBarController to show progress percentage.
   - Acceptance: During model download, progress percentage is visible in menu bar or settings
   - Verification: `swift build` passes; download new model, observe progress updates
+  - **DONE:** Enhanced `loadModel()` to set `downloadProgress` and `modelStatus` to `.downloading(progress:)` when downloading new models. Menu bar menu item shows download progress percentage. Note: WhisperKit doesn't expose granular download progress, so status changes are at key stages.
 
-- [ ] Add "Model Ready" visual indicator
+- [x] Add "Model Ready" visual indicator
   - Scope: Modify `Sources/WispFlow/StatusBarController.swift` to show a small badge or change icon color when model is ready. Add checkmark badge to menu item.
   - Acceptance: User can clearly see when model is loaded and ready for transcription
   - Verification: `swift build` passes; wait for model to load, verify visual indicator appears
+  - **DONE:** Added model status menu item at top of menu with emoji indicators: 🟢 (ready), 🔄 (loading/downloading), 🔵 (downloaded), ⚪ (not downloaded), 🔴 (error). Menu bar icon changes to "waveform" when ready vs "waveform.slash" when not. Added `updateModelStatusMenuItem()` method.
 
 ---
 
