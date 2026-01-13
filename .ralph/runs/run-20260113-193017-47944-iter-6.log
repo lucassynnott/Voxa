@@ -1,0 +1,19 @@
+## Summary
+
+Successfully implemented **US-306: Audio Debug Export**. The implementation enhances the audio debugging workflow with:
+
+1. **Export Functionality**: Added "Quick Export" button that saves recordings directly to `~/Documents/WispFlow/DebugRecordings/` with timestamped filenames
+
+2. **Auto-Save Mode**: New toggle in Debug Settings that automatically saves every recording when debug mode is enabled
+
+3. **Playback Support**: Integrated AVAudioPlayer with Play/Stop button to verify exported audio directly from the app
+
+4. **Finder Integration**: "Show in Finder" and "Open Recordings Folder" buttons for quick file access
+
+5. **Detailed Logging**: All export operations are logged with `[US-306]` prefix showing sample count, duration, sample rate, file size, and path
+
+All 6 stories in PRD v0.4 (US-301 through US-306) are now complete:
+- Commit: `3cab35e feat(US-306): add audio debug export with auto-save, playback, and detailed logging`
+- Commit: `8e2d304 docs: update progress log for US-306`
+
+<promise>COMPLETE</promise>

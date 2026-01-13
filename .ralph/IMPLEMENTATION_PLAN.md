@@ -1,287 +1,424 @@
-# Implementation Plan - WispFlow v0.4
+# Implementation Plan - WispFlow v0.5
 
 ## Summary
 
-WispFlow v0.3 (US-201 through US-205) is complete with accessibility permission detection, audio buffer pipeline verification, audio capture diagnostics, permission flow UX, and silence detection fixes.
+WispFlow v0.4 (US-301 through US-306) is complete with unified audio buffer architecture, tap verification, buffer integrity logging, model download improvements, and audio debug export.
 
-**v0.4 focuses on investigating and fixing two critical issues:**
-1. **Audio buffer disconnect** - Level meter shows activity, but transcription reports silence
-2. **Model download failures** - Whisper and LLM models fail to download silently
+**v0.5 focuses on a comprehensive UI refresh to transform WispFlow into a polished, premium macOS application:**
 
-### Key Findings from Code Analysis:
+1. **No Design System Exists**: The codebase has no centralized design tokens. All colors, fonts, spacing, and styles are hardcoded inline throughout `SettingsWindow.swift`, `RecordingIndicatorWindow.swift`, and `StatusBarController.swift`.
 
-1. **Audio Buffer Architecture Already Unified**: The current `AudioManager.swift` implementation already uses a single buffer path. The level meter calculates from the raw input buffer in the tap callback, and the transcription buffer stores the converted (16kHz) version of the same data. This is correct architecture.
+2. **Current UI State**:
+   - Settings window: 520x580 pixels, uses default SwiftUI Form/Section styling
+   - Recording indicator: NSPanel with NSVisualEffectView (.hudWindow material), standard SF Symbols
+   - Menu bar: Standard NSStatusItem with system icons
+   - No custom theming, no warm color palette, no custom animations
 
-2. **Potential Root Cause - Different Data Sources**: The level meter reads the **raw input buffer** (native device sample rate), while transcription uses the **converted buffer** (16kHz). If the audio converter is failing silently or producing zeros, this would explain the disconnect.
+3. **Key Gaps vs PRD Requirements**:
+   - Missing: DesignSystem.swift with color/typography/spacing tokens
+   - Missing: Warm ivory/cream (#FEFCF8) background instead of default system colors
+   - Missing: Coral accent (#E07A5F) instead of system blue
+   - Missing: Custom button styles (WispflowButtonStyle)
+   - Missing: Card-based section styling with soft shadows
+   - Missing: Custom toggle switches with coral accent
+   - Missing: Toast notification system
+   - Missing: Live waveform visualization (current is simple bar meter)
+   - Missing: Micro-interactions and button press animations
+   - Missing: Welcome/onboarding flow (lower priority for MVP)
 
-3. **WhisperKit Download Progress**: WhisperKit initializes and downloads models internally, but the current code doesn't effectively capture download progress. The `WhisperKitConfig` doesn't expose a progress callback.
-
-4. **LLM Download Already Has Progress**: `LLMManager.swift` has proper download progress tracking via `URLSessionDownloadDelegate`.
-
-5. **Audio Export Already Implemented**: `AudioExporter.swift` and `DebugManager` already support WAV export functionality.
-
-### Priority Order (based on user impact):
-1. US-301 (Audio Buffer Architecture) - Verify and fix the converter path
-2. US-302 (Audio Tap Verification) - Confirm tap callbacks are firing with data
-3. US-303 (Buffer Integrity Logging) - Trace where data may be lost
-4. US-304 (Whisper Model Downloads) - Fix download progress and error handling
-5. US-305 (LLM Model Downloads) - Enhance error handling (mostly working)
-6. US-306 (Audio Debug Export) - Already implemented, verify functionality
+### Priority Order (based on design dependency graph):
+1. **US-401 (Design System Foundation)** - All other stories depend on this
+2. **US-404 (Modern Settings Window)** - Largest visual impact, uses design system
+3. **US-403 (Beautiful Recording Indicator)** - High visibility during use
+4. **US-402 (Refined Menu Bar Experience)** - AppKit/NSStatusItem changes
+5. **US-405-408 (Settings Tab Polish)** - Incremental improvements per tab
+6. **US-409 (Toast Notification System)** - New component
+7. **US-410 (Micro-interactions & Polish)** - Final polish pass
 
 ---
 
 ## Tasks
 
-### US-301: Unify Audio Buffer Architecture ✅ COMPLETE
-As a user, I want the audio that shows in the level meter to be the same audio that gets transcribed.
+### US-401: Design System Foundation
+As a developer, I want a centralized design system so all UI components are consistent.
 
-**Implementation (2026-01-13):** Replaced the old `audioBuffers: [AVAudioPCMBuffer]` array with a single unified `masterBuffer: [Float]`. The level meter now calculates from the exact same samples that get appended to masterBuffer, eliminating any possibility of disconnect.
-
-- [x] Remove duplicate/separate audio buffers in AudioManager
-  - Removed `audioBuffers: [AVAudioPCMBuffer]` array
-  - Created `masterBuffer: [Float]` as the ONLY audio storage
-  - Added thread-safe `bufferLock` for concurrent access
+- [x] Create DesignSystem.swift with color definitions
+  - Scope: Create new file `Sources/WispFlow/DesignSystem.swift`
+  - Define `Color.Wispflow.background` (#FEFCF8 warm ivory)
+  - Define `Color.Wispflow.surface` (white #FFFFFF)
+  - Define `Color.Wispflow.accent` (#E07A5F warm coral)
+  - Define `Color.Wispflow.success` (#81B29A muted sage)
+  - Define `Color.Wispflow.textPrimary` (#2D3436 warm charcoal)
+  - Define `Color.Wispflow.textSecondary` (#636E72 warm gray)
+  - Define `Color.Wispflow.border` (#E8E4DF subtle warm gray)
+  - Add NSColor equivalents for AppKit components
+  - Acceptance: All colors defined as static properties with hex extension helper
   - Verification: `swift build` passes ✓
 
-- [x] Create single masterBuffer that is the ONLY audio storage
-  - `private var masterBuffer: [Float] = []` is now the sole buffer
-  - All other buffer references have been removed
+- [x] Define typography styles in DesignSystem.swift
+  - Scope: Add `Font.Wispflow` namespace in `Sources/WispFlow/DesignSystem.swift`
+  - Define `Font.Wispflow.largeTitle` (28pt, bold, rounded)
+  - Define `Font.Wispflow.title` (20pt, semibold, rounded)
+  - Define `Font.Wispflow.headline` (16pt, semibold, rounded)
+  - Define `Font.Wispflow.body` (14pt, regular)
+  - Define `Font.Wispflow.caption` (12pt, medium)
+  - Define `Font.Wispflow.small` (11pt, regular)
+  - Add NSFont equivalents for AppKit components
+  - Acceptance: All font styles defined and use .rounded design where specified
   - Verification: `swift build` passes ✓
 
-- [x] Audio tap callback appends to masterBuffer
-  - Tap callback extracts Float samples from converted buffer
-  - Samples are appended directly to masterBuffer with thread safety
+- [x] Define spacing constants in DesignSystem.swift
+  - Scope: Add `Spacing` namespace in `Sources/WispFlow/DesignSystem.swift`
+  - Define `Spacing.xs` (4pt), `Spacing.sm` (8pt), `Spacing.md` (12pt), `Spacing.lg` (16pt), `Spacing.xl` (24pt), `Spacing.xxl` (32pt)
+  - Define `CornerRadius.small` (8pt), `CornerRadius.medium` (12pt), `CornerRadius.large` (16pt)
+  - Define shadow styles: `ShadowStyle.card`, `ShadowStyle.floating`
+  - Acceptance: All constants defined and documented
   - Verification: `swift build` passes ✓
 
-- [x] Level meter calculates from samples just added to masterBuffer
-  - Added `calculatePeakLevelFromSamples()` method
-  - Level is calculated from the EXACT same samples added to masterBuffer
-  - No separate data path for level meter vs transcription
+- [x] Create WispflowButtonStyle view modifier
+  - Scope: Add custom ButtonStyle in `Sources/WispFlow/DesignSystem.swift`
+  - Primary style: coral background, white text, rounded corners
+  - Secondary style: light gray background, coral text
+  - Ghost style: transparent background, coral text
+  - Include press animation (scale down 0.97)
+  - Include hover state color change
+  - Acceptance: Button styles work on SwiftUI buttons
   - Verification: `swift build` passes ✓
 
-- [x] getAudioBuffer() returns masterBuffer directly
-  - Added public `getAudioBuffer() -> [Float]` method
-  - Returns masterBuffer contents with thread-safe access
+- [x] Create WispflowCardStyle view modifier
+  - Scope: Add custom ViewModifier in `Sources/WispFlow/DesignSystem.swift`
+  - White background with soft warm shadow
+  - 12px corner radius
+  - Generous internal padding (16pt)
+  - Acceptance: Can wrap any view in card styling
   - Verification: `swift build` passes ✓
 
-- [x] Log sample counts at every stage to verify data flow
-  - Added `tapCallbackCount` tracking
-  - Logs sample counts every 10th tap callback
-  - Logs masterBuffer sample count at capture stop
-  - Detailed logging in getMasterBufferDataWithStats()
+- [x] Create WispflowToggleStyle
+  - Scope: Add custom ToggleStyle in `Sources/WispFlow/DesignSystem.swift`
+  - Coral (#E07A5F) thumb when on
+  - Smooth animation on toggle
+  - Match system toggle size
+  - Acceptance: Toggle shows coral accent when enabled
   - Verification: `swift build` passes ✓
+
+**Implementation Notes (US-401):**
+- Created comprehensive DesignSystem.swift with ~400 lines of code
+- Added Color.Wispflow and NSColor.Wispflow namespaces with full color palette
+- Added Font.Wispflow and NSFont.Wispflow namespaces with all typography styles
+- Added Spacing enum with xs/sm/md/lg/xl/xxl constants
+- Added CornerRadius enum with small/medium/large/extraLarge constants
+- Added ShadowStyle enum with card/floating/subtle presets and .wispflowShadow() modifier
+- Created WispflowButtonStyle with primary/secondary/ghost variants and press animations
+- Created WispflowCardStyle ViewModifier with .wispflowCard() extension
+- Created WispflowToggleStyle with coral accent and smooth animation
+- Created WispflowTextFieldStyle for consistent text input styling
+- Added WispflowAnimation presets for micro-interactions
 
 ---
 
-### US-302: Audio Tap Verification ✅ COMPLETE
-As a developer, I want to verify the audio tap is actually being called with real data.
+### US-402: Refined Menu Bar Experience
+As a user, I want an elegant menu bar presence that feels premium.
 
-**Implementation (2026-01-13):** Added comprehensive tap callback verification including a 2-second timer alert, detailed first-callback logging with full format info and sample counts, and improved empty/zero-data detection with counters and structured logging.
+- [ ] Update menu bar icon with custom tinting
+  - Scope: Modify `Sources/WispFlow/StatusBarController.swift`
+  - Use warm charcoal (#2D3436) tint for idle icon
+  - Use coral (#E07A5F) tint for recording state
+  - Keep existing SF Symbols but apply custom tinting
+  - Acceptance: Menu bar icon uses warm colors instead of system defaults
+  - Verification: `swift build` passes
 
-- [x] Add tap callback counter and log callback frequency
-  - Added `tapCallbackCount`, `emptyCallbackCount`, and `zeroDataCallbackCount` tracking
-  - Added `logTapCallbackStats()` method that logs summary after recording stops
-  - Summary includes: total callbacks, duration, callbacks/second, expected callbacks, empty count, zero-data count
-  - Verification: `swift build` passes ✓
+- [ ] Redesign dropdown menu with warm styling
+  - Scope: Modify `Sources/WispFlow/StatusBarController.swift` setupMenu()
+  - Apply warm ivory background if possible via NSAppearance
+  - Add subtle icons to menu items (gear for settings, speaker for audio, power for quit)
+  - Improve menu item typography with proper spacing
+  - Acceptance: Menu has consistent styling with design system colors
+  - Verification: `swift build` passes
 
-- [x] Log detailed format info on first tap callback
-  - First tap callback now logs comprehensive details in a boxed format
-  - Includes: input buffer frame count, sample rate, channels; converted buffer details; sample count extracted
-  - Works for both converted and non-converted audio paths
-  - Verification: `swift build` passes ✓
-
-- [x] Alert if no callbacks received within 2 seconds
-  - Added `noCallbackAlertTimer` property with `startNoCallbackAlertTimer()` and `stopNoCallbackAlertTimer()` methods
-  - Timer fires after 2 seconds and checks if `tapCallbackCount == 0`
-  - Logs prominent boxed warning with possible causes if no callbacks received
-  - Added `onNoTapCallbacks` callback for external notification
-  - Timer is properly cleaned up in `stopCapturing()` and `cancelCapturing()`
-  - Verification: `swift build` passes ✓
-
-- [x] Log if callback receives empty or zero-sample data
-  - Added `emptyCallbackCount` counter for callbacks with empty buffers
-  - Added `zeroDataCallbackCount` counter for callbacks where all samples are near-zero
-  - Logs first occurrence immediately, then every 10th occurrence
-  - Uses `zeroThreshold` of 1e-7 to detect near-zero samples
-  - Counters are reset at start of each recording session
-  - Verification: `swift build` passes ✓
+- [ ] Add recording state visual feedback
+  - Scope: Modify `Sources/WispFlow/StatusBarController.swift` updateIcon()
+  - Pulsing effect on menu bar icon during recording (via NSTimer animation)
+  - Coral tint during active recording
+  - Acceptance: Menu bar icon pulses/glows when recording is active
+  - Verification: `swift build` passes
 
 ---
 
-### US-303: Buffer Integrity Logging ✅ COMPLETE
-As a developer, I want to trace exactly where audio data goes.
+### US-403: Beautiful Recording Indicator
+As a user, I want a stunning recording indicator that's a joy to look at.
 
-**Implementation (2026-01-13):** Added comprehensive buffer integrity logging throughout the audio capture lifecycle. All masterBuffer operations are now traced with prominent boxed log messages including: buffer clear events (with previous/current counts), every append operation (first 5 + every 10th), buffer read events with empty warnings, and expected vs actual sample count comparison.
+- [ ] Update recording indicator colors to design system
+  - Scope: Modify `Sources/WispFlow/RecordingIndicatorWindow.swift`
+  - Use coral (#E07A5F) for recording icon instead of systemRed
+  - Use warm charcoal (#2D3436) for text instead of labelColor
+  - Update cancel button to warm gray with coral hover
+  - Acceptance: Recording indicator uses design system colors
+  - Verification: `swift build` passes
 
-- [x] Log when masterBuffer is created/cleared
-  - Added prominent boxed log in `startCapturing()` showing previous and current sample counts
-  - Added logging in `stopCapturing()` after buffer is read for transcription
-  - Added boxed log in `cancelCapturing()` showing discarded samples and callback count
-  - Verification: `swift build` passes ✓
+- [ ] Enhance frosted glass effect with warm tint
+  - Scope: Modify `Sources/WispFlow/RecordingIndicatorWindow.swift` setupUI()
+  - Apply warm ivory tint to NSVisualEffectView
+  - Increase corner radius to 22px (already set, confirm)
+  - Add subtle warm shadow
+  - Acceptance: Floating pill has warmer appearance
+  - Verification: `swift build` passes
 
-- [x] Log every append with sample count and running total
-  - Enhanced tap callback logging: logs first 5 appends, then every 10th
-  - Format: `[US-303] APPEND #N: +X samples | masterBuffer: before → after total | level: Y.YdB`
-  - Provides traceability while avoiding excessive log spam
-  - Verification: `swift build` passes ✓
+- [ ] Improve audio level meter visualization
+  - Scope: Modify `AudioLevelMeterView` in `Sources/WispFlow/RecordingIndicatorWindow.swift`
+  - Use design system colors: coral for active, sage green for normal levels
+  - Smoother animation (currently 0.05s, may be fine)
+  - Consider rounded caps on the level bar
+  - Acceptance: Level meter uses warm color palette
+  - Verification: `swift build` passes
 
-- [x] Log when buffer is read for transcription
-  - Added prominent boxed header when `getMasterBufferDataWithStats()` is called
-  - Logs total samples retrieved from masterBuffer
-  - Verification: `swift build` passes ✓
+- [ ] Add recording duration display
+  - Scope: Modify `Sources/WispFlow/RecordingIndicatorWindow.swift`
+  - Show elapsed time in status label (e.g., "Recording... 0:05")
+  - Use design system caption font
+  - Update label dynamically via timer
+  - Acceptance: Recording duration shown in real-time
+  - Verification: `swift build` passes
 
-- [x] Log if buffer is empty when read
-  - Added explicit warning box when masterBuffer is empty at read time
-  - Includes possible causes: no tap callbacks, all empty/zero buffers, unexpected clear
-  - Provides guidance to check callback counts
-  - Verification: `swift build` passes ✓
-
-- [x] Compare final buffer count to expected count (duration * 16000)
-  - Added boxed comparison log in `stopCapturing()` after duration is calculated
-  - Shows: duration, target sample rate, expected samples, actual samples, difference, variance %
-  - Status indicator: ✓ for within 10%, ⚠️ for mismatch > 10%, ❌ for no samples
-  - Verification: `swift build` passes ✓
-
----
-
-### US-304: Fix Whisper Model Downloads ✅ COMPLETE
-As a user, I want Whisper models to download successfully.
-
-**Implementation (2026-01-13):** Added comprehensive error handling, progress visibility, directory verification, and retry functionality for Whisper model downloads. Enhanced WhisperManager.swift with detailed error logging, status messages during download, pre/post-download verification, and a retry mechanism. Updated SettingsWindow.swift with a progress bar, error alerts, and retry button.
-
-- [x] Add WhisperKit initialization error logging with full context
-  - Added `createDetailedErrorMessage()` that parses error types and provides specific suggestions
-  - Added boxed console logging with model info, directory status, error type, and full error details
-  - Enhanced `ErrorLogger.shared.logModelError()` with comprehensive context
-  - Verification: `swift build` passes ✓
-
-- [x] Improve download progress visibility (workaround for WhisperKit limitation)
-  - Added `lastErrorMessage` published property for detailed UI error display
-  - Added intermediate status messages: "Connecting to model repository...", "Downloading model files from Hugging Face...", "Downloading [model] (~size)...", "Still downloading..."
-  - Added `getEstimatedSize()` helper to show approximate download size
-  - Added timed status updates (2s, 5s) to simulate progress during download
-  - Added `ProgressView` with linear style and percentage in UI
-  - Verification: `swift build` passes ✓
-
-- [x] Verify model directory exists and is writable before download
-  - Added `verifyModelsDirectory()` method that checks/creates directory and verifies write permission
-  - Returns clear error if directory cannot be created or is not writable
-  - Logs directory status to console with boxed output
-  - Verification: `swift build` passes ✓
-
-- [x] Add model file verification after download
-  - Added `verifyModelFilesAfterDownload()` method that checks model directory exists
-  - Lists files in model directory and calculates total size
-  - Logs verification result with file count and total size
-  - Verification: `swift build` passes ✓
-
-- [x] Show clear error message in UI when download fails
-  - Added `showErrorAlert` state in `TranscriptionSettingsView`
-  - Shows alert automatically when download fails with detailed message from `lastErrorMessage`
-  - Error message includes cause analysis and specific suggestions
-  - Added "Error Details" button for viewing error info after dismissing initial alert
-  - Verification: `swift build` passes ✓
-
-- [x] Add retry mechanism for failed downloads
-  - Added `retryLoadModel()` method that resets status and retries download
-  - Added "Retry Download" button in UI that appears when `modelStatus == .error`
-  - Button calls `retryLoadModel()` and shows error alert if retry also fails
-  - Verification: `swift build` passes ✓
+- [ ] Enhance show/hide animations
+  - Scope: Modify showWithAnimation()/hideWithAnimation() in RecordingIndicatorWindow
+  - Add slide-down effect on appear (from above screen)
+  - Add slide-up effect on dismiss
+  - Increase animation duration slightly for smoothness (0.25s)
+  - Acceptance: Recording indicator slides in/out elegantly
+  - Verification: `swift build` passes
 
 ---
 
-### US-305: Fix LLM Model Downloads ✅ COMPLETE
-As a user, I want LLM models to download successfully.
+### US-404: Modern Settings Window
+As a user, I want a settings window that feels like a premium app.
 
-**Implementation (2026-01-13):** Added comprehensive error handling with specific HTTP error parsing, network connectivity pre-check, prominent download URL logging, file size verification after download, and manual model path fallback option. Enhanced LLMManager.swift and SettingsWindow.swift with detailed error messages, retry functionality, progress bars, and file picker for custom model paths.
+- [ ] Increase settings window size to 600x500+
+  - Scope: Modify `Sources/WispFlow/SettingsWindow.swift` line ~66
+  - Change `.frame(width: 520, height: 580)` to `.frame(width: 620, height: 560)`
+  - Acceptance: Settings window is larger with more breathing room
+  - Verification: `swift build` passes
 
-- [x] Improve download error messages with specific failure reasons
-  - Added `createDetailedErrorMessage()` method that parses HTTP status codes (401, 403, 404, 429, 5xx) and network errors (timeout, no internet, connection lost)
-  - Each error type has specific user-friendly message and actionable suggestion
-  - Added `handleDownloadError()` method for consistent error state management
-  - Added boxed console logging with full error context
-  - Error messages include download URL for debugging
-  - Verification: `swift build` passes ✓
+- [ ] Apply warm ivory background to settings window
+  - Scope: Modify SettingsView in `Sources/WispFlow/SettingsWindow.swift`
+  - Add `.background(Color.Wispflow.background)` to root view
+  - May need to wrap in ZStack for full coverage
+  - Acceptance: Settings window has warm ivory (#FEFCF8) background
+  - Verification: `swift build` passes
 
-- [x] Add network reachability check before download attempt
-  - Added `checkNetworkConnectivity()` async method that performs HEAD request before download
-  - Checks for HTTP status codes and network error types
-  - Returns clear message if network unavailable (no internet, cannot find host, secure connection failed, timeout)
-  - Connectivity check has 10 second timeout
-  - Verification: `swift build` passes ✓
+- [ ] Redesign tab bar with icons and styling
+  - Scope: Modify TabView in `Sources/WispFlow/SettingsWindow.swift`
+  - Use custom tab styling if possible (SwiftUI TabView limited)
+  - Ensure tab icons use design system colors
+  - Add proper spacing between tabs
+  - Acceptance: Tab bar has consistent warm styling
+  - Verification: `swift build` passes
 
-- [x] Log actual download URL being used
-  - Added `logDownloadStart()` method with boxed output showing model name, expected size, and full download URL
-  - Added `logDownloadSuccess()` method showing file name, size, and path
-  - Added `logVerificationFailure()` for warning when file size doesn't match expectations
-  - All URLs tagged with `[US-305]` prefix for easy filtering
-  - Verification: `swift build` passes ✓
+- [ ] Replace Form sections with card-based layout
+  - Scope: Modify all Form/Section uses in `Sources/WispFlow/SettingsWindow.swift`
+  - Wrap content sections in WispflowCardStyle modifier
+  - Use VStack with proper spacing instead of Form where appropriate
+  - Add soft shadows to cards
+  - Acceptance: Settings sections display as distinct cards with shadows
+  - Verification: `swift build` passes
 
-- [x] Verify model file exists and has expected size after download
-  - Added `expectedMinimumSizeBytes` property to ModelSize enum (~900MB for Qwen, ~1.8GB for Phi-3, ~1.3GB for Gemma)
-  - Added `verifyDownloadedModel()` method that checks file exists and compares size to minimum expected
-  - Returns warning if file is suspiciously small (may indicate partial download)
-  - Added `formatBytes()` helper for human-readable file sizes
-  - Download status shows file size progress (e.g., "Downloading... 45% (450 MB / 1 GB)")
-  - Verification: `swift build` passes ✓
+- [ ] Update all buttons to use WispflowButtonStyle
+  - Scope: Replace all `.buttonStyle(.borderedProminent)` and `.buttonStyle(.bordered)` in SettingsWindow.swift
+  - Use `.buttonStyle(WispflowButtonStyle.primary)` for main actions
+  - Use `.buttonStyle(WispflowButtonStyle.secondary)` for secondary actions
+  - Acceptance: All buttons in settings use coral accent styling
+  - Verification: `swift build` passes
 
-- [x] Add manual model path option as fallback
-  - Added `customModelPath` and `useCustomModelPath` properties with UserDefaults persistence
-  - Added `loadModelFromCustomPath()` method that validates path exists and file extension is .gguf
-  - Added UI section in TextCleanupSettingsView with toggle, text field, and "Browse..." button
-  - Added file picker using `.fileImporter` modifier
-  - Added "Load Custom Model" button when custom path is specified
-  - Verification: `swift build` passes ✓
+- [ ] Update all toggles to use WispflowToggleStyle
+  - Scope: Replace all `.toggleStyle(.switch)` in SettingsWindow.swift
+  - Use `.toggleStyle(WispflowToggleStyle())` for coral accent
+  - Acceptance: All toggles show coral when enabled
+  - Verification: `swift build` passes
 
-- [x] Add retry mechanism and error alert UI
-  - Added `retryDownload()` method that resets error state and retries
-  - Added `lastErrorMessage` published property for detailed UI error display
-  - Added error alert with "OK" and "Retry" buttons
-  - Added "Error Details" button in UI when error state is active
-  - Added "Retry Download" button styled with orange tint for visibility
-  - Verification: `swift build` passes ✓
+- [ ] Update typography to use design system fonts
+  - Scope: Replace all `.font(.headline)`, `.font(.caption)` etc in SettingsWindow.swift
+  - Use `Font.Wispflow.headline`, `Font.Wispflow.caption`, etc
+  - Acceptance: All text uses design system typography
+  - Verification: `swift build` passes
 
 ---
 
-### US-306: Audio Debug Export ✅ COMPLETE
-As a user, I want to export my recorded audio to verify capture is working.
+### US-405: General Settings Tab Polish
+As a user, I want the General settings to look beautiful.
 
-**Implementation (2026-01-13):** Enhanced AudioExporter.swift with comprehensive export functionality including detailed logging, auto-save to Documents folder, playback support, and Finder integration. Updated DebugManager.swift with auto-save toggle. Updated SettingsWindow.swift with new UI controls for Quick Export, Play/Stop, Show in Finder, and auto-save toggle. Added auto-save logic in AppDelegate.swift.
+- [ ] Style hotkey recorder with elegant focus state
+  - Scope: Modify `HotkeyRecorderView` in `Sources/WispFlow/SettingsWindow.swift` (lines ~1430+)
+  - Add coral border glow on focus
+  - Use design system colors for background/text
+  - Rounded corners (12px)
+  - Acceptance: Hotkey recorder looks polished with focus glow
+  - Verification: `swift build` passes
 
-- [x] Verify WAV export produces playable audio file
-  - AudioExporter converts Float32 samples to 16-bit PCM WAV format correctly
-  - Export produces standard WAV files playable in QuickTime and other players
-  - Added playback functionality directly in the app via AVAudioPlayer
-  - Verification: `swift build` passes ✓
+- [ ] Add About WispFlow section with logo
+  - Scope: Modify `GeneralSettingsView` in `Sources/WispFlow/SettingsWindow.swift`
+  - Add app icon/logo display
+  - Show app name with design system largeTitle font
+  - Show version number styled subtly
+  - Acceptance: About section displays app branding
+  - Verification: `swift build` passes
 
-- [x] Add "Export Last Recording" status message after export
-  - Enhanced export alert to show "Show in Finder" and "Play Audio" buttons
-  - Added inline file path display in Debug Settings showing last export location
-  - Added `ExportDetails` struct to track export metadata (samples, duration, file size, path)
-  - Prominent boxed console logging with full export details
-  - Verification: `swift build` passes ✓
+- [ ] Style launch at login toggle
+  - Scope: Modify `GeneralSettingsView` toggle for launch at login
+  - Add helpful description text below toggle
+  - Use WispflowToggleStyle
+  - Acceptance: Toggle is styled consistently with description
+  - Verification: `swift build` passes
 
-- [x] Add option to auto-save recordings in debug mode
-  - Added `isAutoSaveEnabled` property to DebugManager with UserDefaults persistence
-  - Added "Auto-Save Recordings" toggle in Debug Settings
-  - Auto-saves to ~/Documents/WispFlow/DebugRecordings/ with timestamped filenames
-  - Added "Open Recordings Folder" button when auto-save is enabled
-  - Auto-save integrated in AppDelegate with success/failure logging
-  - Verification: `swift build` passes ✓
+---
 
-- [x] Log export success/failure with file details
-  - Added `logExportSuccess()` with boxed output showing sample count, duration, sample rate, file size, and path
-  - Added `logExportFailure()` with reason for failure
-  - All export logs tagged with `[US-306]` prefix
-  - Export details stored in `lastExportDetails` for later access
-  - Verification: `swift build` passes ✓
+### US-406: Audio Settings Tab Polish
+As a user, I want the Audio settings to be visually refined.
 
-- [x] Add playback support for exported audio (bonus feature)
-  - Added AVAudioPlayer integration with delegate for playback completion
-  - Added `playLastExport()`, `playFile(at:)`, `stopPlayback()` methods
-  - Added Play/Stop button in Debug Settings UI with dynamic icon
-  - Added `revealLastExportInFinder()` and `openDebugRecordingsFolder()` for Finder integration
-  - Verification: `swift build` passes ✓
+- [ ] Create dedicated AudioSettingsView tab
+  - Scope: Add new `AudioSettingsView` struct in `Sources/WispFlow/SettingsWindow.swift`
+  - Move audio device selection from menu bar to settings
+  - Add audio level preview with real-time meter
+  - Add input gain slider (if supported by Core Audio)
+  - Acceptance: Audio settings has its own tab with device picker and level preview
+  - Verification: `swift build` passes
+
+- [ ] Style device picker as elegant dropdown
+  - Scope: Create device picker in AudioSettingsView
+  - Use Picker with custom styling
+  - Add device icons (speaker.wave.2 for each device)
+  - Show current device clearly
+  - Acceptance: Device picker uses design system styling
+  - Verification: `swift build` passes
+
+- [ ] Add live audio level meter in settings
+  - Scope: Add real-time level meter component in AudioSettingsView
+  - Connect to AudioManager.currentAudioLevel publisher
+  - Use design system colors (sage green for normal, coral for loud)
+  - Acceptance: Audio level displays in real-time when settings open
+  - Verification: `swift build` passes
+
+---
+
+### US-407: Transcription Settings Tab Polish
+As a user, I want the Transcription settings to look premium.
+
+- [ ] Redesign model selector as card-based picker
+  - Scope: Modify `TranscriptionSettingsView` Picker in SettingsWindow.swift
+  - Replace radio group with card-based selection
+  - Each model as a card with name, size, and download status
+  - Selected card has coral border
+  - Acceptance: Model selection uses elegant card UI
+  - Verification: `swift build` passes
+
+- [ ] Style progress bar with gradient fill
+  - Scope: Modify download progress ProgressView in TranscriptionSettingsView
+  - Use coral gradient fill instead of system blue
+  - Add percentage text styled with design system
+  - Acceptance: Download progress shows coral gradient
+  - Verification: `swift build` passes
+
+- [ ] Improve model status badges
+  - Scope: Modify `StatusBadge` in SettingsWindow.swift
+  - Use design system colors: coral for error, sage for ready
+  - Improve badge styling with proper padding
+  - Acceptance: Status badges use design system colors
+  - Verification: `swift build` passes
+
+---
+
+### US-408: Text Cleanup Settings Tab Polish
+As a user, I want the Text Cleanup settings beautifully designed.
+
+- [ ] Style mode selector as segmented control
+  - Scope: Modify `TextCleanupSettingsView` Picker in SettingsWindow.swift
+  - Use segmented picker style with coral accent for selection
+  - Clear visual distinction between modes
+  - Acceptance: Cleanup mode uses segmented control styling
+  - Verification: `swift build` passes
+
+- [ ] Improve LLM settings panel styling
+  - Scope: Modify LLM settings section in TextCleanupSettingsView
+  - Use card-based layout for LLM model selection
+  - Consistent styling with Transcription settings
+  - Acceptance: LLM settings match overall design system
+  - Verification: `swift build` passes
+
+- [ ] Add cleanup preview panel
+  - Scope: Add preview section showing example cleanup
+  - Show "Before" and "After" text comparison
+  - Use subtle background differentiation
+  - Acceptance: Users can see cleanup effect preview
+  - Verification: `swift build` passes
+
+---
+
+### US-409: Toast Notification System
+As a user, I want elegant notifications for app events.
+
+- [ ] Create WispflowToast view component
+  - Scope: Create new file `Sources/WispFlow/ToastView.swift` or add to DesignSystem.swift
+  - Frosted glass background using Visual Effect (SwiftUI)
+  - Icon + message + optional action button layout
+  - Success (sage green), Error (coral), Info (gray) variants
+  - Auto-dismiss timer with progress indicator
+  - Acceptance: Toast component renders correctly
+  - Verification: `swift build` passes
+
+- [ ] Implement toast presentation manager
+  - Scope: Create `ToastManager` class (ObservableObject)
+  - Queue system for multiple toasts
+  - Slide-in from top-right animation
+  - Auto-dismiss after configurable duration
+  - Acceptance: Toasts can be triggered and displayed
+  - Verification: `swift build` passes
+
+- [ ] Integrate toast notifications
+  - Scope: Modify `AppDelegate.swift` to use ToastManager
+  - Show toast on successful transcription
+  - Show toast on transcription error
+  - Show toast on model download complete
+  - Acceptance: App events trigger appropriate toasts
+  - Verification: `swift build` passes
+
+---
+
+### US-410: Micro-interactions & Polish
+As a user, I want delightful micro-interactions throughout the app.
+
+- [ ] Add button press animations
+  - Scope: Ensure WispflowButtonStyle includes scale animation
+  - Press: scale to 0.97
+  - Release: spring back to 1.0
+  - Duration: 0.1s ease-out
+  - Acceptance: Buttons visually respond to press
+  - Verification: `swift build` passes
+
+- [ ] Add toggle switch animations
+  - Scope: Ensure WispflowToggleStyle has smooth transition
+  - Thumb slides smoothly
+  - Color transition is animated
+  - Acceptance: Toggles animate smoothly
+  - Verification: `swift build` passes
+
+- [ ] Add tab switching transitions
+  - Scope: Modify TabView in SettingsWindow.swift
+  - Add subtle fade/slide between tabs (if SwiftUI supports)
+  - At minimum ensure tabs switch without jarring
+  - Acceptance: Tab switching feels smooth
+  - Verification: `swift build` passes
+
+- [ ] Add hover states on all interactive elements
+  - Scope: Audit all buttons, toggles, cards in SettingsWindow.swift
+  - Add `.onHover` modifiers for color changes
+  - Subtle background shift on hover
+  - Acceptance: Interactive elements respond to hover
+  - Verification: `swift build` passes
+
+- [ ] Add success checkmark animation
+  - Scope: Create reusable animated checkmark component
+  - Green checkmark that draws in
+  - Use for successful operations (transcription, download complete)
+  - Acceptance: Checkmark animation plays for success states
+  - Verification: `swift build` passes
 
 ---
 
@@ -289,33 +426,34 @@ As a user, I want to export my recorded audio to verify capture is working.
 
 ### Discoveries
 
-1. **Audio Buffer Architecture is Correct**: The code already implements a unified buffer approach. The level meter and transcription buffer use the same tap callback. The disconnect may be in the **audio converter** (converting native sample rate to 16kHz) rather than separate buffers.
+1. **No Existing Design System**: The codebase has no centralized color/font/spacing definitions. All styling is inline with system defaults. US-401 must be completed first as all other stories depend on it.
 
-2. **Converter Silent Failure Theory**: The audio converter in the tap callback may be:
-   - Producing zeros when conversion fails
-   - Not being called (inputBlock not triggered correctly)
-   - Returning empty frames on some devices
+2. **AppKit + SwiftUI Mix**: The app uses both AppKit (NSPanel, NSStatusItem, NSVisualEffectView) and SwiftUI (Settings views). Design system must provide both Color/Font and NSColor/NSFont equivalents.
 
-3. **WhisperKit Progress Limitation**: WhisperKit doesn't expose download progress through its API. The current implementation simulates progress with status messages. A better solution would be to manually download the model files with progress tracking, then point WhisperKit to the local files.
+3. **Settings Window Uses Form**: Current SettingsWindow.swift uses SwiftUI Form/Section which has limited customization. May need to replace with VStack/HStack for full design control.
 
-4. **LLM Download Working**: The LLM download code in `LLMManager.swift` has proper progress tracking and error handling. The issue may be specific to certain models or network conditions.
+4. **Recording Indicator is AppKit**: RecordingIndicatorWindow.swift is pure AppKit (NSPanel, NSView, NSTextField). Will need to update using NSColor equivalents from design system.
 
-5. **Audio Export Ready**: The `AudioExporter.swift` implementation is complete and functional. It converts Float32 samples to 16-bit PCM WAV format correctly.
+5. **Audio Level Meter Exists**: `AudioLevelMeterView` already exists with color-coded levels. Just needs color updates to use design system palette.
+
+6. **No Toast System**: There is no existing notification/toast system. US-409 requires building from scratch.
+
+7. **Onboarding Not in MVP**: The PRD mentions onboarding/welcome flow (section 4 under Core UI Components) but it's not in the MVP scope stories. Should be deferred to v0.6.
 
 ### Risks
 
-1. **Converter Device Compatibility**: The audio converter may behave differently on different Mac hardware (M1/M2 vs Intel, built-in mic vs external mic). Need to test on multiple configurations.
+1. **SwiftUI TabView Limitations**: SwiftUI's TabView has limited customization options. May not be able to fully style tab bar as desired without custom implementation.
 
-2. **WhisperKit API Changes**: WhisperKit may change its model download behavior in future versions. Current workarounds may need updating.
+2. **NSVisualEffectView Tinting**: Warm tinting of NSVisualEffectView may be limited. May need alternative approach for frosted glass with warm tint.
 
-3. **Network-dependent Downloads**: Model downloads depend on Hugging Face availability. Consider adding fallback URLs or local model bundling for reliability.
+3. **Performance of Animations**: Need to ensure micro-interactions don't impact transcription performance. Animations should be lightweight.
 
-4. **Sample Rate Mismatch**: If the input device sample rate changes mid-recording (e.g., switching devices), the converter may produce incorrect output.
+4. **Consistency Across macOS Versions**: Need to test visual appearance on macOS 14.0 and later to ensure consistent rendering.
 
 ### Technical Notes
 
-- Audio tap callback runs on audio thread - minimize work and use DispatchQueue.main for UI updates
-- WhisperKit expects 16kHz mono Float32 audio with samples in [-1.0, 1.0] range
-- AVAudioConverter requires matching formats between input and output nodes
-- LLM models are ~1-2GB - downloads may take several minutes on slow connections
-- WAV export uses 16-bit PCM format (standard compatibility)
+- Use `Color(red:green:blue:)` initializer with hex conversion for precise color matching
+- SwiftUI `.shadow()` modifier for card shadows
+- `NSColor(srgbRed:green:blue:alpha:)` for AppKit equivalents
+- `.animation(.spring(response:dampingFraction:))` for micro-interactions
+- Consider `@Environment(\.colorScheme)` for future dark mode support (not in v0.5 scope)
