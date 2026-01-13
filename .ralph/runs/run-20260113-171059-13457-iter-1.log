@@ -1,0 +1,26 @@
+Both files have been updated correctly. Let me provide a summary:
+
+## Summary
+
+I've completed the planning task for WispFlow v0.2:
+
+**PRD Updates (`/Users/lucasnolan/WispFlow/.agents/tasks/prd-v2.md`):**
+- Added the **Routing Policy** section at the end
+- Story heading markers were already in correct format (`### [ ] US-XXX:`)
+
+**Implementation Plan (`/Users/lucasnolan/WispFlow/.ralph/IMPLEMENTATION_PLAN.md`):**
+Created a comprehensive plan with 6 stories containing 26 total tasks:
+
+1. **US-101: Debug Audio Capture** (5 tasks) - Audio level meter, silence detection, buffer logging, minimum duration
+2. **US-102: Fix WhisperKit Audio Format** (5 tasks) - Format validation, normalization, 16kHz verification, BLANK_AUDIO handling
+3. **US-103: Improve Model Loading** (4 tasks) - Menu bar status, block recording until ready, progress indicator
+4. **US-104: Better Error Handling** (5 tasks) - User-friendly errors, no speech detection, error logging, retry option
+5. **US-105: Audio Debug Mode** (5 tasks) - Debug toggle, waveform visualization, raw transcription display, WAV export
+6. **US-106: Local LLM Text Cleanup** (6 tasks) - LLM framework integration, model management, cleanup prompts
+
+Each task includes:
+- **Scope**: Files to modify and specific changes
+- **Acceptance**: Concrete outcomes to verify
+- **Verification**: Exact commands to run (`swift build`)
+
+The plan is prioritized with critical audio fixes (US-101, US-102) first to resolve the BLANK_AUDIO issue.

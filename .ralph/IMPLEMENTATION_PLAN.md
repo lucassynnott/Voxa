@@ -1,276 +1,237 @@
-# Implementation Plan
+# Implementation Plan - WispFlow v0.2
 
 ## Summary
 
-WispFlow is a macOS voice-to-text application. **US-001 through US-004 are complete**—the project has a working menu bar app with global hotkey, audio capture, and local Whisper transcription. The MVP requires building a native Swift/SwiftUI menu bar app with:
+WispFlow v0.1 (US-001 through US-007) is complete with core functionality: menu bar app, global hotkey, audio capture, WhisperKit transcription, rule-based text cleanup, text insertion, and settings persistence.
 
-1. System tray presence and recording toggle (US-001)
-2. Global hotkey activation (US-002)
-3. Audio capture via AVAudioEngine (US-003)
-4. Local Whisper transcription (US-004)
-5. AI text cleanup via local LLM (US-005)
-6. Text insertion via pasteboard (US-006)
-7. Settings persistence (US-007)
+**v0.2 focuses on fixing the critical transcription issue** where recordings return "[BLANK_AUDIO]" instead of actual text. The PRD identifies root causes in audio format/preprocessing and WhisperKit configuration. Additionally, v0.2 adds debug capabilities and local LLM cleanup.
 
-The implementation should proceed in dependency order: project scaffolding → menu bar → hotkey → audio → transcription → cleanup → insertion → settings.
+### Key Gaps to Address:
+1. **Audio debugging** - No audio level meter, silence detection, or waveform visualization
+2. **Audio preprocessing** - Need validation of 16kHz conversion and Float32 normalization
+3. **Model loading UX** - Auto-load exists but lacks menu bar progress indicator and "Model Ready" status
+4. **Error handling** - BLANK_AUDIO provides no helpful feedback; need meaningful error messages
+5. **Debug mode** - No audio export or diagnostic logging for troubleshooting
+6. **LLM cleanup** - Current cleanup is rule-based; PRD requests local LLM integration
+
+### Priority Order:
+1. US-101 & US-102 (Debug Audio + Fix Format) - Critical for fixing BLANK_AUDIO
+2. US-104 (Better Error Handling) - Provide meaningful feedback
+3. US-103 (Improve Model Loading) - Better UX for model state
+4. US-105 (Audio Debug Mode) - Developer diagnostics
+5. US-106 (Local LLM Cleanup) - Enhanced feature
 
 ---
 
 ## Tasks
 
-### US-001: Menu Bar App Foundation ✅
+### US-101: Debug Audio Capture
 
-- [x] Create Xcode project structure
-  - Scope: Create a new Swift Package or Xcode project at the repo root with SwiftUI app lifecycle targeting macOS 13.0+. Configure for both Apple Silicon and Intel.
-  - Acceptance: Project compiles successfully, produces a .app bundle
-  - Verification: `swift build` or `xcodebuild -scheme WispFlow build`
-  - **Completed**: Package.swift with SPM, targets macOS 13.0+, builds successfully
+- [x] Add audio level monitoring to AudioManager
+  - Scope: Modify `Sources/WispFlow/AudioManager.swift` to compute peak audio level (dB) from captured buffers in the tap callback. Add `@Published var currentAudioLevel: Float` property.
+  - Acceptance: `currentAudioLevel` updates in real-time during recording with values in dB scale (e.g., -60 to 0)
+  - Verification: `swift build` passes; log audio levels during recording and verify they change with sound input
+  - **DONE:** Added `@Published var currentAudioLevel: Float` property, `calculatePeakLevel()` method, and `amplitudeToDecibels()` conversion. Level updates in real-time via tap callback.
 
-- [x] Implement NSStatusItem menu bar presence
-  - Scope: Create `AppDelegate.swift` or modify SwiftUI App to create NSStatusItem. Add microphone SF Symbol icon. Configure as agent/accessory app (no dock icon).
-  - Acceptance: App appears only in menu bar with microphone icon, not in dock
-  - Verification: Launch app and visually confirm menu bar icon; verify `LSUIElement` is set in Info.plist
-  - **Completed**: StatusBarController.swift creates NSStatusItem, LSUIElement=true in Info.plist
+- [x] Add audio level meter to RecordingIndicatorWindow
+  - Scope: Modify `Sources/WispFlow/RecordingIndicatorWindow.swift` to display a visual level meter (colored bar or SF Symbol) next to the recording icon. Connect to AudioManager's audio level property.
+  - Acceptance: Level meter shows real-time audio activity when speaking into microphone
+  - Verification: `swift build` passes; start recording and observe level meter responds to voice
+  - **DONE:** Created `AudioLevelMeterView` class with color-coded levels (gray<-40dB, green, yellow, red). Added `connectAudioManager()` method using Combine to subscribe to level updates.
 
-- [x] Add recording state icon toggle
-  - Scope: Create recording state enum (idle/recording). Update NSStatusItem icon based on state (outline mic for idle, filled mic for recording).
-  - Acceptance: Icon visually changes between idle and recording states
-  - Verification: Programmatically toggle state and observe icon change
-  - **Completed**: RecordingState.swift with "mic" (idle) and "mic.fill" (recording) SF Symbols
+- [x] Add silence detection and warning
+  - Scope: Modify `Sources/WispFlow/AudioManager.swift` to track if audio has been below threshold (e.g., peak < -40dB) for entire recording. Add callback `onSilenceDetected: (() -> Void)?`.
+  - Acceptance: Callback fires if recording stops with only silence detected
+  - Verification: `swift build` passes; record without speaking, verify silence warning appears
+  - **DONE:** Added `onSilenceDetected` callback, tracks `peakLevelDuringRecording`, alerts user with actionable message if peak < -40dB threshold.
 
-- [x] Implement left-click toggle recording
-  - Scope: Add button action to NSStatusItem that toggles recording state on left click.
-  - Acceptance: Clicking menu bar icon toggles between idle/recording states
-  - Verification: Click icon and observe state toggle
-  - **Completed**: statusItemClicked handles left clicks, calls toggleRecording()
+- [x] Log audio buffer statistics
+  - Scope: Modify `Sources/WispFlow/AudioManager.swift` to log buffer details (sample count, duration, peak level, format) in `stopCapturing()` before returning result.
+  - Acceptance: Console output shows detailed audio statistics after each recording
+  - Verification: `swift build` passes; record audio, check console for detailed buffer stats
+  - **DONE:** Added `AudioBufferStats` struct and `logAudioBufferStatistics()` method. Logs formatted table with sample count, duration, sample rate, peak dB, RMS dB, min/max samples, and silence status.
 
-- [x] Implement right-click context menu
-  - Scope: Add NSMenu to NSStatusItem with items: Settings, Quit. Wire up Quit to terminate app.
-  - Acceptance: Right-clicking shows menu with Settings and Quit options
-  - Verification: Right-click icon and verify menu appears; click Quit and verify app terminates
-  - **Completed**: setupMenu() creates menu with Settings, Launch at Login, Quit items
-
-- [x] Add launch at login capability
-  - Scope: Use SMAppService (macOS 13+) to register/unregister launch at login. Add toggle in settings.
-  - Acceptance: User can enable/disable launch at login; setting persists after app restart
-  - Verification: Enable launch at login, restart Mac (or check System Settings > Login Items), verify app launches
-  - **Completed**: SMAppService integration with register/unregister in StatusBarController.swift
+- [x] Enforce minimum recording duration (0.5s)
+  - Scope: Modify `Sources/WispFlow/AppDelegate.swift` or `AudioManager.swift` to reject recordings shorter than 0.5 seconds with appropriate feedback.
+  - Acceptance: Short recordings show "Recording too short" error instead of attempting transcription
+  - Verification: `swift build` passes; quick tap hotkey, verify minimum duration warning
+  - **DONE:** Added `minimumRecordingDuration` constant (0.5s), `onRecordingTooShort` callback, and validation in `stopCapturing()`. AppDelegate shows informational alert.
 
 ---
 
-### US-002: Global Hotkey Recording ✅
+### US-102: Fix WhisperKit Audio Format
 
-- [x] Implement global hotkey listener
-  - Scope: Create `HotkeyManager.swift` using CGEvent tap or NSEvent.addGlobalMonitorForEvents. Default hotkey: Cmd+Shift+Space.
-  - Acceptance: Hotkey triggers callback when pressed from any application
-  - Verification: Focus different app (e.g., Finder), press hotkey, verify callback fires
-  - **Completed**: HotkeyManager.swift using NSEvent.addGlobalMonitorForEvents and addLocalMonitorForEvents. Default hotkey: Cmd+Shift+Space (⌘⇧Space). Includes configurable hotkey support.
+- [ ] Validate audio format before transcription
+  - Scope: Modify `Sources/WispFlow/WhisperManager.swift` to add `validateAudioData()` method that checks: sample count > 0, expected Float32 format, reasonable duration (0.5s-120s), values in [-1.0, 1.0] range.
+  - Acceptance: Invalid audio data returns descriptive error instead of attempting transcription
+  - Verification: `swift build` passes; test with empty/invalid data, verify validation errors
 
-- [x] Connect hotkey to recording toggle
-  - Scope: Wire hotkey callback to toggle recording state in the app's state management.
-  - Acceptance: Pressing global hotkey toggles recording on/off
-  - Verification: Press hotkey from various apps and observe recording state toggle
-  - **Completed**: HotkeyManager.onHotkeyPressed callback connected to statusBarController.toggle() in AppDelegate.swift.
+- [ ] Fix audio normalization to [-1.0, 1.0] range
+  - Scope: Modify `Sources/WispFlow/AudioManager.swift` in `combineBuffersToData()` to ensure output Float32 samples are normalized. Add `normalizeAudio()` helper if needed.
+  - Acceptance: Exported audio data has samples within [-1.0, 1.0] range
+  - Verification: `swift build` passes; log sample min/max values, verify normalization
 
-- [x] Create floating recording indicator
-  - Scope: Create `RecordingIndicatorWindow.swift` as a floating NSPanel/NSWindow. Show pill-shaped overlay with recording icon and cancel button. Position near cursor or screen corner.
-  - Acceptance: Indicator appears when recording starts, disappears when stopped
-  - Verification: Start recording and verify indicator appears; stop and verify it disappears
-  - **Completed**: RecordingIndicatorWindow.swift as NSPanel with pill-shaped overlay. Uses NSVisualEffectView for blur background. Positioned at top center of screen. Shows/hides with animation on recording state change.
+- [ ] Verify 16kHz sample rate conversion
+  - Scope: Modify `Sources/WispFlow/AudioManager.swift` to add validation in tap callback that confirms converted buffer is at 16kHz. Log warning if conversion fails.
+  - Acceptance: All audio sent to WhisperKit is verified to be 16000 Hz
+  - Verification: `swift build` passes; log sample rate in conversion step, verify 16000 Hz
 
-- [x] Add cancel button to indicator
-  - Scope: Add X button to recording indicator that stops recording and discards audio.
-  - Acceptance: Clicking cancel stops recording without inserting text
-  - Verification: Start recording, click cancel, verify recording stops and no text is inserted
-  - **Completed**: Cancel button (xmark.circle.fill SF Symbol) with onCancel callback that sets recording state to idle.
+- [ ] Add audio preprocessing diagnostics
+  - Scope: Add method `logAudioDiagnostics(audioData: Data)` to WhisperManager that logs: byte count, sample count, duration (samples/16000), peak amplitude, RMS level.
+  - Acceptance: Detailed diagnostics logged before each transcription attempt
+  - Verification: `swift build` passes; record and transcribe, check console for diagnostics
 
----
-
-### US-003: Audio Capture ✅
-
-- [x] Implement microphone permission request
-  - Scope: Create `AudioManager.swift`. Request microphone permission using AVCaptureDevice.requestAccess. Show appropriate UI if denied.
-  - Acceptance: App prompts for microphone permission on first use; handles denial gracefully
-  - Verification: Reset permissions (`tccutil reset Microphone com.wispflow.WispFlow`), launch app, verify permission prompt
-  - **Completed**: AudioManager.swift with requestMicrophonePermission(), showMicrophonePermissionAlert(), and permissionStatus property. Shows NSAlert guiding user to System Settings if permission denied.
-
-- [x] Set up AVAudioEngine for capture
-  - Scope: Configure AVAudioEngine with input node. Set appropriate sample rate (16kHz for Whisper). Install tap on input node.
-  - Acceptance: Audio engine captures microphone input when started
-  - Verification: Log audio buffer levels to confirm capture is working
-  - **Completed**: AVAudioEngine configured with input node, sample rate conversion to 16kHz mono Float32 for Whisper compatibility. Tap installed on input node with 4096 buffer size.
-
-- [x] Implement audio buffer accumulation
-  - Scope: Accumulate audio buffers during recording session. Convert to format required by Whisper (16kHz mono Float32).
-  - Acceptance: Audio data is accumulated and available for transcription
-  - Verification: Record audio, verify buffer contains expected duration of samples
-  - **Completed**: Audio buffers accumulated in array during recording, with AVAudioConverter for sample rate/channel conversion. combineBuffersToData() converts to Data.
-
-- [x] Add start/stop recording controls
-  - Scope: Implement startRecording() and stopRecording() methods. Return accumulated audio data on stop.
-  - Acceptance: Recording starts/stops cleanly; audio data is returned
-  - Verification: Start recording, speak, stop recording, verify audio data is non-empty
-  - **Completed**: startCapturing() and stopCapturing() methods. stopCapturing() returns AudioCaptureResult with audioData, duration, and sampleRate. cancelCapturing() discards audio.
-
-- [x] Add audio input device selection
-  - Scope: List available audio input devices. Allow user to select which microphone to use. Remember selection between sessions.
-  - Acceptance: User can select audio input device from menu; selection persists
-  - Verification: Open Audio Input submenu, verify devices listed, select a device, restart app, verify selection persisted
-  - **Completed**: enumerateAudioInputDevices() using Core Audio APIs. selectDevice() method. Device selection stored in UserDefaults. Audio Input submenu in StatusBarController with device picker. Device change listener for hot-plug support.
+- [ ] Handle WhisperKit "[BLANK_AUDIO]" response
+  - Scope: Modify `Sources/WispFlow/WhisperManager.swift` `transcribe()` to detect "[BLANK_AUDIO]" in results and convert to meaningful error with possible causes (silent audio, format issue, model problem).
+  - Acceptance: "[BLANK_AUDIO]" is never shown to user; replaced with actionable error message
+  - Verification: `swift build` passes; if BLANK_AUDIO occurs, verify helpful error shown
 
 ---
 
-### US-004: Local Whisper Transcription ✅
+### US-103: Improve Model Loading
 
-- [x] Integrate whisper.cpp Swift bindings
-  - Scope: Add whisper.cpp as a Swift Package dependency (e.g., via SPM or vendored). Create `WhisperManager.swift` wrapper.
-  - Acceptance: whisper.cpp compiles and links with the app
-  - Verification: `swift build` succeeds with whisper.cpp dependency
-  - **Completed**: Integrated WhisperKit (argmaxinc/WhisperKit) via SPM instead of whisper.cpp - WhisperKit is Apple-optimized for CoreML. Created WhisperManager.swift wrapper class. Updated minimum macOS version to 14.0 (WhisperKit requirement).
+- [ ] Show model loading status in menu bar
+  - Scope: Modify `Sources/WispFlow/StatusBarController.swift` to update status item tooltip or add secondary icon state showing model status (loading spinner, checkmark, error).
+  - Acceptance: Menu bar icon/tooltip reflects model state: "Loading model...", "Model ready", "Model error"
+  - Verification: `swift build` passes; launch app, observe menu bar reflects model loading progress
 
-- [x] Implement model download manager
-  - Scope: Create `ModelDownloader.swift` to download Whisper models from Hugging Face. Support tiny, base, small, medium sizes. Show download progress. Store models in Application Support.
-  - Acceptance: User can download models; progress is shown; models persist
-  - Verification: Trigger download, verify progress updates, verify model file exists after completion
-  - **Completed**: WhisperManager handles model downloads via WhisperKit's built-in download mechanism. Models stored in ~/Library/Application Support/WispFlow/Models/. Supports tiny, base, small, medium model sizes with descriptive labels and size estimates.
+- [ ] Block recording until model is ready
+  - Scope: Modify `Sources/WispFlow/AppDelegate.swift` `handleRecordingStateChange()` to check `whisperManager.isReady` before starting recording. Show alert if model not ready.
+  - Acceptance: Cannot start recording if model is not loaded; clear message guides user to wait or open settings
+  - Verification: `swift build` passes; try to record before model loads, verify blocking alert
 
-- [x] Create model management UI
-  - Scope: Add Settings tab for model management. List available models with download/delete buttons. Show currently selected model.
-  - Acceptance: User can view, download, delete, and select models
-  - Verification: Open settings, download a model, select it, delete another model
-  - **Completed**: Created SettingsWindow.swift with SwiftUI-based settings UI. TranscriptionSettingsView provides model selection (radio group), download/load/delete buttons, status badge, and list of downloaded models. SettingsWindowController manages the NSWindow hosting the SwiftUI view.
+- [ ] Add model loading progress indicator
+  - Scope: Modify `Sources/WispFlow/WhisperManager.swift` to expose download progress via `@Published var downloadProgress: Double`. Update StatusBarController to show progress percentage.
+  - Acceptance: During model download, progress percentage is visible in menu bar or settings
+  - Verification: `swift build` passes; download new model, observe progress updates
 
-- [x] Implement transcription pipeline
-  - Scope: Load selected model. Accept audio data. Run Whisper inference. Return transcribed text.
-  - Acceptance: Audio input produces text output with >90% accuracy on clear speech
-  - Verification: Record "Hello world, this is a test", verify transcription matches
-  - **Completed**: WhisperManager.transcribe() method accepts Float32 audio data at 16kHz, calls WhisperKit transcribe API, returns joined text from TranscriptionResult array. Connected to AppDelegate.processTranscription() which is called when recording stops.
-
-- [x] Add transcription progress/status
-  - Scope: Update UI during transcription (e.g., "Transcribing..." indicator). Handle transcription errors gracefully.
-  - Acceptance: User sees feedback during transcription; errors show helpful messages
-  - Verification: Trigger transcription, verify status updates appear
-  - **Completed**: WhisperManager publishes modelStatus, transcriptionStatus, and statusMessage for UI updates. RecordingIndicatorWindow.updateStatus() shows "Transcribing..." during processing. Error alerts guide user to Settings if model not loaded.
+- [ ] Add "Model Ready" visual indicator
+  - Scope: Modify `Sources/WispFlow/StatusBarController.swift` to show a small badge or change icon color when model is ready. Add checkmark badge to menu item.
+  - Acceptance: User can clearly see when model is loaded and ready for transcription
+  - Verification: `swift build` passes; wait for model to load, verify visual indicator appears
 
 ---
 
-### US-005: AI Text Cleanup ✅
+### US-104: Better Error Handling
 
-- [x] Integrate text processing engine
-  - Scope: Create `TextCleanupManager.swift` with text processing capabilities. Support multiple cleanup modes.
-  - Acceptance: Text cleanup processes text correctly
-  - Verification: `swift build` succeeds; cleanup produces expected output
-  - **Completed**: Created TextCleanupManager.swift using efficient rule-based processing (more reliable than LLM for deterministic text cleanup). Supports three cleanup modes: basic, standard, thorough. Integrated with AppDelegate via processTextCleanup().
+- [ ] Surface WhisperKit errors to user
+  - Scope: Modify `Sources/WispFlow/WhisperManager.swift` to catch specific WhisperKit errors and translate to user-friendly messages with actionable suggestions.
+  - Acceptance: All WhisperKit errors show helpful alerts with next steps
+  - Verification: `swift build` passes; simulate errors, verify user-friendly alerts
 
-- [x] Implement filler word removal
-  - Scope: Remove fillers ("um", "uh", "like", "you know", etc.) using regex patterns.
-  - Acceptance: Filler words are removed from output
-  - Verification: Input "um so like you know the thing", verify fillers removed
-  - **Completed**: Comprehensive filler word removal via removeFillerWords() with 20+ patterns. Mode-based filtering: basic (um, uh, er, ah), standard (+ like, you know, I mean, so), thorough (+ actually, basically, literally, etc.).
+- [ ] Add "No speech detected" error handling
+  - Scope: Modify `Sources/WispFlow/AppDelegate.swift` or WhisperManager to detect empty/blank transcription results and show "No speech detected - check microphone" message.
+  - Acceptance: Empty transcription shows helpful error, not empty insertion
+  - Verification: `swift build` passes; record silence, verify "No speech detected" message
 
-- [x] Implement grammar and punctuation fix
-  - Scope: Fix grammar, add proper punctuation and capitalization.
-  - Acceptance: Output has correct grammar, punctuation, and capitalization
-  - Verification: Input "hello how are you im fine", verify output "Hello, how are you? I'm fine."
-  - **Completed**: Implemented fixContractions() for 25+ common contractions (im→I'm, dont→don't, etc.), fixCapitalization() for sentence starts, fixPunctuation() for multiple punctuation and clause commas, cleanupSpacing() for proper spacing around punctuation, ensureProperEnding() for question detection and proper ending punctuation.
+- [ ] Add "Model not loaded" specific error
+  - Scope: Modify `Sources/WispFlow/AppDelegate.swift` `processTranscription()` to show specific error when `whisperManager.isReady` is false with button to open Settings.
+  - Acceptance: Clear error message with Settings shortcut when model not loaded
+  - Verification: `swift build` passes; delete model, try to transcribe, verify error with Settings button
 
-- [x] Add cleanup toggle option
-  - Scope: Add setting to enable/disable text cleanup. When disabled, insert raw transcription.
-  - Acceptance: User can toggle cleanup on/off; setting persists
-  - Verification: Disable cleanup, transcribe, verify raw text is inserted
-  - **Completed**: isCleanupEnabled toggle in TextCleanupManager saved to UserDefaults. TextCleanupSettingsView in SettingsWindow.swift provides UI toggle and mode selection. When disabled, cleanupText() returns original text unchanged.
+- [ ] Implement error logging to .ralph/errors.log
+  - Scope: Create `Sources/WispFlow/ErrorLogger.swift` utility that appends errors with timestamps to `~/.ralph/errors.log`. Integrate with all managers' `onError` callbacks.
+  - Acceptance: All errors are logged to file with timestamps for debugging
+  - Verification: `swift build` passes; trigger errors, verify entries in errors.log
 
----
-
-### US-006: Text Insertion ✅
-
-- [x] Implement accessibility permission request
-  - Scope: Check and request accessibility permissions. Guide user to System Preferences if needed.
-  - Acceptance: App prompts for accessibility permission; provides guidance if denied
-  - Verification: Reset accessibility permissions, launch app, verify permission guidance
-  - **Completed**: TextInserter.swift with hasAccessibilityPermission property, requestAccessibilityPermission() method using AXIsProcessTrustedWithOptions, showAccessibilityPermissionAlert() to guide users, and openAccessibilitySettings() to open System Settings.
-
-- [x] Implement pasteboard text insertion
-  - Scope: Create `TextInserter.swift`. Copy text to pasteboard. Simulate Cmd+V keystroke using CGEvent.
-  - Acceptance: Text is inserted into active text field
-  - Verification: Focus a text field, trigger insertion, verify text appears
-  - **Completed**: TextInserter.swift with insertText() method that copies text to NSPasteboard.general, then simulates Cmd+V using CGEvent keyboardEventSource with virtual key 0x09 (V) and maskCommand flag. Integrated with AppDelegate.processTextCleanup() to automatically insert cleaned text.
-
-- [x] Add clipboard preservation option
-  - Scope: Save current clipboard contents before insertion. Optionally restore after insertion (with short delay).
-  - Acceptance: Original clipboard contents can be preserved
-  - Verification: Copy something, trigger insertion, verify original clipboard restored
-  - **Completed**: saveClipboardContents() copies all NSPasteboardItem data types, restoreClipboardContents() writes them back after configurable delay (0.2-2.0s). Settings UI toggle with slider for restore delay in TextInsertionSettingsView.
-
-- [x] Handle insertion errors gracefully
-  - Scope: Detect and handle cases where insertion fails (no text field focused, permission denied).
-  - Acceptance: Errors show helpful feedback; app doesn't crash
-  - Verification: Try to insert with no text field focused, verify helpful error message
-  - **Completed**: InsertionResult enum with success/noAccessibilityPermission/insertionFailed cases. showTextInsertionError() shows NSAlert for failures. Accessibility permission check before insertion with guidance alert.
+- [ ] Add retry option for failed transcriptions
+  - Scope: Modify error alerts to include "Try Again" button that re-attempts transcription with the same audio data (requires keeping audio data until transcription succeeds).
+  - Acceptance: User can retry failed transcription without re-recording
+  - Verification: `swift build` passes; fail transcription, click retry, verify re-attempt
 
 ---
 
-### US-007: Settings Persistence ✅
+### US-105: Audio Debug Mode
 
-- [x] Create settings data model
-  - Scope: Create `Settings.swift` with properties: hotkey, selectedModel, launchAtLogin, cleanupEnabled, preserveClipboard.
-  - Acceptance: Settings model compiles and holds all required properties
-  - Verification: Instantiate Settings, verify all properties accessible
-  - **Completed**: Rather than a monolithic Settings.swift, settings are distributed across managers: HotkeyManager (hotkey), WhisperManager (selectedModel), TextCleanupManager (cleanupEnabled, cleanupMode), TextInserter (preserveClipboard, clipboardRestoreDelay), AudioManager (selectedAudioDevice). Launch at login uses SMAppService (system-managed).
+- [ ] Add Debug Mode toggle in Settings
+  - Scope: Modify `Sources/WispFlow/SettingsWindow.swift` to add "Debug Mode" section with toggle switch. Store in UserDefaults. Add `isDebugMode` property to AppDelegate or create DebugManager.
+  - Acceptance: Debug mode can be enabled/disabled in Settings
+  - Verification: `swift build` passes; toggle debug mode in settings, verify setting persists
 
-- [x] Implement UserDefaults persistence
-  - Scope: Add Codable conformance to Settings. Save/load from UserDefaults. Auto-save on changes.
-  - Acceptance: Settings persist between app launches
-  - Verification: Change setting, quit app, relaunch, verify setting persisted
-  - **Completed**: Each manager uses UserDefaults for persistence:
-    - HotkeyManager: hotkeyKeyCode, hotkeyModifiers (auto-saves on updateConfiguration)
-    - WhisperManager: selectedWhisperModel (saves on selectModel)
-    - TextCleanupManager: selectedCleanupMode, textCleanupEnabled (auto-saves via @Published didSet)
-    - TextInserter: preserveClipboard, clipboardRestoreDelay (auto-saves via @Published didSet)
-    - AudioManager: selectedAudioInputDeviceUID (saves on selectDevice)
+- [ ] Show audio waveform visualization
+  - Scope: Create `Sources/WispFlow/AudioWaveformView.swift` SwiftUI view that displays audio buffer as waveform. Show in debug panel or recording indicator when debug mode enabled.
+  - Acceptance: Audio waveform visible during/after recording in debug mode
+  - Verification: `swift build` passes; enable debug mode, record audio, observe waveform
 
-- [x] Create settings window UI
-  - Scope: Create SwiftUI Settings view. Add sections: General (hotkey, launch at login), Transcription (model selection), Text (cleanup toggle, clipboard preservation).
-  - Acceptance: User can view and modify all settings through UI
-  - Verification: Open settings, change each setting, verify changes apply
-  - **Completed**: SettingsWindow.swift with SwiftUI TabView containing:
-    - General tab: Hotkey configuration (HotkeyRecorderView) with reset, Launch at Login toggle, About section
-    - Transcription tab: Model selection, download/load/delete, status badge
-    - Text Cleanup tab: Enable toggle, mode selection
-    - Text Insertion tab: Accessibility permission, clipboard preservation toggle with delay slider
+- [ ] Display raw transcription before cleanup
+  - Scope: Modify `Sources/WispFlow/AppDelegate.swift` or create debug panel to show raw WhisperKit output before text cleanup when debug mode enabled.
+  - Acceptance: Can compare raw transcription vs cleaned text in debug mode
+  - Verification: `swift build` passes; enable debug, transcribe, verify raw output shown
 
-- [x] Add hotkey customization
-  - Scope: Allow user to record custom hotkey combination. Validate hotkey doesn't conflict with system.
-  - Acceptance: User can set custom hotkey; invalid hotkeys show warning
-  - Verification: Set custom hotkey, verify it activates recording
-  - **Completed**: HotkeyRecorderView in GeneralSettingsView allows recording new hotkey combinations. Requires at least one modifier key (Cmd/Shift/Option/Control). Escape cancels recording. Configuration persists to UserDefaults via HotkeyManager. Reset button restores default (⇧⌘Space).
+- [ ] Add audio export as WAV file
+  - Scope: Create `Sources/WispFlow/AudioExporter.swift` utility to convert Float32 audio data to WAV format and save to file. Add "Export Audio" button to debug panel or Settings.
+  - Acceptance: User can export recorded audio as WAV file for offline analysis
+  - Verification: `swift build` passes; record audio, export, verify WAV file is playable
+
+- [ ] Add detailed debug logging window
+  - Scope: Create `Sources/WispFlow/DebugLogWindow.swift` NSWindow that displays real-time log messages. Show audio stats, transcription results, model status. Only visible in debug mode.
+  - Acceptance: Debug window shows detailed logs during recording/transcription
+  - Verification: `swift build` passes; enable debug mode, open debug window, verify log output
+
+---
+
+### US-106: Local LLM Text Cleanup
+
+- [ ] Research and select local LLM framework
+  - Scope: Evaluate llama.cpp Swift bindings vs MLX Swift for local LLM inference. Consider: SPM compatibility, model size, inference speed, memory usage. Document choice in Notes.
+  - Acceptance: Clear decision on framework with justification documented
+  - Verification: Document framework choice and reasoning in implementation plan Notes section
+
+- [ ] Integrate local LLM framework
+  - Scope: Add LLM dependency to `Package.swift`. Create `Sources/WispFlow/LLMManager.swift` wrapper for model loading and inference.
+  - Acceptance: LLM framework compiles and links with app
+  - Verification: `swift build` passes with LLM dependency
+
+- [ ] Implement model download and management
+  - Scope: Add small LLM model (Phi-3-mini, Gemma 2B, or similar) download capability to LLMManager. Store in Application Support. Add model selection to Settings.
+  - Acceptance: User can download and manage LLM models in Settings
+  - Verification: `swift build` passes; download model from Settings, verify file exists
+
+- [ ] Create text cleanup prompt system
+  - Scope: Create prompt template in LLMManager for text cleanup: remove fillers, fix grammar, maintain meaning. Test with sample transcriptions.
+  - Acceptance: LLM produces cleaned text that maintains meaning while improving grammar
+  - Verification: `swift build` passes; test cleanup prompt with sample text
+
+- [ ] Integrate LLM with TextCleanupManager
+  - Scope: Modify `Sources/WispFlow/TextCleanupManager.swift` to use LLMManager when available, fallback to rule-based cleanup if LLM unavailable or disabled.
+  - Acceptance: Text cleanup uses LLM when available, falls back to rules otherwise
+  - Verification: `swift build` passes; test with/without LLM, verify both paths work
+
+- [ ] Add LLM cleanup mode toggle
+  - Scope: Modify `Sources/WispFlow/SettingsWindow.swift` to add toggle between "Rule-based" and "AI-powered" cleanup modes. Persist setting.
+  - Acceptance: User can choose between rule-based and LLM cleanup
+  - Verification: `swift build` passes; toggle modes, verify cleanup behavior changes
 
 ---
 
 ## Notes
 
-### Project Setup Decisions
+### Discoveries
 
-- **Package Manager**: Recommend Swift Package Manager (Package.swift) over Xcode project for easier CI/CD and reproducibility. However, menu bar apps with NSStatusItem may benefit from traditional Xcode project structure.
-- **Whisper Integration**: whisper.cpp has SPM support via [ggerganov/whisper.cpp](https://github.com/ggerganov/whisper.cpp). Consider [argmaxinc/WhisperKit](https://github.com/argmaxinc/WhisperKit) as alternative (Apple-optimized).
-- **LLM Integration**: llama.cpp has SPM support. Consider smaller models like TinyLlama or Phi-2 for cleanup tasks to minimize resource usage.
+1. **Current AudioManager** already converts to 16kHz mono Float32 format via AVAudioConverter. However, the converter may silently fail or produce empty buffers - need validation.
+
+2. **WhisperManager.transcribe()** already handles empty results but returns empty string rather than meaningful error. The "[BLANK_AUDIO]" issue likely occurs in WhisperKit itself when audio format is incorrect.
+
+3. **Current implementation** does not preserve audio data after transcription attempt, making retry impossible. Need to cache audio until transcription succeeds.
+
+4. **Rule-based TextCleanupManager** is already comprehensive with 3 cleanup modes. LLM integration (US-106) should be additive, not replacement.
 
 ### Risks
 
-1. **Accessibility Permissions**: CGEvent tap requires accessibility permissions which users may be reluctant to grant. Provide clear explanation of why it's needed.
-2. **Model Size**: Whisper small/medium models are 500MB-1.5GB. Need good download UX and storage management.
-3. **Performance**: Running both Whisper and LLM locally may strain older Macs. Consider model size recommendations based on hardware.
-4. **Sandbox Limitations**: If distributing via App Store, some features (global hotkey, accessibility) may require entitlements or be restricted.
+1. **Local LLM memory usage** - Running both WhisperKit and LLM may strain memory on 8GB Macs. Consider model size limits and sequential (not parallel) inference.
 
-### Dependencies to Evaluate
+2. **Audio format edge cases** - Some microphones may produce non-standard formats that AVAudioConverter doesn't handle well. Debug mode will help identify these.
 
-- whisper.cpp or WhisperKit for transcription
-- llama.cpp or MLX for text cleanup
-- KeyboardShortcuts Swift package for hotkey handling (optional)
+3. **WhisperKit dependency** - WhisperKit requires macOS 14.0+ which limits user base. Cannot downgrade.
 
-### Missing from PRD (potential additions)
+### Framework Evaluation for US-106
 
-- Error logging/reporting for debugging
-- Onboarding flow for first-time users
-- ~~Audio input device selection (if multiple mics)~~ - Implemented in US-003
-- Keyboard shortcut conflicts handling
+**llama.cpp Swift**
+- Pros: Mature, well-tested, cross-platform
+- Cons: C++ core, bridging complexity
+
+**MLX Swift**
+- Pros: Apple-native, optimized for Apple Silicon
+- Cons: Apple Silicon only, newer/less tested
+
+Recommendation: Start with llama.cpp for broader compatibility, evaluate MLX if performance issues arise on Apple Silicon.

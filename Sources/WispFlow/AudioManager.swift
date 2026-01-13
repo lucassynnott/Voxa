@@ -1,9 +1,10 @@
 import AVFoundation
 import AppKit
+import Combine
 
 /// Manages audio capture using AVAudioEngine with support for device selection
 /// Handles microphone permissions, audio input device enumeration, and audio buffering
-final class AudioManager: NSObject {
+final class AudioManager: NSObject, ObservableObject {
     
     // MARK: - Types
     
@@ -24,6 +25,19 @@ final class AudioManager: NSObject {
         let audioData: Data
         let duration: TimeInterval
         let sampleRate: Double
+        let peakLevel: Float    // Peak level in dB
+        let sampleCount: Int    // Total number of samples
+        let wasSilent: Bool     // True if audio appeared silent (peak < -40dB)
+    }
+    
+    /// Audio buffer statistics for debugging
+    struct AudioBufferStats {
+        let sampleCount: Int
+        let duration: TimeInterval
+        let peakLevel: Float    // dB
+        let rmsLevel: Float     // dB
+        let minSample: Float
+        let maxSample: Float
     }
     
     /// Permission status for microphone access
@@ -39,6 +53,8 @@ final class AudioManager: NSObject {
     private struct Constants {
         static let targetSampleRate: Double = 16000.0 // Whisper prefers 16kHz
         static let selectedDeviceKey = "selectedAudioInputDeviceUID"
+        static let silenceThresholdDB: Float = -40.0  // Below this is considered silence
+        static let minimumRecordingDuration: TimeInterval = 0.5 // Minimum 0.5s recording
     }
     
     // MARK: - Properties
@@ -48,6 +64,10 @@ final class AudioManager: NSObject {
     private var isCapturing = false
     private var captureStartTime: Date?
     
+    // Audio level tracking for real-time meter
+    @Published var currentAudioLevel: Float = -60.0  // Current audio level in dB (updated during recording)
+    private var peakLevelDuringRecording: Float = -Float.infinity  // Track highest peak during recording
+    
     // Device tracking
     private var availableInputDevices: [AudioInputDevice] = []
     private var selectedDeviceUID: String?
@@ -56,6 +76,8 @@ final class AudioManager: NSObject {
     var onPermissionDenied: (() -> Void)?
     var onCaptureError: ((Error) -> Void)?
     var onDevicesChanged: (([AudioInputDevice]) -> Void)?
+    var onSilenceDetected: (() -> Void)?  // Called if recording stops with only silence
+    var onRecordingTooShort: (() -> Void)?  // Called if recording is below minimum duration
     
     // MARK: - Initialization
     
@@ -415,9 +437,25 @@ final class AudioManager: NSObject {
             converter = nil
         }
         
+        // Reset audio level tracking
+        peakLevelDuringRecording = -Float.infinity
+        currentAudioLevel = -60.0
+        
         // Install tap on input node
         inputNode.installTap(onBus: 0, bufferSize: 4096, format: inputFormat) { [weak self] buffer, time in
             guard let self = self else { return }
+            
+            // Calculate audio level from raw input buffer for real-time meter
+            let level = self.calculatePeakLevel(buffer: buffer)
+            
+            // Update current audio level on main thread
+            DispatchQueue.main.async {
+                self.currentAudioLevel = level
+                // Track peak level during entire recording
+                if level > self.peakLevelDuringRecording {
+                    self.peakLevelDuringRecording = level
+                }
+            }
             
             if let converter = converter {
                 // Convert to target format
@@ -472,18 +510,67 @@ final class AudioManager: NSObject {
         let duration = captureStartTime.map { Date().timeIntervalSince($0) } ?? 0
         captureStartTime = nil
         
-        // Combine buffers into single data
-        let audioData = combineBuffersToData()
+        // Check minimum recording duration
+        if duration < Constants.minimumRecordingDuration {
+            print("AudioManager: Recording too short (\(String(format: "%.2f", duration))s < \(Constants.minimumRecordingDuration)s minimum)")
+            audioBuffers.removeAll()
+            currentAudioLevel = -60.0
+            onRecordingTooShort?()
+            return nil
+        }
         
-        print("AudioManager: Stopped capturing - Duration: \(String(format: "%.2f", duration))s, Data size: \(audioData.count) bytes")
+        // Combine buffers into single data and compute statistics
+        let (audioData, stats) = combineBuffersToDataWithStats()
+        
+        // Log detailed audio buffer statistics
+        logAudioBufferStatistics(stats: stats, duration: duration)
+        
+        // Check for silence
+        let wasSilent = stats.peakLevel < Constants.silenceThresholdDB
+        if wasSilent {
+            print("AudioManager: ⚠️ WARNING - Audio appears silent (peak \(String(format: "%.1f", stats.peakLevel))dB < \(Constants.silenceThresholdDB)dB threshold)")
+            onSilenceDetected?()
+        }
+        
+        print("AudioManager: Stopped capturing - Duration: \(String(format: "%.2f", duration))s, Data size: \(audioData.count) bytes, Peak: \(String(format: "%.1f", stats.peakLevel))dB")
         
         audioBuffers.removeAll()
+        currentAudioLevel = -60.0
         
         return AudioCaptureResult(
             audioData: audioData,
             duration: duration,
-            sampleRate: Constants.targetSampleRate
+            sampleRate: Constants.targetSampleRate,
+            peakLevel: stats.peakLevel,
+            sampleCount: stats.sampleCount,
+            wasSilent: wasSilent
         )
+    }
+    
+    /// Get the last recorded audio statistics (for debug display)
+    var lastRecordingStats: AudioBufferStats? {
+        didSet {
+            // Can be used to display stats after recording stops
+        }
+    }
+    
+    /// Log detailed audio buffer statistics
+    private func logAudioBufferStatistics(stats: AudioBufferStats, duration: TimeInterval) {
+        print("╔═══════════════════════════════════════════════════════════════╗")
+        print("║                   AUDIO BUFFER STATISTICS                     ║")
+        print("╠═══════════════════════════════════════════════════════════════╣")
+        print("║ Sample Count:    \(String(format: "%10d", stats.sampleCount)) samples                        ║")
+        print("║ Duration:        \(String(format: "%10.2f", duration)) seconds                        ║")
+        print("║ Sample Rate:     \(String(format: "%10.0f", Constants.targetSampleRate)) Hz                            ║")
+        print("║ Peak Level:      \(String(format: "%10.1f", stats.peakLevel)) dB                             ║")
+        print("║ RMS Level:       \(String(format: "%10.1f", stats.rmsLevel)) dB                             ║")
+        print("║ Min Sample:      \(String(format: "%10.4f", stats.minSample))                                ║")
+        print("║ Max Sample:      \(String(format: "%10.4f", stats.maxSample))                                ║")
+        print("║ Silent:          \(stats.peakLevel < Constants.silenceThresholdDB ? "       YES ⚠️" : "        NO ✓")                                ║")
+        print("╚═══════════════════════════════════════════════════════════════╝")
+        
+        // Store for potential debug display
+        lastRecordingStats = stats
     }
     
     /// Cancel capturing and discard audio
@@ -551,6 +638,121 @@ final class AudioManager: NSObject {
         }
         
         return combinedData
+    }
+    
+    /// Combine buffers and compute statistics
+    private func combineBuffersToDataWithStats() -> (Data, AudioBufferStats) {
+        var combinedData = Data()
+        var allSamples: [Float] = []
+        
+        for buffer in audioBuffers {
+            guard let channelData = buffer.floatChannelData else { continue }
+            
+            let frameLength = Int(buffer.frameLength)
+            let dataPointer = channelData[0]
+            
+            // Collect samples for statistics
+            for i in 0..<frameLength {
+                allSamples.append(dataPointer[i])
+            }
+            
+            // Convert Float32 samples to Data
+            let byteSize = frameLength * MemoryLayout<Float>.size
+            combinedData.append(Data(bytes: dataPointer, count: byteSize))
+        }
+        
+        // Calculate statistics
+        let stats = calculateBufferStatistics(samples: allSamples)
+        
+        return (combinedData, stats)
+    }
+    
+    /// Calculate statistics from audio samples
+    private func calculateBufferStatistics(samples: [Float]) -> AudioBufferStats {
+        guard !samples.isEmpty else {
+            return AudioBufferStats(
+                sampleCount: 0,
+                duration: 0,
+                peakLevel: -Float.infinity,
+                rmsLevel: -Float.infinity,
+                minSample: 0,
+                maxSample: 0
+            )
+        }
+        
+        var minSample: Float = Float.infinity
+        var maxSample: Float = -Float.infinity
+        var sumSquares: Float = 0
+        
+        for sample in samples {
+            minSample = min(minSample, sample)
+            maxSample = max(maxSample, sample)
+            sumSquares += sample * sample
+        }
+        
+        // Peak level is max absolute value converted to dB
+        let peakAmplitude = max(abs(minSample), abs(maxSample))
+        let peakLevel = amplitudeToDecibels(peakAmplitude)
+        
+        // RMS level
+        let rms = sqrt(sumSquares / Float(samples.count))
+        let rmsLevel = amplitudeToDecibels(rms)
+        
+        let duration = TimeInterval(samples.count) / Constants.targetSampleRate
+        
+        return AudioBufferStats(
+            sampleCount: samples.count,
+            duration: duration,
+            peakLevel: peakLevel,
+            rmsLevel: rmsLevel,
+            minSample: minSample,
+            maxSample: maxSample
+        )
+    }
+    
+    /// Calculate peak level from an audio buffer (for real-time metering)
+    private func calculatePeakLevel(buffer: AVAudioPCMBuffer) -> Float {
+        guard let channelData = buffer.floatChannelData else {
+            return -60.0
+        }
+        
+        let frameLength = Int(buffer.frameLength)
+        guard frameLength > 0 else {
+            return -60.0
+        }
+        
+        let dataPointer = channelData[0]
+        var maxAmplitude: Float = 0
+        
+        for i in 0..<frameLength {
+            let amplitude = abs(dataPointer[i])
+            if amplitude > maxAmplitude {
+                maxAmplitude = amplitude
+            }
+        }
+        
+        return amplitudeToDecibels(maxAmplitude)
+    }
+    
+    /// Convert linear amplitude to decibels
+    private func amplitudeToDecibels(_ amplitude: Float) -> Float {
+        guard amplitude > 0 else {
+            return -60.0  // Floor at -60dB for silent audio
+        }
+        // 20 * log10(amplitude)
+        let db = 20.0 * log10(amplitude)
+        // Clamp to reasonable range
+        return max(-60.0, min(0.0, db))
+    }
+    
+    /// Silence threshold in dB
+    static var silenceThreshold: Float {
+        return Constants.silenceThresholdDB
+    }
+    
+    /// Minimum recording duration in seconds
+    static var minimumDuration: TimeInterval {
+        return Constants.minimumRecordingDuration
     }
 }
 

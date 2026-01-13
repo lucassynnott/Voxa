@@ -116,6 +116,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         audioManager?.onDevicesChanged = { devices in
             print("Audio devices updated: \(devices.map { $0.name })")
         }
+        
+        // Handle silence detection warning
+        audioManager?.onSilenceDetected = { [weak self] in
+            self?.showSilenceWarning()
+        }
+        
+        // Handle recording too short
+        audioManager?.onRecordingTooShort = { [weak self] in
+            self?.showRecordingTooShortError()
+        }
+    }
+    
+    private func showSilenceWarning() {
+        DispatchQueue.main.async {
+            let alert = NSAlert()
+            alert.messageText = "No Audio Detected"
+            alert.informativeText = "The recording appears to be silent (below -40dB threshold). Please check that:\n• Your microphone is connected\n• The correct input device is selected in Settings\n• You're speaking into the microphone"
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "Open Settings")
+            alert.addButton(withTitle: "OK")
+            
+            if alert.runModal() == .alertFirstButtonReturn {
+                self.openSettings()
+            }
+        }
+    }
+    
+    private func showRecordingTooShortError() {
+        DispatchQueue.main.async {
+            let alert = NSAlert()
+            alert.messageText = "Recording Too Short"
+            alert.informativeText = "The recording was shorter than the minimum required duration of \(AudioManager.minimumDuration) seconds. Please hold the recording key longer."
+            alert.alertStyle = .informational
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
+        }
     }
     
     @MainActor
@@ -202,24 +238,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func handleRecordingStateChange(_ state: RecordingState) {
         switch state {
         case .idle:
+            // Disconnect audio level meter
+            recordingIndicator?.disconnectAudioManager()
+            
             // Hide the recording indicator
             recordingIndicator?.hideWithAnimation()
             
             // Stop audio capture and get result
             if let result = audioManager?.stopCapturing() {
-                print("Stopped recording - Duration: \(String(format: "%.2f", result.duration))s, Data: \(result.audioData.count) bytes")
+                // Show recording duration info
+                print("Stopped recording - Duration: \(String(format: "%.2f", result.duration))s, Data: \(result.audioData.count) bytes, Peak: \(String(format: "%.1f", result.peakLevel))dB, Samples: \(result.sampleCount)")
                 
-                // Process transcription with Whisper on MainActor
-                let audioData = result.audioData
-                let sampleRate = result.sampleRate
-                Task { @MainActor in
-                    processTranscription(audioData: audioData, sampleRate: sampleRate)
+                // Update indicator to show duration briefly
+                recordingIndicator?.updateStatus(String(format: "%.1fs", result.duration))
+                recordingIndicator?.showWithAnimation()
+                
+                // If audio was silent, the callback already shows a warning
+                // Only proceed with transcription if we have valid audio
+                if !result.wasSilent {
+                    // Process transcription with Whisper on MainActor
+                    let audioData = result.audioData
+                    let sampleRate = result.sampleRate
+                    Task { @MainActor in
+                        processTranscription(audioData: audioData, sampleRate: sampleRate)
+                    }
+                } else {
+                    // Hide indicator after showing duration for silent audio
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                        self?.recordingIndicator?.hideWithAnimation()
+                    }
                 }
             } else {
-                print("Stopped recording (no audio captured)")
+                print("Stopped recording (no audio captured or recording too short)")
             }
             
         case .recording:
+            // Connect audio level meter to audio manager for real-time updates
+            if let audio = audioManager {
+                recordingIndicator?.connectAudioManager(audio)
+            }
+            
             // Show the recording indicator
             recordingIndicator?.showWithAnimation()
             
@@ -229,6 +287,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 print("Started recording")
             } catch {
                 print("Failed to start audio capture: \(error.localizedDescription)")
+                // Disconnect on failure
+                recordingIndicator?.disconnectAudioManager()
                 // Revert state if audio capture failed
                 statusBarController?.setRecordingState(.idle)
             }

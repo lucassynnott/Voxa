@@ -1,27 +1,34 @@
 import AppKit
+import Combine
 
 /// Floating recording indicator window that shows when recording is active
-/// Displays a pill-shaped overlay with recording status and cancel button
+/// Displays a pill-shaped overlay with recording status, audio level meter, and cancel button
 final class RecordingIndicatorWindow: NSPanel {
     
     // MARK: - UI Components
     
     private let containerView = NSView()
     private let recordingIcon = NSImageView()
+    private let audioLevelMeter = AudioLevelMeterView()
     private let statusLabel = NSTextField()
     private let cancelButton = NSButton()
     
     /// Callback when cancel button is clicked
     var onCancel: (() -> Void)?
     
+    /// Audio level subscription
+    private var audioLevelCancellable: AnyCancellable?
+    
     // MARK: - Configuration
     
     private struct Constants {
-        static let windowWidth: CGFloat = 160
+        static let windowWidth: CGFloat = 200
         static let windowHeight: CGFloat = 44
         static let cornerRadius: CGFloat = 22
         static let padding: CGFloat = 12
         static let iconSize: CGFloat = 20
+        static let levelMeterWidth: CGFloat = 40
+        static let levelMeterHeight: CGFloat = 8
         static let animationDuration: TimeInterval = 0.2
     }
     
@@ -92,6 +99,10 @@ final class RecordingIndicatorWindow: NSPanel {
         recordingIcon.translatesAutoresizingMaskIntoConstraints = false
         containerView.addSubview(recordingIcon)
         
+        // Audio level meter (shows real-time mic input level)
+        audioLevelMeter.translatesAutoresizingMaskIntoConstraints = false
+        containerView.addSubview(audioLevelMeter)
+        
         // Status label
         statusLabel.stringValue = "Recording..."
         statusLabel.font = .systemFont(ofSize: 13, weight: .medium)
@@ -134,8 +145,14 @@ final class RecordingIndicatorWindow: NSPanel {
             recordingIcon.widthAnchor.constraint(equalToConstant: Constants.iconSize),
             recordingIcon.heightAnchor.constraint(equalToConstant: Constants.iconSize),
             
+            // Audio level meter next to recording icon
+            audioLevelMeter.leadingAnchor.constraint(equalTo: recordingIcon.trailingAnchor, constant: 6),
+            audioLevelMeter.centerYAnchor.constraint(equalTo: containerView.centerYAnchor),
+            audioLevelMeter.widthAnchor.constraint(equalToConstant: Constants.levelMeterWidth),
+            audioLevelMeter.heightAnchor.constraint(equalToConstant: Constants.levelMeterHeight),
+            
             // Status label in the middle
-            statusLabel.leadingAnchor.constraint(equalTo: recordingIcon.trailingAnchor, constant: 8),
+            statusLabel.leadingAnchor.constraint(equalTo: audioLevelMeter.trailingAnchor, constant: 8),
             statusLabel.centerYAnchor.constraint(equalTo: containerView.centerYAnchor),
             
             // Cancel button on the right
@@ -221,6 +238,27 @@ final class RecordingIndicatorWindow: NSPanel {
         statusLabel.stringValue = text
     }
     
+    /// Update audio level meter (value in dB, typically -60 to 0)
+    func updateAudioLevel(_ level: Float) {
+        audioLevelMeter.updateLevel(level)
+    }
+    
+    /// Connect to AudioManager for real-time level updates
+    func connectAudioManager(_ audioManager: AudioManager) {
+        audioLevelCancellable = audioManager.$currentAudioLevel
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] level in
+                self?.audioLevelMeter.updateLevel(level)
+            }
+    }
+    
+    /// Disconnect from AudioManager
+    func disconnectAudioManager() {
+        audioLevelCancellable?.cancel()
+        audioLevelCancellable = nil
+        audioLevelMeter.updateLevel(-60.0)
+    }
+    
     // MARK: - Window Behavior Overrides
     
     override var canBecomeKey: Bool {
@@ -229,5 +267,94 @@ final class RecordingIndicatorWindow: NSPanel {
     
     override var canBecomeMain: Bool {
         return false
+    }
+}
+
+// MARK: - Audio Level Meter View
+
+/// A simple horizontal bar that visualizes audio level in real-time
+final class AudioLevelMeterView: NSView {
+    
+    private let levelBar = NSView()
+    private var levelBarWidthConstraint: NSLayoutConstraint?
+    
+    private struct Constants {
+        static let minDB: Float = -60.0
+        static let maxDB: Float = 0.0
+        static let silenceThreshold: Float = -40.0  // Matches AudioManager threshold
+        static let cornerRadius: CGFloat = 2.0
+    }
+    
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        setupView()
+    }
+    
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        setupView()
+    }
+    
+    private func setupView() {
+        wantsLayer = true
+        layer?.cornerRadius = Constants.cornerRadius
+        layer?.masksToBounds = true
+        layer?.backgroundColor = NSColor.systemGray.withAlphaComponent(0.3).cgColor
+        
+        // Level bar (filled portion)
+        levelBar.wantsLayer = true
+        levelBar.layer?.cornerRadius = Constants.cornerRadius
+        levelBar.layer?.backgroundColor = NSColor.systemGreen.cgColor
+        levelBar.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(levelBar)
+        
+        // Create width constraint for animation
+        levelBarWidthConstraint = levelBar.widthAnchor.constraint(equalToConstant: 0)
+        
+        NSLayoutConstraint.activate([
+            levelBar.leadingAnchor.constraint(equalTo: leadingAnchor),
+            levelBar.topAnchor.constraint(equalTo: topAnchor),
+            levelBar.bottomAnchor.constraint(equalTo: bottomAnchor),
+            levelBarWidthConstraint!
+        ])
+    }
+    
+    /// Update the level meter display
+    /// - Parameter level: Audio level in dB (typically -60 to 0)
+    func updateLevel(_ level: Float) {
+        // Clamp level to valid range
+        let clampedLevel = max(Constants.minDB, min(Constants.maxDB, level))
+        
+        // Convert dB to linear percentage (0 to 1)
+        // Using a simple linear mapping from -60dB to 0dB
+        let percentage = (clampedLevel - Constants.minDB) / (Constants.maxDB - Constants.minDB)
+        
+        // Calculate width based on percentage
+        let newWidth = bounds.width * CGFloat(percentage)
+        
+        // Update color based on level
+        let color: NSColor
+        if clampedLevel < Constants.silenceThreshold {
+            // Below silence threshold - show as dim/gray-ish
+            color = .systemGray
+        } else if clampedLevel < -20 {
+            // Normal speaking level - green
+            color = .systemGreen
+        } else if clampedLevel < -6 {
+            // Getting louder - yellow
+            color = .systemYellow
+        } else {
+            // Very loud / near clipping - red
+            color = .systemRed
+        }
+        
+        // Animate the update
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.05  // Fast update for responsive metering
+            context.allowsImplicitAnimation = true
+            self.levelBarWidthConstraint?.constant = newWidth
+            self.levelBar.layer?.backgroundColor = color.cgColor
+            self.layoutSubtreeIfNeeded()
+        }
     }
 }
