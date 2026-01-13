@@ -119,3 +119,47 @@ Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260113-160943-91467-it
   - AudioObjectAddPropertyListenerBlock allows monitoring device changes
   - Weak reference to AudioManager in StatusBarController avoids retain cycles
 ---
+
+## [2026-01-13 16:45] - US-004: Local Whisper Transcription
+Thread: codex exec session
+Run: 20260113-160943-91467 (iteration 4)
+Run log: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260113-160943-91467-iter-4.log
+Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260113-160943-91467-iter-4.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: b4703ab feat(US-004): implement local Whisper transcription
+- Post-commit status: clean
+- Verification:
+  - Command: `swift build` -> PASS (build complete, WhisperKit integrated successfully)
+- Files changed:
+  - Package.swift (modified - added WhisperKit dependency, macOS 14.0+)
+  - Sources/WispFlow/WhisperManager.swift (new)
+  - Sources/WispFlow/SettingsWindow.swift (new)
+  - Sources/WispFlow/AppDelegate.swift (modified)
+  - Sources/WispFlow/StatusBarController.swift (modified)
+  - Resources/Info.plist (modified - LSMinimumSystemVersion 14.0)
+  - AGENTS.md (modified - updated requirements)
+  - .agents/tasks/prd.md (updated acceptance criteria)
+  - .ralph/IMPLEMENTATION_PLAN.md (updated task status)
+- What was implemented:
+  - WhisperManager.swift: Complete Whisper transcription wrapper using WhisperKit
+  - Model sizes: tiny (~75MB), base (~145MB), small (~485MB), medium (~1.5GB)
+  - Model download via WhisperKit's built-in mechanism from Hugging Face (argmaxinc/whisperkit-coreml)
+  - Models stored in ~/Library/Application Support/WispFlow/Models/
+  - Model selection persistence via UserDefaults
+  - SettingsWindow.swift: SwiftUI-based settings UI with model management
+  - TranscriptionSettingsView: Model selection (radio group), download/load/delete, status badge
+  - SettingsWindowController: NSWindow hosting SwiftUI view
+  - Transcription pipeline: Float32 audio at 16kHz → WhisperKit → joined text
+  - Recording indicator shows "Transcribing..." status during processing
+  - Error handling with alerts guiding user to Settings if model not loaded
+  - Auto-load selected model on app startup
+- **Learnings for future iterations:**
+  - WhisperKit requires macOS 14.0+ (updated from 13.0)
+  - WhisperKit returns [TranscriptionResult] array; join .text properties for full transcription
+  - WhisperKitConfig.downloadBase expects URL, not String path
+  - @MainActor isolation required for WhisperManager (ObservableObject with @Published)
+  - Use Task { @MainActor in } to call MainActor-isolated methods from non-isolated contexts
+  - WhisperKit auto-downloads recommended model if none specified
+  - Model pattern format: "openai_whisper-{size}" (e.g., openai_whisper-base)
+---
