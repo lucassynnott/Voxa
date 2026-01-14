@@ -2315,3 +2315,37 @@ Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-130140-94307-it
   - Existing design system (DesignSystem.swift) provides consistent styling
   - OnboardingManager from US-516 integrates directly with new window controller
 ---
+
+## [2026-01-14 13:25] - US-518: Microphone Permission Step
+Thread: codex exec session
+Run: 20260114-130140-94307 (iteration 4)
+Run log: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-130140-94307-iter-4.log
+Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-130140-94307-iter-4.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: ad1f7e6 feat(US-518): implement microphone permission step for onboarding wizard
+- Post-commit status: clean
+- Verification:
+  - Command: `swift build` -> PASS (build complete with only Swift 6 informational warnings)
+- Files changed:
+  - Sources/WispFlow/OnboardingWindow.swift (modified)
+  - .ralph/IMPLEMENTATION_PLAN.md (updated)
+  - .agents/tasks/prd-audio-permissions-hotkeys-overhaul.md (updated)
+- What was implemented:
+  - Created `MicrophonePermissionView` in `OnboardingWindow.swift` with all required UI elements:
+    - Screen explains why microphone access is needed with clear description text
+    - Current permission status displayed via `permissionStatusCard` component with status icon (green checkmark/red X)
+    - "Grant Access" button triggers `PermissionManager.requestMicrophonePermission()` which shows system permission dialog
+    - Status updates automatically after permission granted via `@Published` property in PermissionManager
+    - "Continue" button only enabled after permission granted (changes from "Grant Access" to green "Continue")
+    - "Skip for now" link always available as subtle underlined text
+    - Illustration/icon showing microphone with gradient circle and mic.fill SF Symbol
+  - Added `microphone` case to `OnboardingStep` enum with `nextStep` computed property for navigation
+  - Updated `OnboardingContainerView` to include microphone step with proper navigation flow
+  - Added preview for `MicrophonePermissionView` for development testing
+- **Learnings for future iterations:**
+  - Reuse existing PermissionManager for permission status tracking instead of duplicating logic
+  - Use `@ObservedObject` for PermissionManager to get reactive UI updates when status changes
+  - OnboardingStep enum `nextStep` computed property enables clean navigation progression
+  - SwiftUI view conditionals (if/else) work well for showing different buttons based on state
+---
