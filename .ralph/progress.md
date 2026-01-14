@@ -1573,3 +1573,43 @@ Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-114454-75717-it
   - Logging cache usage helps debug device selection issues in production
   - Cache invalidation should happen before re-enumeration to prevent stale device references
 ---
+
+## [2026-01-14 12:10] - US-503: Robust Audio Engine Initialization
+Thread: codex exec session
+Run: 20260114-114454-75717 (iteration 3)
+Run log: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-114454-75717-iter-3.log
+Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-114454-75717-iter-3.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: 6a53d6c feat(US-503): add robust audio engine initialization with clear error handling
+- Post-commit status: clean
+- Verification:
+  - Command: `swift build` -> PASS (build complete, no errors)
+- Files changed:
+  - Sources/WispFlow/AudioManager.swift (added noInputDevicesAvailable error, invalidInputFormat error)
+  - .ralph/IMPLEMENTATION_PLAN.md (marked US-503 complete with implementation notes)
+  - .agents/tasks/prd-audio-permissions-hotkeys-overhaul.md (marked US-503 acceptance criteria complete)
+- What was implemented:
+  - `AudioCaptureError.noInputDevicesAvailable` error with clear message for no input devices
+  - `AudioCaptureError.invalidInputFormat(sampleRate:channels:)` error with detailed format info
+  - Pre-device-selection check: `guard !availableInputDevices.isEmpty` with formatted error box
+  - Enhanced format validation: `guard inputFormat.sampleRate > 0 && inputFormat.channelCount > 0`
+  - Formatted error output with diagnostic information for both error cases
+  - Audio engine initialization sequence verified:
+    1. Stop engine if running
+    2. Reset engine (`audioEngine.reset()`)
+    3. Prepare engine (`audioEngine.prepare()`)
+    4. Check for available devices
+    5. Set input device
+    6. Get input format
+    7. Validate format
+    8. Configure input graph with muted mixer sink
+    9. Install tap
+    10. Start engine
+- **Learnings for future iterations:**
+  - Robust error handling requires specific error types, not generic failures
+  - Checking for no input devices before attempting device selection prevents silent failures
+  - Format validation with detailed error messages helps diagnose device configuration issues
+  - The initialization sequence order is critical: prepare → set device → get format
+  - Formatted box output in console makes errors visually prominent for debugging
+---
