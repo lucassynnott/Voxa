@@ -162,18 +162,18 @@ This PRD defines a comprehensive overhaul of WispFlow's core systems based on pr
 - [x] Negative case: Hotkey pressed without accessibility permission → shows permission prompt
 - [x] Typecheck passes
 
-### [ ] US-511: Hotkey Recording in Settings
+### [x] US-511: Hotkey Recording in Settings
 **Description:** As a user, I want to customize my hotkey by pressing the key combination I want to use.
 
 **Acceptance Criteria:**
-- [ ] "Record Hotkey" button in Settings enters recording mode
-- [ ] Recording mode shows pulsing indicator
-- [ ] Next key combination with modifier captured as new hotkey
-- [ ] Escape cancels recording without changing hotkey
-- [ ] Invalid combinations rejected (modifier-only, no modifier)
-- [ ] New hotkey persisted to UserDefaults
-- [ ] Hotkey display shows human-readable format (⌘⇧Space)
-- [ ] Typecheck passes
+- [x] "Record Hotkey" button in Settings enters recording mode
+- [x] Recording mode shows pulsing indicator
+- [x] Next key combination with modifier captured as new hotkey
+- [x] Escape cancels recording without changing hotkey
+- [x] Invalid combinations rejected (modifier-only, no modifier)
+- [x] New hotkey persisted to UserDefaults
+- [x] Hotkey display shows human-readable format (⌘⇧Space)
+- [x] Typecheck passes
 
 ### [ ] US-512: Hotkey Conflict Detection
 **Description:** As a user, I want to be warned if my chosen hotkey conflicts with system shortcuts.

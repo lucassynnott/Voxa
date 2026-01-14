@@ -428,19 +428,19 @@ This plan implements a comprehensive overhaul of WispFlow's core systems based o
 ---
 
 ### US-511: Hotkey Recording in Settings
-**Status:** pending
+**Status:** complete
 **Priority:** medium
 **Estimated effort:** medium
 
 **Description:** Allow users to customize hotkey by recording key combination.
 
 **Tasks:**
-- [ ] Add "Record Hotkey" button
-- [ ] Show pulsing indicator during recording
-- [ ] Capture next key combination with modifiers
-- [ ] Validate combination has modifier
-- [ ] Persist to UserDefaults
-- [ ] Display human-readable format
+- [x] Add "Record Hotkey" button
+- [x] Show pulsing indicator during recording
+- [x] Capture next key combination with modifiers
+- [x] Validate combination has modifier
+- [x] Persist to UserDefaults
+- [x] Display human-readable format
 
 **Acceptance Criteria:**
 - Recording mode with visual indicator
@@ -448,6 +448,17 @@ This plan implements a comprehensive overhaul of WispFlow's core systems based o
 - Escape cancels recording
 - Invalid combinations rejected
 - Typecheck passes
+
+**Implementation Notes:**
+- `HotkeyRecorderView` in `SettingsWindow.swift` provides complete hotkey recording UI
+- Recording mode activated via `startRecording()` which installs local event monitor for `.keyDown` events
+- Pulsing indicator implemented with `pulseAnimation` state and `scaleEffect/opacity` modifiers using `.repeatForever` animation
+- `handleKeyEvent()` captures `event.keyCode` and modifier flags (Cmd, Shift, Option, Control)
+- Validation rejects modifier-only keys (`.flagsChanged` events filtered) and no-modifier keys (`modifiers.isEmpty` guard)
+- Escape key (keyCode 53) calls `stopRecording()` without changing hotkey
+- New configuration persisted via `hotkeyManager.updateConfiguration(newConfig)` which calls `saveConfiguration()` using UserDefaults
+- Human-readable format via `HotkeyConfiguration.displayString` property that builds strings like "⌃⌥⇧⌘Space"
+- All functionality was already implemented; verified via `swift build` - typecheck passes
 
 ---
 

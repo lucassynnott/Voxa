@@ -1,0 +1,22 @@
+## Summary
+
+Successfully completed **US-510: Global Event Tap for Hotkeys**. 
+
+**Changes made:**
+1. **Rewrote `HotkeyManager.swift`** - Replaced Carbon `RegisterEventHotKey` with CGEvent tap at `kCGSessionEventTap` level for reliable global hotkey detection that works regardless of which app is focused and even when WispFlow window is not visible.
+
+2. **Updated `AppDelegate.swift`** - Added `showAccessibilityPermissionPrompt()` method to show an alert when hotkey is pressed without accessibility permission, with option to open System Settings.
+
+**Key features implemented:**
+- CGEvent tap at session level for true global hotkey detection
+- Modifier keys detection: Command, Shift, Option, Control
+- Default hotkey: Cmd+Shift+Space
+- Auto-re-enable of tap if system disables it
+- Permission prompt when accessibility permission is missing
+
+**Verification:**
+- `swift build` passes without errors
+
+**Commits:**
+- `5b530f0` feat(US-510): implement global event tap for hotkeys
+- `5d8f7f1` docs: update progress log for US-510
