@@ -2796,3 +2796,47 @@ Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-183639-98512-it
   - Boxed logging for timer start/warning/stop helps debug timeout issues
   - Max recording duration configurable via UserDefaults allows future settings UI
 ---
+
+## [2026-01-14 20:30] - US-604: Audio Level Calibration
+Thread: codex exec session
+Run: 20260114-201804-15086 (iteration 1)
+Run log: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-201804-15086-iter-1.log
+Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-201804-15086-iter-1.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: fb0d87a feat(US-604): implement audio level calibration
+- Post-commit status: clean
+- Verification:
+  - Command: `swift build` -> PASS (build complete, warnings are pre-existing)
+- Files changed:
+  - Sources/WispFlow/AudioManager.swift (calibration state, methods, persistence)
+  - Sources/WispFlow/SettingsWindow.swift (AudioCalibrationCard UI component)
+  - .agents/tasks/prd-wispflow-improvements-v2.md (marked US-604 complete)
+  - .ralph/IMPLEMENTATION_PLAN.md (added US-604 section with tasks and notes)
+- What was implemented:
+  - CalibrationState enum: idle, calibrating(progress: Double), completed(ambientLevel: Float), failed(message: String)
+  - DeviceCalibration struct (Codable): deviceUID, deviceName, ambientNoiseLevel, silenceThreshold, calibrationDate
+  - Constants: calibrationDuration (3.0s), calibrationDataKey, defaultSilenceThresholdOffset (5dB)
+  - startCalibration(): begins 3-second ambient noise measurement with 100ms sampling interval
+  - cancelCalibration(): aborts in-progress calibration
+  - finishCalibration(): calculates average ambient level, sets threshold = ambient + 5dB offset
+  - getCalibrationForCurrentDevice(), getCalibration(forDeviceUID:): retrieve saved calibrations
+  - isCurrentDeviceCalibrated: computed property for UI binding
+  - effectiveSilenceThreshold: returns calibrated threshold or default (-55dB)
+  - resetCalibrationForCurrentDevice(), resetAllCalibrations(): reset to default threshold
+  - loadCalibrationData(), saveCalibrationData(): UserDefaults persistence with JSON encoding
+  - AudioCalibrationCard: main UI component in Audio settings tab
+  - CalibrationStatusView: displays idle/calibrating/completed/failed states
+  - CalibrationProgressDisplay: shows progress bar during 3-second measurement
+  - CalibrationResultDisplay: shows ambient level, threshold, and calibration date
+  - DefaultThresholdDisplay: shows default threshold when not calibrated
+  - CalibrationCompletedDisplay: success animation with checkmark
+  - CalibrationFailedDisplay: error message display
+- **Learnings for future iterations:**
+  - Implementation was already complete from previous iterations - this run verified and documented
+  - Calibration uses deviceUID as dictionary key for per-device settings persistence
+  - Audio samples collected during calibration are filtered to remove -80dB readings (pure silence)
+  - Codable structs with JSON encoding provide simple persistence to UserDefaults
+  - Published CalibrationState property enables reactive SwiftUI binding for progress updates
+  - Reset confirmation alert prevents accidental loss of calibration data
+---
