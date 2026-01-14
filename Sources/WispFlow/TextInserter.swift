@@ -216,14 +216,27 @@ final class TextInserter: ObservableObject {
     /// - Parameter text: The text to insert
     /// - Returns: The result of the insertion attempt
     func insertText(_ text: String) async -> InsertionResult {
-        // Check accessibility permission first
-        guard hasAccessibilityPermission else {
-            print("TextInserter: No accessibility permission")
-            _ = requestAccessibilityPermission(showPrompt: true)
-            insertionStatus = .error("Accessibility permission required")
-            statusMessage = "Please grant accessibility permission"
-            onError?("Accessibility permission required")
-            return .noAccessibilityPermission
+        // US-507: Check accessibility permission first and prompt automatically if needed
+        // If not granted, use PermissionManager for consistent prompting behavior
+        if !hasAccessibilityPermission {
+            print("TextInserter: [US-507] No accessibility permission on first text insertion attempt")
+            
+            // Use PermissionManager for automatic prompting (shows system dialog)
+            // This ensures consistent behavior with microphone permission prompting
+            _ = PermissionManager.shared.requestAccessibilityPermission()
+            
+            // Re-check our local status after the prompt
+            recheckPermission()
+            
+            if !hasAccessibilityPermission {
+                print("TextInserter: [US-507] Accessibility permission still not granted after prompt")
+                insertionStatus = .error("Accessibility permission required")
+                statusMessage = "Please grant accessibility permission in System Settings"
+                onError?("Accessibility permission required")
+                return .noAccessibilityPermission
+            }
+            
+            print("TextInserter: [US-507] Accessibility permission granted, proceeding with insertion")
         }
         
         insertionStatus = .inserting

@@ -368,6 +368,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     showModelNotReadyAlert()
                     return
                 }
+                
+                // US-507: Check microphone permission before starting recording
+                // If .notDetermined → show system dialog
+                // If .denied → open System Settings directly
+                let permissionManager = PermissionManager.shared
+                let micStatus = permissionManager.microphoneStatus
+                
+                if !micStatus.isGranted {
+                    print("AppDelegate: [US-507] Microphone permission not granted, requesting...")
+                    
+                    // Request permission (async - shows system dialog or opens Settings)
+                    let granted = await permissionManager.requestMicrophonePermission()
+                    
+                    if !granted {
+                        print("AppDelegate: [US-507] Microphone permission not granted, cannot start recording")
+                        return
+                    }
+                    
+                    print("AppDelegate: [US-507] Microphone permission granted, proceeding with recording")
+                }
             }
             
             statusBarController?.toggle()

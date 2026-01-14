@@ -72,6 +72,97 @@ final class PermissionManager: ObservableObject {
     /// Called when all required permissions are granted
     var onAllPermissionsGranted: (() -> Void)?
     
+    // MARK: - US-507: Automatic Permission Prompting
+    
+    /// Request microphone permission with system dialog (US-507)
+    /// - If .notDetermined: Shows system permission dialog
+    /// - If .denied: Opens System Settings directly
+    /// - Returns: True if permission is granted after request
+    func requestMicrophonePermission() async -> Bool {
+        refreshMicrophoneStatus()
+        
+        switch microphoneStatus {
+        case .authorized:
+            print("PermissionManager: [US-507] Microphone already authorized")
+            return true
+            
+        case .notDetermined:
+            print("PermissionManager: [US-507] Requesting microphone permission (showing system dialog)")
+            // Request access using system dialog (not custom alert)
+            let granted = await AVCaptureDevice.requestAccess(for: .audio)
+            refreshMicrophoneStatus()
+            print("PermissionManager: [US-507] Microphone permission request result: \(granted)")
+            return granted
+            
+        case .denied, .restricted:
+            print("PermissionManager: [US-507] Microphone permission denied - opening System Settings")
+            openMicrophoneSettings()
+            return false
+        }
+    }
+    
+    /// Request accessibility permission with system dialog (US-507)
+    /// - If not trusted: Shows system prompt via AXIsProcessTrustedWithOptions
+    /// - Returns: True if permission is currently granted (may need re-check after user action)
+    func requestAccessibilityPermission() -> Bool {
+        refreshAccessibilityStatus()
+        
+        if accessibilityStatus.isGranted {
+            print("PermissionManager: [US-507] Accessibility already authorized")
+            return true
+        }
+        
+        print("PermissionManager: [US-507] Requesting accessibility permission (showing system dialog)")
+        
+        // AXIsProcessTrustedWithOptions with kAXTrustedCheckOptionPrompt shows the system dialog
+        // This is the correct way to request accessibility permission on macOS
+        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
+        let trusted = AXIsProcessTrustedWithOptions(options as CFDictionary)
+        
+        refreshAccessibilityStatus()
+        print("PermissionManager: [US-507] Accessibility permission check result: \(trusted)")
+        
+        // If still not trusted after prompt, open System Settings
+        if !trusted {
+            print("PermissionManager: [US-507] User needs to manually enable in System Settings")
+            openAccessibilitySettings()
+        }
+        
+        return trusted
+    }
+    
+    // MARK: - US-507 & US-508: Open System Settings Helpers
+    
+    /// Open System Settings to Microphone permission pane (US-507/US-508)
+    /// Uses URL scheme: x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone
+    func openMicrophoneSettings() {
+        print("PermissionManager: [US-508] Opening System Settings > Privacy & Security > Microphone")
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone") {
+            NSWorkspace.shared.open(url)
+        } else {
+            // Fallback to general Privacy settings if specific pane fails
+            print("PermissionManager: [US-508] Falling back to general Privacy settings")
+            if let fallbackUrl = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy") {
+                NSWorkspace.shared.open(fallbackUrl)
+            }
+        }
+    }
+    
+    /// Open System Settings to Accessibility permission pane (US-507/US-508)
+    /// Uses URL scheme: x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility
+    func openAccessibilitySettings() {
+        print("PermissionManager: [US-508] Opening System Settings > Privacy & Security > Accessibility")
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            NSWorkspace.shared.open(url)
+        } else {
+            // Fallback to general Privacy settings if specific pane fails
+            print("PermissionManager: [US-508] Falling back to general Privacy settings")
+            if let fallbackUrl = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy") {
+                NSWorkspace.shared.open(fallbackUrl)
+            }
+        }
+    }
+    
     // MARK: - Initialization
     
     init() {

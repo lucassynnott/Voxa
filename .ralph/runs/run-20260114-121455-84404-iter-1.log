@@ -1,0 +1,13 @@
+## Summary
+
+Completed US-506: Permission Status Tracking. Created `PermissionManager.swift` that provides real-time permission tracking for microphone (via `AVCaptureDevice.authorizationStatus`) and accessibility (via `AXIsProcessTrusted()`). The implementation includes:
+
+- `PermissionStatus` enum with `.authorized`, `.denied`, `.notDetermined`, `.restricted` cases
+- Published properties `microphoneStatus` and `accessibilityStatus` that trigger UI updates via SwiftUI's `@Published`
+- Permission polling when app becomes active (NSApplication.didBecomeActiveNotification)
+- Background polling timer while permissions are not fully granted
+- Singleton pattern (`PermissionManager.shared`) for app-wide access
+
+**Commits:**
+- `adaa6df` feat(US-506): add permission status tracking
+- `4fe96c3` docs: update progress log for US-506

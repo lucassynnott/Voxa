@@ -111,16 +111,16 @@ This PRD defines a comprehensive overhaul of WispFlow's core systems based on pr
 - [x] Published properties trigger UI updates on change
 - [x] Typecheck passes
 
-### [ ] US-507: Automatic Permission Prompting
+### [x] US-507: Automatic Permission Prompting
 **Description:** As a user, I want permission dialogs to appear automatically when needed so I don't have to find them in Settings.
 
 **Acceptance Criteria:**
-- [ ] Microphone permission requested on first recording attempt if `.notDetermined`
-- [ ] Accessibility permission requested on first text insertion attempt if not trusted
-- [ ] System permission dialog shown (not custom alert)
-- [ ] If permission previously denied, open System Settings directly
-- [ ] Example: First launch → user presses hotkey → mic permission dialog appears
-- [ ] Typecheck passes
+- [x] Microphone permission requested on first recording attempt if `.notDetermined`
+- [x] Accessibility permission requested on first text insertion attempt if not trusted
+- [x] System permission dialog shown (not custom alert)
+- [x] If permission previously denied, open System Settings directly
+- [x] Example: First launch → user presses hotkey → mic permission dialog appears
+- [x] Typecheck passes
 
 ### [ ] US-508: Open System Settings Helper
 **Description:** As a user, I want to be taken directly to the correct System Settings pane when I need to grant permissions.

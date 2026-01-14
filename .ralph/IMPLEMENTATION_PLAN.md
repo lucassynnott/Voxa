@@ -283,22 +283,39 @@ This plan implements a comprehensive overhaul of WispFlow's core systems based o
 ---
 
 ### US-507: Automatic Permission Prompting
-**Status:** pending
+**Status:** complete
 **Priority:** high
 **Estimated effort:** medium
 
 **Description:** Show permission dialogs automatically when needed.
 
 **Tasks:**
-- [ ] Request mic permission on first recording if notDetermined
-- [ ] Request accessibility on first text insertion
-- [ ] Open System Settings if previously denied
-- [ ] Add permission prompt to setupTextInserter
+- [x] Request mic permission on first recording if notDetermined
+- [x] Request accessibility on first text insertion
+- [x] Open System Settings if previously denied
+- [x] Add permission prompt to setupTextInserter
 
 **Acceptance Criteria:**
-- System permission dialog shown when appropriate
-- Denied permissions open System Settings
-- Typecheck passes
+- [x] System permission dialog shown when appropriate
+- [x] Denied permissions open System Settings
+- [x] Typecheck passes
+
+**Implementation Notes:**
+- Added `requestMicrophonePermission()` async method to PermissionManager:
+  - If `.notDetermined`: Calls `AVCaptureDevice.requestAccess(for: .audio)` to show system dialog
+  - If `.denied` or `.restricted`: Opens System Settings directly via `openMicrophoneSettings()`
+- Added `requestAccessibilityPermission()` method to PermissionManager:
+  - Uses `AXIsProcessTrustedWithOptions` with `kAXTrustedCheckOptionPrompt` to show system dialog
+  - If not granted after prompt, opens System Settings via `openAccessibilitySettings()`
+- Updated `AppDelegate.toggleRecordingFromHotkey()`:
+  - Checks microphone permission via `PermissionManager.shared` before starting recording
+  - Awaits permission request if not granted, blocks recording until granted
+- Updated `TextInserter.insertText()`:
+  - Checks accessibility permission on first text insertion attempt
+  - Uses PermissionManager for consistent prompting behavior
+  - Re-checks local status after prompt to handle immediate grants
+- All prompting uses system dialogs (not custom alerts) as required
+- Verified via `swift build` - typecheck passes
 
 ---
 
