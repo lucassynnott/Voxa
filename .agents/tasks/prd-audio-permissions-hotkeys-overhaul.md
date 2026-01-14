@@ -249,17 +249,17 @@ This PRD defines a comprehensive overhaul of WispFlow's core systems based on pr
 - [x] "Skip Setup" link available (not prominent)
 - [x] Typecheck passes
 
-### [ ] US-518: Microphone Permission Step
+### [x] US-518: Microphone Permission Step
 **Description:** As a new user, I want guided setup for microphone permission.
 
 **Acceptance Criteria:**
-- [ ] Screen explains why microphone access is needed
-- [ ] Current permission status displayed
-- [ ] "Grant Access" button triggers system permission dialog
-- [ ] Status updates after permission granted
-- [ ] "Continue" enabled only after permission granted (or "Skip" always available)
-- [ ] Illustration/icon showing microphone
-- [ ] Typecheck passes
+- [x] Screen explains why microphone access is needed
+- [x] Current permission status displayed
+- [x] "Grant Access" button triggers system permission dialog
+- [x] Status updates after permission granted
+- [x] "Continue" enabled only after permission granted (or "Skip" always available)
+- [x] Illustration/icon showing microphone
+- [x] Typecheck passes
 
 ### [ ] US-519: Accessibility Permission Step
 **Description:** As a new user, I want guided setup for accessibility permission.

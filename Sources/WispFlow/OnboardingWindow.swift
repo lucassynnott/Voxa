@@ -6,8 +6,8 @@ import AppKit
 /// Steps in the onboarding wizard flow
 enum OnboardingStep: Int, CaseIterable {
     case welcome = 0
+    case microphone = 1
     // Future steps will be added here:
-    // case microphone = 1
     // case accessibility = 2
     // case audioTest = 3
     // case hotkey = 4
@@ -17,7 +17,18 @@ enum OnboardingStep: Int, CaseIterable {
         switch self {
         case .welcome:
             return "Welcome to WispFlow"
+        case .microphone:
+            return "Microphone Permission"
         }
+    }
+    
+    /// Get the next step in the onboarding flow, if any
+    var nextStep: OnboardingStep? {
+        guard let nextIndex = OnboardingStep.allCases.firstIndex(of: self)?.advanced(by: 1),
+              nextIndex < OnboardingStep.allCases.count else {
+            return nil
+        }
+        return OnboardingStep.allCases[nextIndex]
     }
 }
 
@@ -197,12 +208,227 @@ struct FeatureRow: View {
     }
 }
 
+// MARK: - Microphone Permission Screen (US-518)
+
+/// Microphone permission step - guides user through granting microphone access
+/// US-518: Microphone Permission Step
+struct MicrophonePermissionView: View {
+    /// Permission manager for status tracking and requesting permission
+    @ObservedObject var permissionManager: PermissionManager
+    
+    /// Callback when user clicks "Continue"
+    var onContinue: () -> Void
+    
+    /// Callback when user clicks "Skip"
+    var onSkip: () -> Void
+    
+    /// Whether a permission request is in progress
+    @State private var isRequestingPermission = false
+    
+    /// Current microphone permission status (derived from permissionManager)
+    private var isPermissionGranted: Bool {
+        permissionManager.microphoneStatus.isGranted
+    }
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            Spacer()
+                .frame(height: Spacing.xxl)
+            
+            // Illustration/icon showing microphone
+            microphoneIllustration
+            
+            Spacer()
+                .frame(height: Spacing.xl)
+            
+            // Title
+            Text("Microphone Access")
+                .font(.system(size: 28, weight: .bold, design: .rounded))
+                .foregroundColor(Color.Wispflow.textPrimary)
+            
+            Spacer()
+                .frame(height: Spacing.sm)
+            
+            // Screen explains why microphone access is needed
+            Text("WispFlow needs microphone access to\nrecord and transcribe your voice.")
+                .font(Font.Wispflow.body)
+                .foregroundColor(Color.Wispflow.textSecondary)
+                .multilineTextAlignment(.center)
+                .lineSpacing(4)
+            
+            Spacer()
+                .frame(height: Spacing.xxl)
+            
+            // Current permission status displayed
+            permissionStatusCard
+            
+            Spacer()
+                .frame(height: Spacing.xxl)
+            
+            // "Grant Access" button triggers system permission dialog
+            if !isPermissionGranted {
+                Button(action: requestPermission) {
+                    HStack(spacing: Spacing.sm) {
+                        if isRequestingPermission {
+                            LoadingSpinner(size: 16, lineWidth: 2, color: .white)
+                        }
+                        Text("Grant Access")
+                            .font(Font.Wispflow.headline)
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: 200)
+                    .padding(.vertical, Spacing.md)
+                    .background(Color.Wispflow.accent)
+                    .cornerRadius(CornerRadius.small)
+                }
+                .buttonStyle(InteractiveScaleStyle())
+                .disabled(isRequestingPermission)
+            } else {
+                // "Continue" enabled only after permission granted
+                Button(action: onContinue) {
+                    Text("Continue")
+                        .font(Font.Wispflow.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: 200)
+                        .padding(.vertical, Spacing.md)
+                        .background(Color.Wispflow.success)
+                        .cornerRadius(CornerRadius.small)
+                }
+                .buttonStyle(InteractiveScaleStyle())
+            }
+            
+            Spacer()
+                .frame(height: Spacing.lg)
+            
+            // "Skip" always available
+            Button(action: onSkip) {
+                Text("Skip for now")
+                    .font(Font.Wispflow.caption)
+                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .underline()
+            }
+            .buttonStyle(PlainButtonStyle())
+            .opacity(0.7)
+            
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.Wispflow.background)
+        .onAppear {
+            // Refresh status when view appears
+            permissionManager.refreshMicrophoneStatus()
+            print("OnboardingWindow: [US-518] Microphone permission view appeared, status: \(permissionManager.microphoneStatus.rawValue)")
+        }
+    }
+    
+    // MARK: - Microphone Illustration
+    
+    /// Illustration/icon showing microphone
+    private var microphoneIllustration: some View {
+        ZStack {
+            // Outer glow circle
+            Circle()
+                .fill(Color.Wispflow.accent.opacity(0.15))
+                .frame(width: 120, height: 120)
+            
+            // Inner circle with gradient
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [Color.Wispflow.accent.opacity(0.9), Color.Wispflow.accent],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 90, height: 90)
+                .shadow(color: Color.Wispflow.accent.opacity(0.3), radius: 10, x: 0, y: 5)
+            
+            // Microphone icon
+            Image(systemName: "mic.fill")
+                .font(.system(size: 40, weight: .medium))
+                .foregroundColor(.white)
+        }
+    }
+    
+    // MARK: - Permission Status Card
+    
+    /// Current permission status displayed
+    private var permissionStatusCard: some View {
+        HStack(spacing: Spacing.md) {
+            // Status icon
+            ZStack {
+                Circle()
+                    .fill(isPermissionGranted ? Color.Wispflow.successLight : Color.Wispflow.errorLight)
+                    .frame(width: 40, height: 40)
+                
+                Image(systemName: isPermissionGranted ? "checkmark.circle.fill" : "xmark.circle.fill")
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundColor(isPermissionGranted ? Color.Wispflow.success : Color.Wispflow.error)
+            }
+            
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text("Microphone Permission")
+                    .font(Font.Wispflow.headline)
+                    .foregroundColor(Color.Wispflow.textPrimary)
+                
+                // Status text updates after permission granted
+                Text(statusText)
+                    .font(Font.Wispflow.caption)
+                    .foregroundColor(isPermissionGranted ? Color.Wispflow.success : Color.Wispflow.textSecondary)
+            }
+            
+            Spacer()
+        }
+        .padding(Spacing.lg)
+        .background(Color.Wispflow.surface)
+        .cornerRadius(CornerRadius.medium)
+        .wispflowShadow(.card)
+        .padding(.horizontal, Spacing.xxl)
+        .animation(WispflowAnimation.smooth, value: isPermissionGranted)
+    }
+    
+    /// Status text based on current permission state
+    private var statusText: String {
+        switch permissionManager.microphoneStatus {
+        case .authorized:
+            return "Access granted ✓"
+        case .denied:
+            return "Access denied - click Grant Access to open Settings"
+        case .notDetermined:
+            return "Not yet requested"
+        case .restricted:
+            return "Access restricted by system"
+        }
+    }
+    
+    // MARK: - Actions
+    
+    /// Request microphone permission
+    private func requestPermission() {
+        isRequestingPermission = true
+        print("OnboardingWindow: [US-518] Requesting microphone permission")
+        
+        Task {
+            let granted = await permissionManager.requestMicrophonePermission()
+            print("OnboardingWindow: [US-518] Microphone permission result: \(granted)")
+            
+            await MainActor.run {
+                isRequestingPermission = false
+                // Status updates after permission granted (PermissionManager already updates)
+            }
+        }
+    }
+}
+
 // MARK: - Onboarding Container View
 
 /// Main container view for the onboarding wizard
 /// Manages navigation between onboarding steps
 struct OnboardingContainerView: View {
     @ObservedObject var onboardingManager: OnboardingManager
+    
+    /// Permission manager for tracking microphone/accessibility permissions
+    @ObservedObject var permissionManager: PermissionManager = PermissionManager.shared
     
     /// Current step in the onboarding flow
     @State private var currentStep: OnboardingStep = .welcome
@@ -228,6 +454,18 @@ struct OnboardingContainerView: View {
                     }
                 )
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                
+            case .microphone:
+                MicrophonePermissionView(
+                    permissionManager: permissionManager,
+                    onContinue: {
+                        advanceToNextStep()
+                    },
+                    onSkip: {
+                        advanceToNextStep()  // Skip just advances, doesn't exit
+                    }
+                )
+                .transition(.opacity.combined(with: .scale(scale: 0.98)))
             }
         }
         .animation(WispflowAnimation.smooth, value: currentStep)
@@ -237,10 +475,14 @@ struct OnboardingContainerView: View {
     
     /// Advance to the next step in the onboarding flow
     private func advanceToNextStep() {
-        // For US-517, we only have the welcome step
-        // Future stories will add more steps
-        // For now, completing the welcome step completes onboarding
-        completeOnboarding()
+        // US-518: Navigate to next step if available, otherwise complete
+        if let nextStep = currentStep.nextStep {
+            print("OnboardingWindow: [US-518] Advancing from \(currentStep.title) to \(nextStep.title)")
+            currentStep = nextStep
+        } else {
+            // No more steps, complete onboarding
+            completeOnboarding()
+        }
     }
     
     /// Skip the onboarding entirely
@@ -252,7 +494,7 @@ struct OnboardingContainerView: View {
     
     /// Complete the onboarding wizard
     private func completeOnboarding() {
-        print("OnboardingWindow: [US-517] User completed onboarding")
+        print("OnboardingWindow: [US-518] User completed onboarding at step: \(currentStep.title)")
         onboardingManager.markOnboardingCompleted()
         onComplete()
     }
@@ -358,6 +600,17 @@ struct WelcomeView_Previews: PreviewProvider {
         WelcomeView(
             onGetStarted: { print("Get Started tapped") },
             onSkipSetup: { print("Skip Setup tapped") }
+        )
+        .frame(width: 520, height: 620)
+    }
+}
+
+struct MicrophonePermissionView_Previews: PreviewProvider {
+    static var previews: some View {
+        MicrophonePermissionView(
+            permissionManager: PermissionManager.shared,
+            onContinue: { print("Continue tapped") },
+            onSkip: { print("Skip tapped") }
         )
         .frame(width: 520, height: 620)
     }

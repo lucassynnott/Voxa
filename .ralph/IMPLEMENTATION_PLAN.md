@@ -689,21 +689,35 @@ This plan implements a comprehensive overhaul of WispFlow's core systems based o
 ---
 
 ### US-518: Microphone Permission Step
-**Status:** pending
+**Status:** complete
 **Priority:** medium
 **Estimated effort:** medium
 
 **Tasks:**
-- [ ] Create mic permission screen
-- [ ] Show current status
-- [ ] Add "Grant Access" button
-- [ ] Update status after permission
+- [x] Create mic permission screen
+- [x] Show current status
+- [x] Add "Grant Access" button
+- [x] Update status after permission
 
 **Acceptance Criteria:**
 - Permission status displayed
 - Button triggers system dialog
 - Status updates on grant
 - Typecheck passes
+
+**Implementation Notes:**
+- Created `MicrophonePermissionView` in `OnboardingWindow.swift` with all required UI elements
+- Screen explains why microphone access is needed with clear description text
+- Current permission status displayed via `permissionStatusCard` component with status icon (green checkmark/red X)
+- "Grant Access" button triggers `PermissionManager.requestMicrophonePermission()` which shows system permission dialog
+- Status updates automatically after permission granted via `@Published` property in PermissionManager
+- "Continue" button only enabled after permission granted (changes from "Grant Access" to green "Continue")
+- "Skip for now" link always available as subtle underlined text
+- Illustration/icon showing microphone with animated gradient circle and mic.fill SF Symbol
+- Added `microphone` case to `OnboardingStep` enum with proper `nextStep` navigation helper
+- Updated `OnboardingContainerView` to include microphone step with proper navigation flow
+- Added preview for `MicrophonePermissionView` for development testing
+- Verified via `swift build` - typecheck passes
 
 ---
 

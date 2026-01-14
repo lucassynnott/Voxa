@@ -1,0 +1,10 @@
+There are still unchecked stories remaining in the PRD (US-518 through US-525), so the completion signal should NOT be output.
+
+**Summary:** Successfully implemented US-517: Onboarding Welcome Screen. Created `OnboardingWindow.swift` with a complete onboarding wizard infrastructure including:
+- `WelcomeView` displaying the app logo, "Voice-to-text for your Mac" description, 4 feature bullet points
+- "Get Started" button (prominent) and "Skip Setup" link (subtle)
+- `OnboardingContainerView` for step navigation
+- `OnboardingWindowController` managing window lifecycle on MainActor
+- `AppDelegate.setupOnboarding()` triggering onboarding on first launch
+
+Commits: `9dd0cd1` (implementation) and `4feb373` (progress log). Typecheck passes.
