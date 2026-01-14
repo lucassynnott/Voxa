@@ -1,0 +1,16 @@
+There are still 9 unchecked stories in the PRD (US-517 through US-525), so this is not the final story and I should not output the completion signal.
+
+## Summary
+
+**US-516: First Launch Detection** has been verified as complete. The implementation was already done in a previous iteration:
+
+- **File created:** `Sources/WispFlow/OnboardingManager.swift`
+- **Commit:** `deecf6f feat(US-516): implement first launch detection for onboarding wizard`
+- **All acceptance criteria verified:**
+  - ✅ Check UserDefaults for `hasCompletedOnboarding` flag
+  - ✅ First launch: flag is nil or false (returns `isFirstLaunch = true`)
+  - ✅ Subsequent launches: flag is true (returns `isFirstLaunch = false`)
+  - ✅ Flag only set to true after wizard completed or skipped (`markOnboardingCompleted()` and `markOnboardingSkipped()` methods)
+  - ✅ Typecheck passes (`swift build` succeeds)
+
+The progress log has been updated with the verification entry and committed (`8e3dccc docs: update progress log for US-516 verification`).

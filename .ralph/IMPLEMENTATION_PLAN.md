@@ -649,21 +649,42 @@ This plan implements a comprehensive overhaul of WispFlow's core systems based o
 ---
 
 ### US-517: Onboarding Welcome Screen
-**Status:** pending
+**Status:** complete
 **Priority:** medium
 **Estimated effort:** medium
 
 **Tasks:**
-- [ ] Create OnboardingWindow view
-- [ ] Design welcome screen with logo
-- [ ] Add feature highlights
-- [ ] Add "Get Started" and "Skip" buttons
+- [x] Create OnboardingWindow view
+- [x] Design welcome screen with logo
+- [x] Add feature highlights
+- [x] Add "Get Started" and "Skip" buttons
 
 **Acceptance Criteria:**
 - Welcome screen shown on first launch
 - Logo and description visible
 - Navigation buttons work
 - Typecheck passes
+
+**Implementation Notes:**
+- Created `OnboardingWindow.swift` with complete onboarding wizard infrastructure
+- `WelcomeView` implements the welcome screen with:
+  - App logo: Custom circle design with waveform.and.mic icon representing voice-to-text
+  - Brief description: "Voice-to-text for your Mac" in title font below logo
+  - 4 feature bullet points using `FeatureRow` component:
+    1. "Record with a Hotkey" - Press ⌘⇧Space to start recording anywhere
+    2. "Instant Transcription" - Your voice becomes text in seconds
+    3. "Smart Text Cleanup" - Automatic punctuation and formatting
+    4. "Private & Local" - All processing happens on your Mac
+  - "Get Started" button (prominent coral accent style) advances to next step
+  - "Skip Setup" link (subtle, not prominent) at bottom to skip onboarding
+- `OnboardingContainerView` manages navigation between steps (currently only welcome)
+- `OnboardingWindowController` (@MainActor) manages window lifecycle:
+  - `showOnboardingIfNeeded()` checks `isFirstLaunch` from OnboardingManager
+  - Window size: 520x620, non-resizable, centered
+  - Window close button triggers `markOnboardingSkipped()`
+- `AppDelegate.setupOnboarding()` initializes and shows onboarding on first launch
+- Uses existing design system: Color.Wispflow, Font.Wispflow, Spacing, CornerRadius
+- Verified via `swift build` - typecheck passes
 
 ---
 

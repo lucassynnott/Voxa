@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsWindowController: SettingsWindowController?
     private var debugManager: DebugManager?
     private var toastWindowController: ToastWindowController?
+    private var onboardingWindowController: OnboardingWindowController?
     
     // Store last audio data for retry functionality
     private var lastAudioData: Data?
@@ -111,6 +112,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     print("Accessibility permission not granted - will prompt on first text insertion")
                 }
             }
+            
+            // US-517: Show onboarding wizard on first launch
+            setupOnboarding()
         }
     }
     
@@ -375,6 +379,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ) { [weak self] _ in
             self?.openSettings()
         }
+    }
+    
+    /// US-517: Set up and show onboarding wizard on first launch
+    @MainActor
+    private func setupOnboarding() {
+        onboardingWindowController = OnboardingWindowController()
+        
+        // Set up completion callback
+        onboardingWindowController?.onComplete = {
+            print("AppDelegate: [US-517] Onboarding completed")
+            // Onboarding is done, app is ready for use
+            // The menu bar icon is already visible
+        }
+        
+        // Show onboarding if this is first launch
+        onboardingWindowController?.showOnboardingIfNeeded()
     }
     
     // MARK: - Recording Control

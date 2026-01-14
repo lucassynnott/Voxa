@@ -237,17 +237,17 @@ This PRD defines a comprehensive overhaul of WispFlow's core systems based on pr
 - [x] Flag only set to true after wizard completed or skipped
 - [x] Typecheck passes
 
-### [ ] US-517: Onboarding Welcome Screen
+### [x] US-517: Onboarding Welcome Screen
 **Description:** As a new user, I want a welcome screen that explains what WispFlow does.
 
 **Acceptance Criteria:**
-- [ ] Welcome screen shown on first launch
-- [ ] App icon/logo displayed prominently
-- [ ] Brief description: "Voice-to-text for your Mac"
-- [ ] Key features listed (3-4 bullet points)
-- [ ] "Get Started" button advances to next step
-- [ ] "Skip Setup" link available (not prominent)
-- [ ] Typecheck passes
+- [x] Welcome screen shown on first launch
+- [x] App icon/logo displayed prominently
+- [x] Brief description: "Voice-to-text for your Mac"
+- [x] Key features listed (3-4 bullet points)
+- [x] "Get Started" button advances to next step
+- [x] "Skip Setup" link available (not prominent)
+- [x] Typecheck passes
 
 ### [ ] US-518: Microphone Permission Step
 **Description:** As a new user, I want guided setup for microphone permission.
