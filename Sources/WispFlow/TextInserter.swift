@@ -13,6 +13,8 @@ final class TextInserter: ObservableObject {
         case success
         case noAccessibilityPermission
         case insertionFailed(String)
+        /// US-515: Paste simulation failed but text is on clipboard for manual paste
+        case fallbackToManualPaste(String)
     }
     
     /// Insertion status for UI feedback
@@ -264,9 +266,9 @@ final class TextInserter: ObservableObject {
         usleep(Constants.pasteboardReadyDelay)
         
         // Simulate Cmd+V keystroke
-        let result = simulatePaste()
+        let simulationResult = simulatePaste()
         
-        switch result {
+        switch simulationResult {
         case .success:
             insertionStatus = .completed
             statusMessage = "Text inserted successfully"
@@ -277,26 +279,47 @@ final class TextInserter: ObservableObject {
             if preserveClipboard {
                 scheduleClipboardRestore()
             }
+            return .success
             
         case .insertionFailed(let message):
-            insertionStatus = .error(message)
-            statusMessage = message
-            onError?(message)
+            // US-515: Fallback - text is already on clipboard, show toast for manual paste
+            print("TextInserter: [US-515] Paste simulation failed, falling back to manual paste")
+            print("TextInserter: [US-515] Error details: \(message)")
             
-            // Still restore clipboard on failure if we saved it
-            if preserveClipboard {
-                restoreClipboardContents()
+            // Log detailed error
+            logSimulationError(message, phase: "pasteSimulation")
+            
+            // Update status to indicate fallback
+            insertionStatus = .error("Paste failed - use Cmd+V manually")
+            statusMessage = "Text copied - press Cmd+V to paste"
+            
+            // US-515: Show toast notification to user
+            // Text is already on clipboard from the earlier setString call
+            DispatchQueue.main.async {
+                ToastManager.shared.showManualPasteRequired()
             }
+            
+            // US-515: Do NOT restore original clipboard - user needs to paste manually
+            // Clear the saved items so they don't get restored
+            savedClipboardItems = nil
+            
+            // Notify error handler but with context that fallback is in effect
+            onError?("Paste simulation failed - text copied to clipboard for manual paste")
+            
+            return .fallbackToManualPaste(message)
             
         case .noAccessibilityPermission:
             // Should not happen since we checked above
-            break
+            return .noAccessibilityPermission
+            
+        case .fallbackToManualPaste:
+            // Should not happen from simulatePaste()
+            return simulationResult
         }
-        
-        return result
     }
     
     /// US-514: Simulate Cmd+V (paste) keystroke using CGEvent
+    /// US-515: Returns detailed error information for fallback handling
     /// 
     /// Implementation details per US-514 acceptance criteria:
     /// - Uses CGEvent for key simulation (not AppleScript)
@@ -312,20 +335,26 @@ final class TextInserter: ObservableObject {
     /// - Native macOS apps (AppKit, SwiftUI)
     /// - Electron-based apps (VS Code, Slack, Discord, etc.)
     /// - Cross-platform apps (Java, Qt, etc.)
+    ///
+    /// US-515: If simulation fails, returns a detailed error for fallback handling
     private func simulatePaste() -> InsertionResult {
         print("TextInserter: [US-514] Simulating Cmd+V using CGEvent")
         
         // US-514: Create key down event for 'V' with Command modifier
         // Virtual key code 0x09 = kVK_ANSI_V (the 'V' key on ANSI keyboards)
         guard let keyDownEvent = CGEvent(keyboardEventSource: nil, virtualKey: 0x09, keyDown: true) else {
-            print("TextInserter: [US-514] Failed to create key down event")
-            return .insertionFailed("Failed to create keyboard event")
+            let errorMsg = "Failed to create key down event - CGEvent initialization returned nil"
+            print("TextInserter: [US-515] \(errorMsg)")
+            logSimulationError(errorMsg, phase: "keyDownCreation")
+            return .insertionFailed(errorMsg)
         }
         
         // US-514: Create key up event for 'V'
         guard let keyUpEvent = CGEvent(keyboardEventSource: nil, virtualKey: 0x09, keyDown: false) else {
-            print("TextInserter: [US-514] Failed to create key up event")
-            return .insertionFailed("Failed to create keyboard event")
+            let errorMsg = "Failed to create key up event - CGEvent initialization returned nil"
+            print("TextInserter: [US-515] \(errorMsg)")
+            logSimulationError(errorMsg, phase: "keyUpCreation")
+            return .insertionFailed(errorMsg)
         }
         
         // US-514: Set Command modifier flag on both events
@@ -346,6 +375,20 @@ final class TextInserter: ObservableObject {
         
         print("TextInserter: [US-514] Cmd+V simulated successfully via CGEvent at .cghidEventTap")
         return .success
+    }
+    
+    /// US-515: Log detailed error information when keyboard simulation fails
+    private func logSimulationError(_ message: String, phase: String) {
+        print("""
+        ╔════════════════════════════════════════════════════════════╗
+        ║ [US-515] KEYBOARD SIMULATION ERROR                         ║
+        ╠════════════════════════════════════════════════════════════╣
+        ║ Phase: \(phase.padding(toLength: 50, withPad: " ", startingAt: 0)) ║
+        ║ Error: \(message.prefix(50).padding(toLength: 50, withPad: " ", startingAt: 0)) ║
+        ║ Accessibility: \(hasAccessibilityPermission ? "granted" : "denied").padding(toLength: 43, withPad: " ", startingAt: 0) ║
+        ║ Timestamp: \(ISO8601DateFormatter().string(from: Date()).padding(toLength: 47, withPad: " ", startingAt: 0)) ║
+        ╚════════════════════════════════════════════════════════════╝
+        """)
     }
     
     // MARK: - Clipboard Preservation

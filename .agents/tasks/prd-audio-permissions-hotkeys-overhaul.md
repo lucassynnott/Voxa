@@ -213,15 +213,15 @@ This PRD defines a comprehensive overhaul of WispFlow's core systems based on pr
 - [x] Works in all applications including Electron apps
 - [x] Typecheck passes
 
-### [ ] US-515: Text Insertion Fallback
+### [x] US-515: Text Insertion Fallback
 **Description:** As a user, I want text insertion to work even if keyboard simulation fails.
 
 **Acceptance Criteria:**
-- [ ] Primary method: Cmd+V paste simulation
-- [ ] Fallback: Copy to clipboard and show notification to paste manually
-- [ ] Error logged with details when simulation fails
-- [ ] User shown toast: "Text copied - press Cmd+V to paste"
-- [ ] Typecheck passes
+- [x] Primary method: Cmd+V paste simulation
+- [x] Fallback: Copy to clipboard and show notification to paste manually
+- [x] Error logged with details when simulation fails
+- [x] User shown toast: "Text copied - press Cmd+V to paste"
+- [x] Typecheck passes
 
 ---
 

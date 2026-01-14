@@ -771,6 +771,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .insertionFailed(let message):
             print("Text insertion failed: \(message)")
             showTextInsertionError(message)
+            
+        case .fallbackToManualPaste(let reason):
+            // US-515: Fallback handled by TextInserter - toast already shown
+            // Don't show an error alert, as the user just needs to press Cmd+V
+            print("Text insertion using fallback: \(reason)")
+            print("Text is on clipboard - user should press Cmd+V to paste")
         }
         
         // Reset inserter status

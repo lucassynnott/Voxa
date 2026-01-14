@@ -600,6 +600,17 @@ extension ToastManager {
             duration: 5.0
         )
     }
+    
+    /// US-515: Show toast prompting user to manually paste
+    /// Used as fallback when automatic paste simulation fails
+    func showManualPasteRequired() {
+        showInfo(
+            "Text copied",
+            message: "Press Cmd+V to paste",
+            icon: "doc.on.clipboard",
+            duration: 5.0
+        )
+    }
 }
 
 // MARK: - Notification Names

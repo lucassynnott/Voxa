@@ -579,23 +579,43 @@ This plan implements a comprehensive overhaul of WispFlow's core systems based o
 ---
 
 ### US-515: Text Insertion Fallback
-**Status:** pending
+**Status:** complete
 **Priority:** medium
 **Estimated effort:** small
 
 **Description:** Fallback when keyboard simulation fails.
 
 **Tasks:**
-- [ ] Detect paste simulation failure
-- [ ] Keep text on clipboard
-- [ ] Show toast notification
-- [ ] Log error details
+- [x] Detect paste simulation failure
+- [x] Keep text on clipboard
+- [x] Show toast notification
+- [x] Log error details
 
 **Acceptance Criteria:**
 - Fallback to manual paste
 - Toast shows "Press Cmd+V to paste"
 - Error logged
 - Typecheck passes
+
+**Implementation Notes:**
+- Added new `InsertionResult.fallbackToManualPaste(String)` case to TextInserter for explicit fallback handling
+- Updated `insertText()` method to detect paste simulation failure and trigger fallback:
+  - When `simulatePaste()` returns `.insertionFailed`, text stays on clipboard (not restored)
+  - Toast notification shown via `ToastManager.shared.showManualPasteRequired()`
+  - `savedClipboardItems` cleared to prevent restoration (user needs clipboard for manual paste)
+- Added `logSimulationError()` method for detailed error logging with formatted box output including:
+  - Phase of failure (keyDownCreation, keyUpCreation, pasteSimulation)
+  - Error message
+  - Accessibility permission status
+  - Timestamp
+- Added `showManualPasteRequired()` method to ToastManager:
+  - Shows info toast "Text copied" with message "Press Cmd+V to paste"
+  - Uses clipboard icon and 5-second duration
+- Updated AppDelegate's `performTextInsertion()` to handle `.fallbackToManualPaste` case:
+  - Logs reason for fallback without showing error alert
+  - User-friendly experience (just needs to press Cmd+V)
+- Primary method (Cmd+V simulation via CGEvent) unchanged - fallback only activates on failure
+- Verified via `swift build` - typecheck passes
 
 ---
 
