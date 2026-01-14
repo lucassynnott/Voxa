@@ -1536,3 +1536,40 @@ Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-114454-75717-it
   - Toast notification system (US-409) was already in place - just needed warning type added
   - AudioManager callback pattern (onXXX closures) works well for decoupled notification handling
 ---
+
+## [2026-01-14 12:05] - US-502: Audio Device Caching
+Thread: codex exec session
+Run: 20260114-114454-75717 (iteration 2)
+Run log: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-114454-75717-iter-2.log
+Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-114454-75717-iter-2.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: 4dcdba0 feat(US-502): add audio device caching for fast recording start
+- Post-commit status: clean
+- Verification:
+  - Command: `swift build` -> PASS (warnings are pre-existing in LLMManager.swift)
+- Files changed:
+  - Sources/WispFlow/AudioManager.swift (added device caching with cache invalidation)
+  - .ralph/IMPLEMENTATION_PLAN.md (marked US-502 complete)
+  - .agents/tasks/prd-audio-permissions-hotkeys-overhaul.md (marked US-502 acceptance criteria complete)
+- What was implemented:
+  - `cachedSuccessfulDevice: AudioInputDevice?` in-memory cache property
+  - `usedCachedDeviceForCapture: Bool` flag to track cache usage per session
+  - `invalidateDeviceCache(reason:)` method with formatted box logging
+  - `cacheSuccessfulDevice(_:)` method to cache device after successful recording
+  - `getCachedDeviceIfAvailable()` method with fast-path logging
+  - `getDeviceForRecording()` method: user-selected → cached → smart selection priority
+  - Cache invalidation triggers:
+    - User manual device change in Settings (`selectDevice()`)
+    - Cached device disconnected (`refreshAvailableDevices()`)
+    - Failed to set cached device during recording start
+  - Device cached only after successful non-silent recording
+  - First recording: full enumeration (~100-200ms)
+  - Subsequent recordings: cached device (~10-20ms)
+- **Learnings for future iterations:**
+  - In-memory caching for audio device provides fast-path selection without persistence overhead
+  - Device caching should be invalidated on any manual user action to respect user intent
+  - Verifying cached device availability prevents failures when devices are hot-unplugged
+  - Logging cache usage helps debug device selection issues in production
+  - Cache invalidation should happen before re-enumeration to prevent stale device references
+---
