@@ -100,16 +100,16 @@ This PRD defines a comprehensive overhaul of WispFlow's core systems based on pr
 
 ### Phase 2: Permission System Overhaul
 
-### [ ] US-506: Permission Status Tracking
+### [x] US-506: Permission Status Tracking
 **Description:** As a developer, I need accurate real-time permission status so the UI reflects the current state.
 
 **Acceptance Criteria:**
-- [ ] Microphone permission checked via `AVCaptureDevice.authorizationStatus`
-- [ ] Accessibility permission checked via `AXIsProcessTrusted()`
-- [ ] Permission status polled when app becomes active (user returns from System Settings)
-- [ ] Status enum: `.authorized`, `.denied`, `.notDetermined`, `.restricted`
-- [ ] Published properties trigger UI updates on change
-- [ ] Typecheck passes
+- [x] Microphone permission checked via `AVCaptureDevice.authorizationStatus`
+- [x] Accessibility permission checked via `AXIsProcessTrusted()`
+- [x] Permission status polled when app becomes active (user returns from System Settings)
+- [x] Status enum: `.authorized`, `.denied`, `.notDetermined`, `.restricted`
+- [x] Published properties trigger UI updates on change
+- [x] Typecheck passes
 
 ### [ ] US-507: Automatic Permission Prompting
 **Description:** As a user, I want permission dialogs to appear automatically when needed so I don't have to find them in Settings.

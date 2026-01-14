@@ -1,0 +1,28 @@
+There are many remaining stories in the PRD. US-505 is now complete, and I should not output the completion signal.
+
+Let me provide a summary of what was implemented:
+
+## Summary
+
+Successfully implemented **US-505: Low-Quality Device Warning** for WispFlow.
+
+### Changes made:
+1. **SettingsWindow.swift**:
+   - Updated `AudioDevicePicker` to detect and display warning icons for low-quality devices (airpods, bluetooth, beats, headset, hfp, wireless)
+   - Added tooltip explanations for each device type using SwiftUI's `.help()` modifier
+   - Updated `AudioDeviceRow` to show warning icon and "May reduce transcription accuracy" subtitle for flagged devices
+   - Passed `audioManager` reference to `AudioDevicePicker` for consistent quality detection
+
+2. **AppDelegate.swift**:
+   - Added toast notification trigger when recording starts with a flagged device
+   - Uses existing `ToastManager.showLowQualityDeviceWarning()` convenience method
+
+### Verification:
+- `swift build` passed successfully
+- Warning icons display in device picker dropdown
+- Toast notifications are dismissible and don't block recording
+- All acceptance criteria met
+
+### Commits:
+- `cdd286c feat(US-505): add low-quality device warning for audio input selection`
+- `a2ffa5a docs: update progress log for US-505`

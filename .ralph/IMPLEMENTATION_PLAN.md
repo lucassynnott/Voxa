@@ -249,23 +249,36 @@ This plan implements a comprehensive overhaul of WispFlow's core systems based o
 ## Phase 3: Permission System Overhaul
 
 ### US-506: Permission Status Tracking
-**Status:** pending
+**Status:** complete
 **Priority:** high
 **Estimated effort:** small
 
 **Description:** Accurate real-time permission status tracking.
 
 **Tasks:**
-- [ ] Check mic via AVCaptureDevice.authorizationStatus
-- [ ] Check accessibility via AXIsProcessTrusted()
-- [ ] Poll permissions when app becomes active
-- [ ] Publish status changes to UI
+- [x] Check mic via AVCaptureDevice.authorizationStatus
+- [x] Check accessibility via AXIsProcessTrusted()
+- [x] Poll permissions when app becomes active
+- [x] Publish status changes to UI
 
 **Acceptance Criteria:**
 - Correct status enum returned
 - Status updates on app activation
 - Published properties trigger UI updates
 - Typecheck passes
+
+**Implementation Notes:**
+- Created new `PermissionManager.swift` class with `@MainActor` isolation
+- Implemented `PermissionStatus` enum with `.authorized`, `.denied`, `.notDetermined`, `.restricted` cases
+- Published properties `microphoneStatus` and `accessibilityStatus` trigger SwiftUI updates via `@Published`
+- `refreshMicrophoneStatus()` uses `AVCaptureDevice.authorizationStatus(for: .audio)` as required
+- `refreshAccessibilityStatus()` uses `AXIsProcessTrusted()` as required
+- App activation observer (`NSApplication.didBecomeActiveNotification`) polls permissions when user returns from System Settings
+- Background polling timer (1 second interval) runs while not all permissions are granted
+- Polling stops automatically when all permissions are granted
+- Callbacks available: `onMicrophoneStatusChanged`, `onAccessibilityStatusChanged`, `onAllPermissionsGranted`
+- Singleton pattern (`PermissionManager.shared`) for app-wide access
+- Verified via `swift build` - typecheck passes
 
 ---
 
