@@ -1,0 +1,11 @@
+**US-606: Language Selection is complete.** 
+
+Summary of what was verified:
+- **Language dropdown in Settings**: LanguagePicker component with Auto-detect + 11 common languages (English, Spanish, French, German, Italian, Portuguese, Japanese, Chinese, Korean, Russian, Arabic)
+- **Pass language hint to WhisperKit**: `DecodingOptions` created in `transcribe()` method with language code and `detectLanguage` flag
+- **Remember language preference**: UserDefaults storage with key `selectedTranscriptionLanguage`, loaded on init with `.automatic` default
+- **Auto-detect as default**: `TranscriptionLanguage.automatic` returns `nil` for `whisperLanguageCode`, letting WhisperKit auto-detect
+
+The implementation was already complete from iteration 1 (commit c54111c). This iteration verified the completion and added a progress log entry (commit 2effdf7).
+
+Note: The PRD has 25+ more stories remaining (US-607 through US-631), so `<promise>COMPLETE</promise>` cannot be output yet.

@@ -3019,3 +3019,89 @@ Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-203422-21059-it
   - Sources/WispFlow/SettingsWindow.swift (LanguagePicker bound to whisperManager.selectedLanguage)
 - **Note:** US-606 was fully complete from prior parallel iterations.
 ---
+
+## [2026-01-14 21:15] - US-606: Language Selection (Verification - Run 21447)
+Thread: codex exec session
+Run: 20260114-203422-21447 (iteration 1)
+Run log: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-203422-21447-iter-1.log
+Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-203422-21447-iter-1.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: none (feature already complete)
+- Post-commit status: clean (no new code changes needed)
+- Verification:
+  - Command: `swift build` -> PASS (Build complete! 0.13s)
+- What was verified:
+  - US-606 was already fully implemented and committed in previous iterations
+  - All acceptance criteria verified complete:
+    - [x] Language dropdown in Settings (Auto-detect + 11 common languages)
+    - [x] Pass language hint to WhisperKit (DecodingOptions with language and detectLanguage)
+    - [x] Remember language preference (UserDefaults with key selectedTranscriptionLanguage)
+    - [x] Auto-detect as default (.automatic case returns nil for WhisperKit)
+  - Implementation plan US-606 section is complete with all tasks marked [x]
+  - PRD acceptance criteria all checked off
+- Files verified:
+  - Sources/WispFlow/WhisperManager.swift (TranscriptionLanguage enum, selectedLanguage property, DecodingOptions usage)
+  - Sources/WispFlow/SettingsWindow.swift (LanguagePicker bound to whisperManager.selectedLanguage)
+- **Learnings for future iterations:**
+  - US-606 was completed in parallel by other runs
+  - Always check git log for existing implementations before making changes
+  - WhisperKit's DecodingOptions accepts `language: String?` where nil = auto-detect
+---
+
+## [2026-01-14 21:05] - US-606: Language Selection (Verification - Run 21205)
+Thread: codex exec session
+Run: 20260114-203422-21205 (iteration 1)
+Run log: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-203422-21205-iter-1.log
+Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-203422-21205-iter-1.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: c54111c feat(US-606): implement language selection for transcription (existing)
+- Post-commit status: clean (no new code changes needed)
+- Verification:
+  - Command: `swift build` -> PASS (Build complete! 2.28s after clean build)
+- What was verified:
+  - US-606 was already fully implemented and committed in previous iterations
+  - All acceptance criteria verified complete:
+    - [x] Language dropdown in Settings (Auto-detect + 11 common languages)
+    - [x] Pass language hint to WhisperKit (DecodingOptions with language and detectLanguage)
+    - [x] Remember language preference (UserDefaults with key selectedTranscriptionLanguage)
+    - [x] Auto-detect as default (.automatic case returns nil for WhisperKit)
+  - Implementation plan US-606 section is complete with all tasks marked [x]
+  - PRD acceptance criteria all checked off
+- Files verified:
+  - Sources/WispFlow/WhisperManager.swift (TranscriptionLanguage enum, selectedLanguage property, DecodingOptions usage)
+  - Sources/WispFlow/SettingsWindow.swift (LanguagePicker bound to whisperManager.selectedLanguage)
+- **Note:** US-606 was fully complete from prior parallel iterations. This run performed a clean build verification.
+---
+
+## [2026-01-14 21:50] - US-606: Language Selection (Verification - Run 15086 Iteration 3)
+Thread: codex exec session
+Run: 20260114-201804-15086 (iteration 3)
+Run log: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-201804-15086-iter-3.log
+Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-201804-15086-iter-3.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: none (feature already complete - fixed duplicate enum)
+- Post-commit status: clean (removed duplicate TranscriptionLanguage enum)
+- Verification:
+  - Command: `swift build` -> PASS (Build complete! 1.74s)
+- What was done:
+  - Found and fixed duplicate TranscriptionLanguage enum in WhisperManager.swift
+  - Removed the first duplicate (with `whisperKitCode`) keeping the correct one (with `whisperLanguageCode`)
+  - Verified single enum definition at line 146
+  - All acceptance criteria verified complete:
+    - [x] Language dropdown in Settings (Auto-detect + 11 common languages)
+    - [x] Pass language hint to WhisperKit (DecodingOptions with language and detectLanguage)
+    - [x] Remember language preference (UserDefaults with key selectedTranscriptionLanguage)
+    - [x] Auto-detect as default (.automatic case returns nil for WhisperKit)
+  - Implementation plan US-606 section is complete with all tasks marked [x]
+  - PRD acceptance criteria all checked off
+- Files:
+  - Sources/WispFlow/WhisperManager.swift (verified - single TranscriptionLanguage enum)
+  - Sources/WispFlow/SettingsWindow.swift (verified - LanguagePicker uses WhisperManager.TranscriptionLanguage)
+- **Learnings for future iterations:**
+  - Check for duplicate code definitions when merging from parallel iterations
+  - Use `grep -n` to find all occurrences of enums/types
+  - The correct enum to keep is the one actually used in the code (whisperLanguageCode, not whisperKitCode)
+---

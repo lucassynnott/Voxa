@@ -1,0 +1,15 @@
+## Summary
+
+**US-606: Language Selection** is complete. All acceptance criteria have been verified:
+
+1. ✅ **Language dropdown in Settings (Auto-detect + common languages)** - The `LanguagePicker` component provides Auto-detect + 11 common languages (English, Spanish, French, German, Italian, Portuguese, Japanese, Chinese, Korean, Russian, Arabic) with flag emojis.
+
+2. ✅ **Pass language hint to WhisperKit** - The `transcribe()` method in `WhisperManager.swift` creates `DecodingOptions` with the selected language code and passes it to WhisperKit's transcribe function.
+
+3. ✅ **Remember language preference** - The `selectedLanguage` property is persisted to `UserDefaults` using the key `selectedTranscriptionLanguage` and loaded on initialization.
+
+4. ✅ **Auto-detect as default** - The `TranscriptionLanguage.automatic` case is the default value, which returns `nil` for the WhisperKit language code, allowing it to auto-detect.
+
+**Commit:** `c54111c feat(US-606): implement language selection for transcription`
+
+**Build verification:** ✅ PASS (Build complete in 5.60s)

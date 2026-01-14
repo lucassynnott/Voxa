@@ -1,0 +1,17 @@
+There are many more stories remaining in the PRD (US-607 through US-631 are not yet complete). This was US-606 which is now complete.
+
+## Summary
+
+US-606: Language Selection has been **verified as complete**. The implementation was already committed in previous iterations (commit `c54111c`):
+
+**What was implemented:**
+- **Language dropdown in Settings**: LanguagePicker component with Auto-detect + 11 common languages (English, Spanish, French, German, Italian, Portuguese, Japanese, Chinese, Korean, Russian, Arabic)
+- **Pass language hint to WhisperKit**: DecodingOptions created in `transcribe()` method with language code and detectLanguage flag
+- **Remember language preference**: UserDefaults persistence with key `selectedTranscriptionLanguage`
+- **Auto-detect as default**: `TranscriptionLanguage.automatic` is the default, returns `nil` to WhisperKit for automatic language detection
+
+**Files modified:**
+- `Sources/WispFlow/WhisperManager.swift` - TranscriptionLanguage enum, selectedLanguage property, DecodingOptions integration
+- `Sources/WispFlow/SettingsWindow.swift` - LanguagePicker bound to whisperManager.selectedLanguage
+
+**Build verification:** `swift build` -> PASS
