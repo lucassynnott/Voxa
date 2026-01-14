@@ -3001,12 +3001,14 @@ struct AudioSettingsView: View {
                         .foregroundColor(Color.Wispflow.textSecondary)
                     
                     // Elegant device picker
+                    // US-505: Pass audioManager for low-quality device detection
                     AudioDevicePicker(
                         devices: audioManager.inputDevices,
                         selectedDevice: audioManager.currentDevice,
                         onDeviceSelected: { device in
                             audioManager.selectDevice(device)
-                        }
+                        },
+                        audioManager: audioManager
                     )
                     
                     // Refresh devices button
@@ -3267,10 +3269,13 @@ struct AudioSettingsView: View {
 // MARK: - Audio Device Picker
 
 /// Elegant dropdown picker for audio input devices with device icons
+/// US-505: Shows warning icons for low-quality devices (Bluetooth, AirPods, etc.)
 struct AudioDevicePicker: View {
     let devices: [AudioManager.AudioInputDevice]
     let selectedDevice: AudioManager.AudioInputDevice?
     let onDeviceSelected: (AudioManager.AudioInputDevice) -> Void
+    /// US-505: Audio manager reference for device quality checking
+    var audioManager: AudioManager? = nil
     
     @State private var isExpanded = false
     @State private var isHovering = false
@@ -3292,9 +3297,19 @@ struct AudioDevicePicker: View {
                     
                     // Device name
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(selectedDevice?.name ?? "No device selected")
-                            .font(Font.Wispflow.body)
-                            .foregroundColor(Color.Wispflow.textPrimary)
+                        HStack(spacing: Spacing.xs) {
+                            Text(selectedDevice?.name ?? "No device selected")
+                                .font(Font.Wispflow.body)
+                                .foregroundColor(Color.Wispflow.textPrimary)
+                            
+                            // US-505: Warning icon for low-quality selected device
+                            if let device = selectedDevice, isLowQualityDevice(device) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundColor(Color.Wispflow.warning)
+                                    .help(lowQualityWarningText(for: device))
+                            }
+                        }
                         
                         if let device = selectedDevice, device.isDefault {
                             Text("System Default")
@@ -3335,6 +3350,8 @@ struct AudioDevicePicker: View {
                         AudioDeviceRow(
                             device: device,
                             isSelected: device.uid == selectedDevice?.uid,
+                            isLowQuality: isLowQualityDevice(device),
+                            lowQualityReason: lowQualityWarningText(for: device),
                             onSelect: {
                                 onDeviceSelected(device)
                                 withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
@@ -3375,12 +3392,56 @@ struct AudioDevicePicker: View {
             return "mic"
         }
     }
+    
+    // MARK: - US-505: Low Quality Device Detection
+    
+    /// US-505: Keywords that indicate low-quality devices for flagging
+    private static let lowQualityKeywords = [
+        "airpods", "airpod", "bluetooth", "beats", "headset", "hfp", "wireless"
+    ]
+    
+    /// US-505: Check if a device is flagged as low quality
+    private func isLowQualityDevice(_ device: AudioManager.AudioInputDevice) -> Bool {
+        // Use audioManager if available for consistent detection
+        if let manager = audioManager {
+            return manager.isLowQualityDevice(device)
+        }
+        // Fallback to local keyword matching
+        let nameLower = device.name.lowercased()
+        return Self.lowQualityKeywords.contains { keyword in
+            nameLower.contains(keyword)
+        }
+    }
+    
+    /// US-505: Generate tooltip text explaining why device may have poor quality
+    private func lowQualityWarningText(for device: AudioManager.AudioInputDevice) -> String {
+        let nameLower = device.name.lowercased()
+        
+        if nameLower.contains("airpod") || nameLower.contains("airpods") {
+            return "AirPods use Bluetooth compression which may reduce transcription accuracy. Consider using a built-in or USB microphone for better results."
+        } else if nameLower.contains("beats") {
+            return "Beats headphones use Bluetooth compression which may reduce transcription accuracy. Consider using a built-in or USB microphone for better results."
+        } else if nameLower.contains("hfp") {
+            return "This device uses the Hands-Free Profile (HFP) which limits audio quality. Consider using a different microphone for better results."
+        } else if nameLower.contains("headset") {
+            return "Headset microphones may have limited audio quality. Consider using a built-in or USB microphone for better transcription accuracy."
+        } else if nameLower.contains("bluetooth") || nameLower.contains("wireless") {
+            return "Bluetooth audio devices may have reduced quality due to compression. Consider using a built-in or USB microphone for better transcription accuracy."
+        }
+        
+        return "This device may have reduced audio quality for voice transcription."
+    }
 }
 
 /// Single row in the audio device picker dropdown
+/// US-505: Shows warning icon for low-quality devices with tooltip
 struct AudioDeviceRow: View {
     let device: AudioManager.AudioInputDevice
     let isSelected: Bool
+    /// US-505: Flag indicating if device is low quality (Bluetooth, AirPods, etc.)
+    var isLowQuality: Bool = false
+    /// US-505: Tooltip text explaining why device may have poor quality
+    var lowQualityReason: String = ""
     let onSelect: () -> Void
     
     @State private var isHovering = false
@@ -3396,14 +3457,29 @@ struct AudioDeviceRow: View {
                 
                 // Device name
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(device.name)
-                        .font(Font.Wispflow.body)
-                        .foregroundColor(isSelected ? Color.Wispflow.accent : Color.Wispflow.textPrimary)
+                    HStack(spacing: Spacing.xs) {
+                        Text(device.name)
+                            .font(Font.Wispflow.body)
+                            .foregroundColor(isSelected ? Color.Wispflow.accent : Color.Wispflow.textPrimary)
+                        
+                        // US-505: Warning icon for low-quality devices
+                        if isLowQuality {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(Color.Wispflow.warning)
+                                .help(lowQualityReason)
+                        }
+                    }
                     
+                    // US-505: Show low quality warning text below device name
                     if device.isDefault {
                         Text("System Default")
                             .font(Font.Wispflow.small)
                             .foregroundColor(Color.Wispflow.textSecondary)
+                    } else if isLowQuality {
+                        Text("May reduce transcription accuracy")
+                            .font(Font.Wispflow.small)
+                            .foregroundColor(Color.Wispflow.warning)
                     }
                 }
                 

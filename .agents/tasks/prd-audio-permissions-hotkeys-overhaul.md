@@ -84,17 +84,17 @@ This PRD defines a comprehensive overhaul of WispFlow's core systems based on pr
 - [x] Console logs confirm tap callbacks received during preview
 - [x] Typecheck passes
 
-### [ ] US-505: Low-Quality Device Warning
+### [x] US-505: Low-Quality Device Warning
 **Description:** As a user, I want to be warned if I'm using a potentially low-quality audio input so I can switch to a better device.
 
 **Acceptance Criteria:**
-- [ ] Devices matching low-quality keywords flagged: "airpods", "bluetooth", "beats", "headset", "hfp"
-- [ ] Warning icon shown next to flagged devices in device picker
-- [ ] Tooltip explains why device may have poor quality
-- [ ] Toast notification when recording starts with flagged device
-- [ ] User can dismiss warning and continue
-- [ ] Warning does not block recording
-- [ ] Typecheck passes
+- [x] Devices matching low-quality keywords flagged: "airpods", "bluetooth", "beats", "headset", "hfp"
+- [x] Warning icon shown next to flagged devices in device picker
+- [x] Tooltip explains why device may have poor quality
+- [x] Toast notification when recording starts with flagged device
+- [x] User can dismiss warning and continue
+- [x] Warning does not block recording
+- [x] Typecheck passes
 
 ---
 

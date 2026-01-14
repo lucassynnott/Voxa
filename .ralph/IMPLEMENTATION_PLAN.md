@@ -213,17 +213,17 @@ This plan implements a comprehensive overhaul of WispFlow's core systems based o
 ---
 
 ### US-505: Low-Quality Device Warning
-**Status:** pending
+**Status:** complete
 **Priority:** low
 **Estimated effort:** small
 
 **Description:** Warn users when using potentially low-quality audio input.
 
 **Tasks:**
-- [ ] Flag devices matching low-quality keywords
-- [ ] Show warning icon in device picker
-- [ ] Add tooltip explaining quality concern
-- [ ] Show toast when recording with flagged device
+- [x] Flag devices matching low-quality keywords
+- [x] Show warning icon in device picker
+- [x] Add tooltip explaining quality concern
+- [x] Show toast when recording with flagged device
 
 **Acceptance Criteria:**
 - Warning icon on flagged devices
@@ -231,6 +231,18 @@ This plan implements a comprehensive overhaul of WispFlow's core systems based o
 - Toast notification on recording start
 - Warning doesn't block recording
 - Typecheck passes
+
+**Implementation Notes:**
+- Updated `AudioDevicePicker` component to detect and display warning icons for low-quality devices
+- Added `isLowQuality` and `lowQualityReason` parameters to `AudioDeviceRow` component
+- Keywords flagged: "airpods", "airpod", "bluetooth", "beats", "headset", "hfp", "wireless"
+- Warning icon (`exclamationmark.triangle.fill`) displayed in amber/warning color next to flagged devices
+- Tooltips provide context-specific explanations for each device type (AirPods vs generic Bluetooth vs headset)
+- `AudioDeviceRow` shows "May reduce transcription accuracy" subtitle for low-quality devices
+- Toast notification triggered in `AppDelegate.handleRecordingStateChange()` when recording starts with a flagged device
+- Uses existing `ToastManager.showLowQualityDeviceWarning()` with dismissible UI (5-second auto-dismiss)
+- Warning does NOT block recording - users can proceed despite the warning
+- Verified via `swift build` - typecheck passes
 
 ---
 

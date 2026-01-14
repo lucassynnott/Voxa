@@ -509,6 +509,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             do {
                 try audioManager?.startCapturing()
                 print("Started recording")
+                
+                // US-505: Show warning toast if recording with low-quality device
+                if let audio = audioManager, let device = audio.currentDevice, audio.isLowQualityDevice(device) {
+                    print("AppDelegate: [US-505] Recording started with low-quality device: \(device.name)")
+                    DispatchQueue.main.async {
+                        ToastManager.shared.showLowQualityDeviceWarning(deviceName: device.name)
+                    }
+                }
             } catch {
                 print("Failed to start audio capture: \(error.localizedDescription)")
                 // Disconnect on failure

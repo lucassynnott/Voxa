@@ -1,0 +1,21 @@
+## Summary
+
+US-504 (Audio Level Preview Fix) was already fully implemented and verified in a previous iteration. I confirmed:
+
+**Verification Results:**
+- `swift build` → PASS (typecheck complete)
+- All 8 acceptance criteria verified in code:
+  1. ✅ "Start Preview" button triggers audio capture
+  2. ✅ Real-time level meter updates at ~20fps (0.05s timer interval)
+  3. ✅ Level displayed in dB with color coding (red/green/yellow/gray)
+  4. ✅ Status text shows "Good", "Quiet", "Too Loud", or "Silent"
+  5. ✅ Preview stops cleanly when "Stop Preview" clicked
+  6. ✅ Preview stops automatically when leaving Audio settings tab (`.onDisappear`)
+  7. ✅ Console logs confirm tap callbacks received during preview
+  8. ✅ Typecheck passes
+
+**Commit:** `4dcdee9 docs: update progress log for US-504 verification run`
+
+**Post-commit status:** clean
+
+There are still 21 remaining unchecked stories in the PRD, so this is NOT the final story. The work continues with the next stories in the PRD (US-505 through US-525).
