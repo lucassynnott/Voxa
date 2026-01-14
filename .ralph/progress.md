@@ -2214,3 +2214,36 @@ Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-130140-94307-it
   - PRD and implementation plan were already updated with complete status
   - Clean working tree indicates no further changes needed
 ---
+
+## [2026-01-14 13:30] - US-516: First Launch Detection
+Thread: codex exec session
+Run: 20260114-124540-90947 (iteration 5)
+Run log: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-124540-90947-iter-5.log
+Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-124540-90947-iter-5.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: deecf6f feat(US-516): implement first launch detection for onboarding wizard
+- Post-commit status: clean
+- Verification:
+  - Command: `swift build` -> PASS (build complete, no errors)
+- Files changed:
+  - Sources/WispFlow/OnboardingManager.swift (new)
+  - .agents/tasks/prd-audio-permissions-hotkeys-overhaul.md (mark US-516 complete)
+  - .ralph/IMPLEMENTATION_PLAN.md (update task status with implementation notes)
+- What was implemented:
+  - Created `OnboardingManager.swift` following singleton pattern used by other managers
+  - Check UserDefaults for `hasCompletedOnboarding` flag using `object(forKey:)`:
+    - First launch: flag is nil (returns nil from UserDefaults) → default to false
+    - Subsequent launches: flag is true
+  - Computed property `isFirstLaunch` returns `!hasCompletedOnboarding`
+  - `markOnboardingCompleted()` method sets flag to true - only called after wizard completed
+  - `markOnboardingSkipped()` method sets flag to true - only called after user skips wizard
+  - `resetOnboardingState()` method for testing/debug - clears UserDefaults key
+  - Uses `@Published` property wrapper for SwiftUI binding support
+  - Uses `@MainActor` isolation matching other manager classes
+- **Learnings for future iterations:**
+  - Pattern: Use `UserDefaults.standard.object(forKey:) as? Bool ?? false` to distinguish nil from false
+  - Singleton pattern (`static let shared = Manager()`) is used consistently across managers
+  - Split "complete" and "skip" into separate methods for clearer logging despite same behavior
+  - `UserDefaults.standard.synchronize()` ensures persistence (though usually not required)
+---
