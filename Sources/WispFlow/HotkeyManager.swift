@@ -13,6 +13,229 @@ final class HotkeyManager: ObservableObject {
         static let hotkeyModifiersKey = "hotkeyModifiers"
     }
     
+    // MARK: - US-512: System Shortcut Conflicts
+    
+    /// Represents a known system shortcut that may conflict with user-defined hotkeys
+    struct SystemShortcut: Identifiable, Equatable {
+        let id = UUID()
+        let name: String
+        let keyCode: UInt16
+        let modifierFlags: NSEvent.ModifierFlags
+        let description: String
+        
+        /// Check if this shortcut matches the given configuration
+        func matches(_ config: HotkeyConfiguration) -> Bool {
+            return keyCode == config.keyCode && modifierFlags == config.modifiers
+        }
+    }
+    
+    /// US-512: List of common system shortcuts that may conflict with user hotkeys
+    static let systemShortcuts: [SystemShortcut] = [
+        // Spotlight
+        SystemShortcut(
+            name: "Spotlight",
+            keyCode: UInt16(kVK_Space),
+            modifierFlags: [.command],
+            description: "Opens Spotlight search"
+        ),
+        // App Switcher
+        SystemShortcut(
+            name: "App Switcher",
+            keyCode: UInt16(kVK_Tab),
+            modifierFlags: [.command],
+            description: "Switches between apps"
+        ),
+        // Hide Application
+        SystemShortcut(
+            name: "Hide App",
+            keyCode: UInt16(kVK_ANSI_H),
+            modifierFlags: [.command],
+            description: "Hides current application"
+        ),
+        // Hide Others
+        SystemShortcut(
+            name: "Hide Others",
+            keyCode: UInt16(kVK_ANSI_H),
+            modifierFlags: [.command, .option],
+            description: "Hides all other applications"
+        ),
+        // Minimize
+        SystemShortcut(
+            name: "Minimize",
+            keyCode: UInt16(kVK_ANSI_M),
+            modifierFlags: [.command],
+            description: "Minimizes current window"
+        ),
+        // Force Quit
+        SystemShortcut(
+            name: "Force Quit",
+            keyCode: UInt16(kVK_Escape),
+            modifierFlags: [.command, .option],
+            description: "Opens Force Quit dialog"
+        ),
+        // Screenshot (full screen)
+        SystemShortcut(
+            name: "Screenshot",
+            keyCode: UInt16(kVK_ANSI_3),
+            modifierFlags: [.command, .shift],
+            description: "Takes full screen screenshot"
+        ),
+        // Screenshot (selection)
+        SystemShortcut(
+            name: "Screenshot Selection",
+            keyCode: UInt16(kVK_ANSI_4),
+            modifierFlags: [.command, .shift],
+            description: "Takes screenshot of selection"
+        ),
+        // Screenshot menu
+        SystemShortcut(
+            name: "Screenshot Menu",
+            keyCode: UInt16(kVK_ANSI_5),
+            modifierFlags: [.command, .shift],
+            description: "Opens screenshot menu"
+        ),
+        // Mission Control
+        SystemShortcut(
+            name: "Mission Control",
+            keyCode: UInt16(kVK_UpArrow),
+            modifierFlags: [.control],
+            description: "Opens Mission Control"
+        ),
+        // Application Windows
+        SystemShortcut(
+            name: "Application Windows",
+            keyCode: UInt16(kVK_DownArrow),
+            modifierFlags: [.control],
+            description: "Shows application windows"
+        ),
+        // Move Left Space
+        SystemShortcut(
+            name: "Move Left Space",
+            keyCode: UInt16(kVK_LeftArrow),
+            modifierFlags: [.control],
+            description: "Moves to left space"
+        ),
+        // Move Right Space
+        SystemShortcut(
+            name: "Move Right Space",
+            keyCode: UInt16(kVK_RightArrow),
+            modifierFlags: [.control],
+            description: "Moves to right space"
+        ),
+        // Quit
+        SystemShortcut(
+            name: "Quit",
+            keyCode: UInt16(kVK_ANSI_Q),
+            modifierFlags: [.command],
+            description: "Quits current application"
+        ),
+        // Close Window
+        SystemShortcut(
+            name: "Close Window",
+            keyCode: UInt16(kVK_ANSI_W),
+            modifierFlags: [.command],
+            description: "Closes current window"
+        ),
+        // Select All
+        SystemShortcut(
+            name: "Select All",
+            keyCode: UInt16(kVK_ANSI_A),
+            modifierFlags: [.command],
+            description: "Selects all content"
+        ),
+        // Copy
+        SystemShortcut(
+            name: "Copy",
+            keyCode: UInt16(kVK_ANSI_C),
+            modifierFlags: [.command],
+            description: "Copies to clipboard"
+        ),
+        // Paste
+        SystemShortcut(
+            name: "Paste",
+            keyCode: UInt16(kVK_ANSI_V),
+            modifierFlags: [.command],
+            description: "Pastes from clipboard"
+        ),
+        // Cut
+        SystemShortcut(
+            name: "Cut",
+            keyCode: UInt16(kVK_ANSI_X),
+            modifierFlags: [.command],
+            description: "Cuts to clipboard"
+        ),
+        // Undo
+        SystemShortcut(
+            name: "Undo",
+            keyCode: UInt16(kVK_ANSI_Z),
+            modifierFlags: [.command],
+            description: "Undoes last action"
+        ),
+        // Redo
+        SystemShortcut(
+            name: "Redo",
+            keyCode: UInt16(kVK_ANSI_Z),
+            modifierFlags: [.command, .shift],
+            description: "Redoes last action"
+        ),
+        // Find
+        SystemShortcut(
+            name: "Find",
+            keyCode: UInt16(kVK_ANSI_F),
+            modifierFlags: [.command],
+            description: "Opens find dialog"
+        ),
+        // New
+        SystemShortcut(
+            name: "New",
+            keyCode: UInt16(kVK_ANSI_N),
+            modifierFlags: [.command],
+            description: "Creates new item"
+        ),
+        // Open
+        SystemShortcut(
+            name: "Open",
+            keyCode: UInt16(kVK_ANSI_O),
+            modifierFlags: [.command],
+            description: "Opens file dialog"
+        ),
+        // Save
+        SystemShortcut(
+            name: "Save",
+            keyCode: UInt16(kVK_ANSI_S),
+            modifierFlags: [.command],
+            description: "Saves current document"
+        ),
+        // Print
+        SystemShortcut(
+            name: "Print",
+            keyCode: UInt16(kVK_ANSI_P),
+            modifierFlags: [.command],
+            description: "Opens print dialog"
+        ),
+        // Siri (on supported Macs)
+        SystemShortcut(
+            name: "Siri",
+            keyCode: UInt16(kVK_Space),
+            modifierFlags: [.command, .option],
+            description: "Activates Siri"
+        ),
+    ]
+    
+    /// US-512: Check if a hotkey configuration conflicts with known system shortcuts
+    /// - Parameter config: The hotkey configuration to check
+    /// - Returns: Array of conflicting system shortcuts, empty if no conflicts
+    static func checkForConflicts(_ config: HotkeyConfiguration) -> [SystemShortcut] {
+        return systemShortcuts.filter { $0.matches(config) }
+    }
+    
+    /// US-512: Check if a hotkey configuration conflicts with system shortcuts
+    /// - Parameter config: The hotkey configuration to check
+    /// - Returns: True if there are any conflicts
+    static func hasConflicts(_ config: HotkeyConfiguration) -> Bool {
+        return !checkForConflicts(config).isEmpty
+    }
+    
     /// Default hotkey: Cmd+Shift+Space (US-510)
     struct HotkeyConfiguration: Codable, Equatable {
         var keyCode: UInt16

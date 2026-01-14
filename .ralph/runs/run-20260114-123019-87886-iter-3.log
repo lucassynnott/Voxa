@@ -1,0 +1,18 @@
+**Summary:**
+
+US-511 (Hotkey Recording in Settings) has been completed. All acceptance criteria were already implemented in the existing codebase:
+
+- ✅ "Record Hotkey" button enters recording mode via `HotkeyRecorderView`
+- ✅ Recording mode shows pulsing indicator with animated scale and opacity
+- ✅ Key combinations with modifiers captured via local event monitor
+- ✅ Escape cancels recording without changing hotkey (keyCode 53 check)
+- ✅ Invalid combinations rejected (modifier-only and no-modifier validation)
+- ✅ New hotkey persisted to UserDefaults via `saveConfiguration()`
+- ✅ Human-readable format displayed (⌘⇧Space) via `displayString` property
+- ✅ Typecheck passes (`swift build` completed successfully)
+
+**Commits:**
+- `7925809` feat(US-511): implement hotkey recording in Settings
+- `4fb7279` docs: update progress log for US-511
+
+Post-commit working tree is clean. There are still 14 unchecked stories remaining in the PRD.

@@ -175,15 +175,15 @@ This PRD defines a comprehensive overhaul of WispFlow's core systems based on pr
 - [x] Hotkey display shows human-readable format (⌘⇧Space)
 - [x] Typecheck passes
 
-### [ ] US-512: Hotkey Conflict Detection
+### [x] US-512: Hotkey Conflict Detection
 **Description:** As a user, I want to be warned if my chosen hotkey conflicts with system shortcuts.
 
 **Acceptance Criteria:**
-- [ ] Common system shortcuts detected: Cmd+Space (Spotlight), Cmd+Tab, etc.
-- [ ] Warning shown when conflicting hotkey recorded
-- [ ] User can proceed despite warning
-- [ ] "Reset to Default" button restores Cmd+Shift+Space
-- [ ] Typecheck passes
+- [x] Common system shortcuts detected: Cmd+Space (Spotlight), Cmd+Tab, etc.
+- [x] Warning shown when conflicting hotkey recorded
+- [x] User can proceed despite warning
+- [x] "Reset to Default" button restores Cmd+Shift+Space
+- [x] Typecheck passes
 
 ---
 

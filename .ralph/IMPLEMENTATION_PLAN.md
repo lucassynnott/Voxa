@@ -463,23 +463,43 @@ This plan implements a comprehensive overhaul of WispFlow's core systems based o
 ---
 
 ### US-512: Hotkey Conflict Detection
-**Status:** pending
+**Status:** complete
 **Priority:** low
 **Estimated effort:** small
 
 **Description:** Warn about conflicts with system shortcuts.
 
 **Tasks:**
-- [ ] Define list of common system shortcuts
-- [ ] Check new hotkey against list
-- [ ] Show warning if conflict detected
-- [ ] Allow user to proceed anyway
+- [x] Define list of common system shortcuts
+- [x] Check new hotkey against list
+- [x] Show warning if conflict detected
+- [x] Allow user to proceed anyway
+- [x] "Reset to Default" button restores Cmd+Shift+Space
 
 **Acceptance Criteria:**
 - Warning shown for conflicts
 - User can proceed despite warning
 - Reset to default available
 - Typecheck passes
+
+**Implementation Notes:**
+- Added `SystemShortcut` struct in `HotkeyManager.swift` to represent known system shortcuts
+- Implemented comprehensive list of ~27 common macOS system shortcuts including:
+  - Spotlight (Cmd+Space), App Switcher (Cmd+Tab), Screenshots (Cmd+Shift+3/4/5)
+  - Mission Control (Ctrl+Up), Space navigation (Ctrl+Left/Right)
+  - Standard app shortcuts: Quit, Close, Copy, Paste, Cut, Undo, Redo, etc.
+  - Siri (Cmd+Option+Space), Force Quit (Cmd+Option+Esc)
+- Added `checkForConflicts(_:)` static method to return array of conflicting shortcuts
+- Added `hasConflicts(_:)` static method for quick conflict detection
+- Updated `HotkeyRecorderView` in `SettingsWindow.swift`:
+  - Added `pendingConfig`, `conflictingShortcuts`, `showConflictWarning` state variables
+  - Modified `handleKeyEvent()` to check for conflicts before applying new hotkey
+  - Added SwiftUI alert that shows when conflicts are detected
+  - Alert displays conflicting shortcut names and descriptions
+  - "Use Anyway" button allows user to proceed despite warning
+  - "Cancel" button rejects the conflicting hotkey
+- "Reset to Default" button already exists and calls `hotkeyManager.resetToDefault()` which sets Cmd+Shift+Space
+- Verified via `swift build` - typecheck passes
 
 ---
 

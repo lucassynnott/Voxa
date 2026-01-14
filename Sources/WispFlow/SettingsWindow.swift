@@ -2954,6 +2954,11 @@ struct HotkeyRecorderView: View {
     @State private var isHovering = false
     @State private var pulseAnimation = false
     
+    // US-512: Conflict detection state
+    @State private var pendingConfig: HotkeyManager.HotkeyConfiguration?
+    @State private var conflictingShortcuts: [HotkeyManager.SystemShortcut] = []
+    @State private var showConflictWarning = false
+    
     var body: some View {
         Button(action: {
             if isRecording {
@@ -3042,6 +3047,18 @@ struct HotkeyRecorderView: View {
         }
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isRecording)
         .animation(.easeInOut(duration: 0.15), value: isHovering)
+        // US-512: Conflict warning alert
+        .alert("Shortcut Conflict", isPresented: $showConflictWarning, presenting: pendingConfig) { config in
+            Button("Use Anyway", role: .destructive) {
+                applyPendingConfig()
+            }
+            Button("Cancel", role: .cancel) {
+                cancelPendingConfig()
+            }
+        } message: { config in
+            let conflictDescriptions = conflictingShortcuts.map { "• \($0.name): \($0.description)" }.joined(separator: "\n")
+            Text("\(config.displayString) conflicts with:\n\n\(conflictDescriptions)\n\nUsing this hotkey may prevent these system shortcuts from working.")
+        }
     }
     
     private func startRecording() {
@@ -3089,13 +3106,38 @@ struct HotkeyRecorderView: View {
             modifierFlags: modifiers
         )
         
-        // Update the hotkey manager (this persists automatically)
-        hotkeyManager.updateConfiguration(newConfig)
+        // US-512: Check for conflicts with system shortcuts
+        let conflicts = HotkeyManager.checkForConflicts(newConfig)
         
-        // Stop recording
-        stopRecording()
-        
-        print("HotkeyRecorder: New hotkey set to \(newConfig.displayString)")
+        if !conflicts.isEmpty {
+            // Store pending config and show warning
+            pendingConfig = newConfig
+            conflictingShortcuts = conflicts
+            showConflictWarning = true
+            stopRecording()
+            print("HotkeyRecorder: [US-512] Conflict detected with system shortcuts: \(conflicts.map { $0.name }.joined(separator: ", "))")
+        } else {
+            // No conflicts - apply immediately
+            hotkeyManager.updateConfiguration(newConfig)
+            stopRecording()
+            print("HotkeyRecorder: New hotkey set to \(newConfig.displayString)")
+        }
+    }
+    
+    // US-512: Apply pending hotkey configuration despite conflict warning
+    private func applyPendingConfig() {
+        guard let config = pendingConfig else { return }
+        hotkeyManager.updateConfiguration(config)
+        print("HotkeyRecorder: [US-512] User proceeded despite conflict warning, hotkey set to \(config.displayString)")
+        pendingConfig = nil
+        conflictingShortcuts = []
+    }
+    
+    // US-512: Cancel pending hotkey configuration
+    private func cancelPendingConfig() {
+        print("HotkeyRecorder: [US-512] User cancelled conflicting hotkey")
+        pendingConfig = nil
+        conflictingShortcuts = []
     }
 }
 
