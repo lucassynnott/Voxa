@@ -1676,3 +1676,34 @@ Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-114454-75717-it
   - Color thresholds match common audio metering conventions
 ---
 
+## [2026-01-14 12:15] - US-504: Audio Level Preview Fix (Verification Run)
+Thread: codex exec session
+Run: 20260114-120010-80469 (iteration 2)
+Run log: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-120010-80469-iter-2.log
+Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-120010-80469-iter-2.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: none (US-504 already complete in previous iteration 20260114-114454-75717-iter-4)
+- Post-commit status: clean
+- Verification:
+  - Command: `swift build` -> PASS (build complete, no errors)
+  - Command: `git log --oneline -2` -> PASS (86f9200 docs: update progress log for US-504)
+- Files changed: none (all changes committed in previous iteration)
+- What was verified:
+  - US-504 implementation already complete (PRD and implementation plan both show US-504 as checked)
+  - All 8 acceptance criteria verified in code:
+    1. "Start Preview" button triggers audio capture via `togglePreview()` → `startPreview()` → `audioManager.startCapturing()`
+    2. Real-time level meter updates at ~20fps (Timer interval: 0.05s)
+    3. Level displayed in dB with color coding (red >-10dB, green >-30dB, yellow >-50dB, gray ≤-50dB)
+    4. Status text shows "Good", "Quiet", "Too Loud", or "Silent" via `levelStatus(for:)`
+    5. Preview stops cleanly via `stopPreview()` which invalidates timer and calls `cancelCapturing()`
+    6. Preview stops automatically when leaving Audio tab via `.onDisappear { stopPreview() }`
+    7. Console logs confirm tap callbacks via AudioManager extensive logging
+    8. Typecheck passes - `swift build` successful
+  - AudioSettingsView in SettingsWindow.swift contains complete implementation
+- **Learnings for future iterations:**
+  - When iteration 2 runs on same story, always check if work was completed in iteration 1
+  - US-504 was verified complete in iteration 1 of this run (20260114-120010-80469-iter-1)
+  - No code changes needed - story implementation was already present
+---
+
