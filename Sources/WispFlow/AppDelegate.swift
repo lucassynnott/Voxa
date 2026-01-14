@@ -390,7 +390,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         
-        onboardingWindowController = OnboardingWindowController(audioManager: audioMgr)
+        // US-521: Pass hotkeyManager to onboarding for hotkey introduction step
+        guard let hotkeyMgr = hotkeyManager else {
+            print("AppDelegate: [US-521] Warning - hotkeyManager not available for onboarding")
+            return
+        }
+        
+        onboardingWindowController = OnboardingWindowController(audioManager: audioMgr, hotkeyManager: hotkeyMgr)
         
         // Set up completion callback
         onboardingWindowController?.onComplete = {

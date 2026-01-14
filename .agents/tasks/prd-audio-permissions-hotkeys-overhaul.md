@@ -285,16 +285,16 @@ This PRD defines a comprehensive overhaul of WispFlow's core systems based on pr
 - [x] "Having Issues?" link shows troubleshooting tips
 - [x] Typecheck passes
 
-### [ ] US-521: Hotkey Introduction Step
+### [x] US-521: Hotkey Introduction Step
 **Description:** As a new user, I want to learn and optionally customize the recording hotkey.
 
 **Acceptance Criteria:**
-- [ ] Current hotkey displayed prominently (⌘⇧Space)
-- [ ] "Try it now" prompt - user can test hotkey
-- [ ] Visual feedback when hotkey pressed
-- [ ] "Change Hotkey" option for customization
-- [ ] Default hotkey recommended for most users
-- [ ] Typecheck passes
+- [x] Current hotkey displayed prominently (⌘⇧Space)
+- [x] "Try it now" prompt - user can test hotkey
+- [x] Visual feedback when hotkey pressed
+- [x] "Change Hotkey" option for customization
+- [x] Default hotkey recommended for most users
+- [x] Typecheck passes
 
 ### [ ] US-522: Onboarding Completion
 **Description:** As a new user, I want confirmation that setup is complete.

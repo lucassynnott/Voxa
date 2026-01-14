@@ -9,8 +9,8 @@ enum OnboardingStep: Int, CaseIterable {
     case microphone = 1
     case accessibility = 2
     case audioTest = 3
+    case hotkey = 4
     // Future steps will be added here:
-    // case hotkey = 4
     // case completion = 5
     
     var title: String {
@@ -23,6 +23,8 @@ enum OnboardingStep: Int, CaseIterable {
             return "Accessibility Permission"
         case .audioTest:
             return "Test Your Microphone"
+        case .hotkey:
+            return "Your Recording Hotkey"
         }
     }
     
@@ -1184,6 +1186,519 @@ struct TroubleshootingTipRow: View {
     }
 }
 
+// MARK: - Hotkey Introduction Step (US-521)
+
+/// Hotkey introduction step - teaches user the recording hotkey and allows customization
+/// US-521: Hotkey Introduction Step
+struct HotkeyIntroductionView: View {
+    /// Hotkey manager for configuration and listening
+    @ObservedObject var hotkeyManager: HotkeyManager
+    
+    /// Callback when user clicks "Continue"
+    var onContinue: () -> Void
+    
+    /// Callback when user clicks "Skip"
+    var onSkip: () -> Void
+    
+    /// Whether the hotkey was pressed (for visual feedback)
+    @State private var hotkeyPressed = false
+    
+    /// Whether user is in hotkey customization mode
+    @State private var isCustomizing = false
+    
+    /// Whether we're listening for hotkey test
+    @State private var isListeningForTest = false
+    
+    /// Animation state for hotkey press feedback
+    @State private var pulseAnimation = false
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            Spacer()
+                .frame(height: Spacing.xl)
+            
+            // Illustration showing keyboard/hotkey
+            hotkeyIllustration
+            
+            Spacer()
+                .frame(height: Spacing.lg)
+            
+            // Title
+            Text("Your Recording Hotkey")
+                .font(.system(size: 28, weight: .bold, design: .rounded))
+                .foregroundColor(Color.Wispflow.textPrimary)
+            
+            Spacer()
+                .frame(height: Spacing.sm)
+            
+            // Description
+            Text("Press this shortcut anywhere to start recording.\nIt works in any app, anytime.")
+                .font(Font.Wispflow.body)
+                .foregroundColor(Color.Wispflow.textSecondary)
+                .multilineTextAlignment(.center)
+                .lineSpacing(4)
+            
+            Spacer()
+                .frame(height: Spacing.xxl)
+            
+            // Current hotkey displayed prominently
+            hotkeyDisplayCard
+            
+            Spacer()
+                .frame(height: Spacing.lg)
+            
+            // "Try it now" prompt
+            if !hotkeyPressed {
+                tryItNowPrompt
+            } else {
+                // Visual feedback when hotkey pressed
+                hotkeySuccessFeedback
+            }
+            
+            Spacer()
+                .frame(height: Spacing.lg)
+            
+            // "Change Hotkey" option for customization
+            if isCustomizing {
+                hotkeyCustomizationView
+            } else {
+                Button(action: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        isCustomizing = true
+                    }
+                }) {
+                    HStack(spacing: Spacing.xs) {
+                        Image(systemName: "keyboard")
+                            .font(.system(size: 12, weight: .medium))
+                        Text("Change Hotkey")
+                            .font(Font.Wispflow.caption)
+                    }
+                    .foregroundColor(Color.Wispflow.accent)
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+            
+            Spacer()
+                .frame(height: Spacing.lg)
+            
+            // Default hotkey recommendation
+            defaultHotkeyNote
+            
+            Spacer()
+                .frame(height: Spacing.xxl)
+            
+            // Continue button
+            Button(action: onContinue) {
+                Text(hotkeyPressed ? "Continue" : "Got it!")
+                    .font(Font.Wispflow.headline)
+                    .foregroundColor(.white)
+                    .frame(maxWidth: 200)
+                    .padding(.vertical, Spacing.md)
+                    .background(hotkeyPressed ? Color.Wispflow.success : Color.Wispflow.accent)
+                    .cornerRadius(CornerRadius.small)
+            }
+            .buttonStyle(InteractiveScaleStyle())
+            
+            Spacer()
+                .frame(height: Spacing.lg)
+            
+            // Skip link
+            Button(action: onSkip) {
+                Text("Skip for now")
+                    .font(Font.Wispflow.caption)
+                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .underline()
+            }
+            .buttonStyle(PlainButtonStyle())
+            .opacity(0.7)
+            
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.Wispflow.background)
+        .onAppear {
+            print("OnboardingWindow: [US-521] Hotkey introduction view appeared")
+            setupHotkeyTestListener()
+        }
+        .onDisappear {
+            removeHotkeyTestListener()
+        }
+    }
+    
+    // MARK: - Hotkey Illustration
+    
+    /// Illustration showing keyboard/hotkey icon
+    private var hotkeyIllustration: some View {
+        ZStack {
+            // Outer animated ring (pulses when hotkey pressed)
+            Circle()
+                .stroke(Color.Wispflow.accent.opacity(hotkeyPressed ? 0.5 : 0.1), lineWidth: 3)
+                .frame(width: 130, height: 130)
+                .scaleEffect(hotkeyPressed ? 1.15 : 1.0)
+                .animation(
+                    hotkeyPressed ?
+                        .easeOut(duration: 0.3) :
+                        .default,
+                    value: hotkeyPressed
+                )
+            
+            // Outer glow circle
+            Circle()
+                .fill(Color.Wispflow.accent.opacity(0.15))
+                .frame(width: 120, height: 120)
+            
+            // Inner circle with gradient
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            hotkeyPressed ? Color.Wispflow.success.opacity(0.9) : Color.Wispflow.accent.opacity(0.9),
+                            hotkeyPressed ? Color.Wispflow.success : Color.Wispflow.accent
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 90, height: 90)
+                .shadow(color: (hotkeyPressed ? Color.Wispflow.success : Color.Wispflow.accent).opacity(0.3), radius: 10, x: 0, y: 5)
+                .animation(.easeInOut(duration: 0.3), value: hotkeyPressed)
+            
+            // Keyboard icon or checkmark
+            Image(systemName: hotkeyPressed ? "checkmark" : "command")
+                .font(.system(size: 40, weight: .medium))
+                .foregroundColor(.white)
+        }
+    }
+    
+    // MARK: - Hotkey Display Card
+    
+    /// Current hotkey displayed prominently (⌘⇧Space)
+    private var hotkeyDisplayCard: some View {
+        VStack(spacing: Spacing.md) {
+            // Hotkey badge - large and prominent
+            HStack(spacing: Spacing.sm) {
+                ForEach(hotkeySymbols, id: \.self) { symbol in
+                    HotkeyKeyBadge(symbol: symbol)
+                }
+            }
+            
+            // Hotkey name
+            Text(hotkeyManager.configuration.displayString)
+                .font(Font.Wispflow.caption)
+                .foregroundColor(Color.Wispflow.textSecondary)
+        }
+        .padding(Spacing.xl)
+        .background(Color.Wispflow.surface)
+        .cornerRadius(CornerRadius.large)
+        .wispflowShadow(.card)
+        .padding(.horizontal, Spacing.xxl)
+        .scaleEffect(hotkeyPressed ? 1.05 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: hotkeyPressed)
+    }
+    
+    /// Parse hotkey display string into individual symbols
+    private var hotkeySymbols: [String] {
+        let displayString = hotkeyManager.configuration.displayString
+        var symbols: [String] = []
+        
+        // Parse modifier symbols
+        let modifiers = hotkeyManager.configuration.modifiers
+        if modifiers.contains(.control) { symbols.append("⌃") }
+        if modifiers.contains(.option) { symbols.append("⌥") }
+        if modifiers.contains(.shift) { symbols.append("⇧") }
+        if modifiers.contains(.command) { symbols.append("⌘") }
+        
+        // Get the key name (last part after modifiers)
+        let keyName = displayString.replacingOccurrences(of: "⌃", with: "")
+            .replacingOccurrences(of: "⌥", with: "")
+            .replacingOccurrences(of: "⇧", with: "")
+            .replacingOccurrences(of: "⌘", with: "")
+        
+        if !keyName.isEmpty {
+            symbols.append(keyName)
+        }
+        
+        return symbols
+    }
+    
+    // MARK: - Try It Now Prompt
+    
+    /// "Try it now" prompt - user can test hotkey
+    private var tryItNowPrompt: some View {
+        VStack(spacing: Spacing.sm) {
+            HStack(spacing: Spacing.sm) {
+                PulsingDot(size: 8, color: Color.Wispflow.accent)
+                Text("Try it now!")
+                    .font(Font.Wispflow.headline)
+                    .foregroundColor(Color.Wispflow.textPrimary)
+            }
+            
+            Text("Press the hotkey to see it in action")
+                .font(Font.Wispflow.caption)
+                .foregroundColor(Color.Wispflow.textSecondary)
+        }
+        .padding(Spacing.lg)
+        .background(Color.Wispflow.accentLight)
+        .cornerRadius(CornerRadius.medium)
+        .padding(.horizontal, Spacing.xxl)
+        .transition(.opacity.combined(with: .scale(scale: 0.95)))
+    }
+    
+    // MARK: - Success Feedback
+    
+    /// Visual feedback when hotkey pressed
+    private var hotkeySuccessFeedback: some View {
+        VStack(spacing: Spacing.sm) {
+            HStack(spacing: Spacing.sm) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(Color.Wispflow.success)
+                Text("Perfect!")
+                    .font(Font.Wispflow.headline)
+                    .foregroundColor(Color.Wispflow.success)
+            }
+            
+            Text("Your hotkey is working correctly")
+                .font(Font.Wispflow.caption)
+                .foregroundColor(Color.Wispflow.textSecondary)
+        }
+        .padding(Spacing.lg)
+        .background(Color.Wispflow.successLight)
+        .cornerRadius(CornerRadius.medium)
+        .padding(.horizontal, Spacing.xxl)
+        .transition(.opacity.combined(with: .scale(scale: 0.95)))
+    }
+    
+    // MARK: - Hotkey Customization View
+    
+    /// View for customizing the hotkey
+    private var hotkeyCustomizationView: some View {
+        VStack(spacing: Spacing.md) {
+            Text("Record New Hotkey")
+                .font(Font.Wispflow.headline)
+                .foregroundColor(Color.Wispflow.textPrimary)
+            
+            OnboardingHotkeyRecorder(hotkeyManager: hotkeyManager)
+            
+            Button(action: {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    isCustomizing = false
+                }
+            }) {
+                Text("Done")
+                    .font(Font.Wispflow.caption)
+                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .underline()
+            }
+            .buttonStyle(PlainButtonStyle())
+        }
+        .padding(Spacing.lg)
+        .background(Color.Wispflow.surface)
+        .cornerRadius(CornerRadius.medium)
+        .wispflowShadow(.card)
+        .padding(.horizontal, Spacing.xxl)
+        .transition(.opacity.combined(with: .move(edge: .top)))
+    }
+    
+    // MARK: - Default Hotkey Note
+    
+    /// Default hotkey recommended for most users
+    private var defaultHotkeyNote: some View {
+        HStack(spacing: Spacing.sm) {
+            Image(systemName: "lightbulb.fill")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(Color.Wispflow.warning)
+            
+            Text("Tip: The default ⌘⇧Space works well for most users")
+                .font(Font.Wispflow.caption)
+                .foregroundColor(Color.Wispflow.textSecondary)
+        }
+        .padding(.horizontal, Spacing.xxl)
+    }
+    
+    // MARK: - Hotkey Test Listener
+    
+    /// Set up listener to detect hotkey press for visual feedback
+    private func setupHotkeyTestListener() {
+        print("OnboardingWindow: [US-521] Setting up hotkey test listener")
+        
+        // Store original callback
+        let originalCallback = hotkeyManager.onHotkeyPressed
+        
+        // Set our test callback
+        hotkeyManager.onHotkeyPressed = { [originalCallback] in
+            print("OnboardingWindow: [US-521] Hotkey pressed during onboarding!")
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                hotkeyPressed = true
+            }
+            
+            // Also call original callback if exists
+            originalCallback?()
+        }
+    }
+    
+    /// Remove the test listener
+    private func removeHotkeyTestListener() {
+        print("OnboardingWindow: [US-521] Removing hotkey test listener")
+        // Note: The callback will be reset when AppDelegate sets it up properly
+    }
+}
+
+// MARK: - Hotkey Key Badge
+
+/// A single key badge for the hotkey display
+struct HotkeyKeyBadge: View {
+    let symbol: String
+    
+    var body: some View {
+        Text(symbol)
+            .font(.system(size: 24, weight: .semibold, design: .rounded))
+            .foregroundColor(Color.Wispflow.textPrimary)
+            .frame(minWidth: 44, minHeight: 44)
+            .background(
+                RoundedRectangle(cornerRadius: CornerRadius.small)
+                    .fill(Color.Wispflow.background)
+                    .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 2)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: CornerRadius.small)
+                    .stroke(Color.Wispflow.border, lineWidth: 1)
+            )
+    }
+}
+
+// MARK: - Onboarding Hotkey Recorder
+
+/// Simplified hotkey recorder for onboarding customization
+struct OnboardingHotkeyRecorder: View {
+    @ObservedObject var hotkeyManager: HotkeyManager
+    
+    @State private var isRecording = false
+    @State private var recordedKeyCode: UInt16?
+    @State private var recordedModifiers: NSEvent.ModifierFlags = []
+    @State private var showConflictWarning = false
+    @State private var conflictingShortcuts: [HotkeyManager.SystemShortcut] = []
+    @State private var pendingConfig: HotkeyManager.HotkeyConfiguration?
+    
+    var body: some View {
+        VStack(spacing: Spacing.md) {
+            // Current hotkey display
+            HStack {
+                Text("Current:")
+                    .font(Font.Wispflow.caption)
+                    .foregroundColor(Color.Wispflow.textSecondary)
+                
+                Text(hotkeyManager.configuration.displayString)
+                    .font(Font.Wispflow.mono)
+                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .padding(.horizontal, Spacing.sm)
+                    .padding(.vertical, Spacing.xs)
+                    .background(Color.Wispflow.accentLight)
+                    .cornerRadius(CornerRadius.small)
+            }
+            
+            // Record button
+            Button(action: toggleRecording) {
+                HStack(spacing: Spacing.sm) {
+                    if isRecording {
+                        PulsingDot(size: 8, color: .white)
+                    }
+                    Text(isRecording ? "Press keys..." : "Record New")
+                        .font(Font.Wispflow.body)
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: 160)
+                .padding(.vertical, Spacing.sm)
+                .background(isRecording ? Color.Wispflow.error : Color.Wispflow.accent)
+                .cornerRadius(CornerRadius.small)
+            }
+            .buttonStyle(InteractiveScaleStyle())
+            
+            // Reset to default button
+            if hotkeyManager.configuration != .defaultHotkey {
+                Button(action: {
+                    hotkeyManager.resetToDefault()
+                }) {
+                    Text("Reset to Default (⌘⇧Space)")
+                        .font(Font.Wispflow.caption)
+                        .foregroundColor(Color.Wispflow.accent)
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+        }
+        .alert("Shortcut Conflict", isPresented: $showConflictWarning) {
+            Button("Use Anyway") {
+                if let config = pendingConfig {
+                    hotkeyManager.updateConfiguration(config)
+                    pendingConfig = nil
+                }
+            }
+            Button("Cancel", role: .cancel) {
+                pendingConfig = nil
+            }
+        } message: {
+            let names = conflictingShortcuts.map { $0.name }.joined(separator: ", ")
+            Text("This shortcut conflicts with: \(names). Using it may interfere with system functions.")
+        }
+    }
+    
+    private func toggleRecording() {
+        if isRecording {
+            stopRecording()
+        } else {
+            startRecording()
+        }
+    }
+    
+    private func startRecording() {
+        isRecording = true
+        recordedKeyCode = nil
+        recordedModifiers = []
+        
+        // Install local event monitor for keyDown
+        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            handleKeyEvent(event)
+            return nil // Consume the event
+        }
+    }
+    
+    private func stopRecording() {
+        isRecording = false
+    }
+    
+    private func handleKeyEvent(_ event: NSEvent) {
+        // Ignore escape (cancel)
+        if event.keyCode == 53 { // Escape key
+            stopRecording()
+            return
+        }
+        
+        // Check for valid modifiers
+        let modifiers = event.modifierFlags.intersection([.command, .shift, .option, .control])
+        guard !modifiers.isEmpty else {
+            // Need at least one modifier
+            return
+        }
+        
+        let newConfig = HotkeyManager.HotkeyConfiguration(
+            keyCode: event.keyCode,
+            modifierFlags: modifiers
+        )
+        
+        // Check for conflicts (US-512)
+        let conflicts = HotkeyManager.checkForConflicts(newConfig)
+        if !conflicts.isEmpty {
+            pendingConfig = newConfig
+            conflictingShortcuts = conflicts
+            showConflictWarning = true
+        } else {
+            hotkeyManager.updateConfiguration(newConfig)
+        }
+        
+        stopRecording()
+    }
+}
+
 // MARK: - Onboarding Container View
 
 /// Main container view for the onboarding wizard
@@ -1196,6 +1711,9 @@ struct OnboardingContainerView: View {
     
     /// Audio manager for the audio test step (US-520)
     @ObservedObject var audioManager: AudioManager
+    
+    /// Hotkey manager for the hotkey introduction step (US-521)
+    @ObservedObject var hotkeyManager: HotkeyManager
     
     /// Current step in the onboarding flow
     @State private var currentStep: OnboardingStep = .welcome
@@ -1257,6 +1775,18 @@ struct OnboardingContainerView: View {
                     }
                 )
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                
+            case .hotkey:
+                HotkeyIntroductionView(
+                    hotkeyManager: hotkeyManager,
+                    onContinue: {
+                        advanceToNextStep()
+                    },
+                    onSkip: {
+                        advanceToNextStep()  // Skip just advances, doesn't exit
+                    }
+                )
+                .transition(.opacity.combined(with: .scale(scale: 0.98)))
             }
         }
         .animation(WispflowAnimation.smooth, value: currentStep)
@@ -1301,13 +1831,16 @@ final class OnboardingWindowController: NSObject {
     private let onboardingManager: OnboardingManager
     /// Audio manager for the audio test step (US-520)
     private let audioManager: AudioManager
+    /// Hotkey manager for the hotkey introduction step (US-521)
+    private let hotkeyManager: HotkeyManager
     
     /// Callback when onboarding is complete
     var onComplete: (() -> Void)?
     
-    init(onboardingManager: OnboardingManager = OnboardingManager.shared, audioManager: AudioManager) {
+    init(onboardingManager: OnboardingManager = OnboardingManager.shared, audioManager: AudioManager, hotkeyManager: HotkeyManager) {
         self.onboardingManager = onboardingManager
         self.audioManager = audioManager
+        self.hotkeyManager = hotkeyManager
         super.init()
     }
     
@@ -1336,6 +1869,7 @@ final class OnboardingWindowController: NSObject {
         let onboardingView = OnboardingContainerView(
             onboardingManager: onboardingManager,
             audioManager: audioManager,
+            hotkeyManager: hotkeyManager,
             onComplete: { [weak self] in
                 self?.closeOnboarding()
             }
@@ -1427,6 +1961,17 @@ struct AudioTestView_Previews: PreviewProvider {
         AudioTestView(
             audioManager: AudioManager(),
             onContinue: { print("Sounds Good tapped") },
+            onSkip: { print("Skip tapped") }
+        )
+        .frame(width: 520, height: 620)
+    }
+}
+
+struct HotkeyIntroductionView_Previews: PreviewProvider {
+    static var previews: some View {
+        HotkeyIntroductionView(
+            hotkeyManager: HotkeyManager(),
+            onContinue: { print("Continue tapped") },
             onSkip: { print("Skip tapped") }
         )
         .frame(width: 520, height: 620)

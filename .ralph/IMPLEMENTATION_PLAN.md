@@ -802,21 +802,38 @@ This plan implements a comprehensive overhaul of WispFlow's core systems based o
 ---
 
 ### US-521: Hotkey Introduction Step
-**Status:** pending
+**Status:** complete
 **Priority:** medium
 **Estimated effort:** small
 
 **Tasks:**
-- [ ] Create hotkey intro screen
-- [ ] Display default hotkey
-- [ ] Add "Try it now" prompt
-- [ ] Add visual feedback on press
+- [x] Create hotkey intro screen
+- [x] Display default hotkey
+- [x] Add "Try it now" prompt
+- [x] Add visual feedback on press
+- [x] Add "Change Hotkey" option for customization
+- [x] Add default hotkey recommendation note
 
 **Acceptance Criteria:**
 - Hotkey displayed clearly
 - Feedback on press
 - Option to customize
 - Typecheck passes
+
+**Implementation Notes:**
+- Created `HotkeyIntroductionView` in `OnboardingWindow.swift` with all required UI elements
+- Added `hotkey` case to `OnboardingStep` enum with proper `nextStep` navigation
+- Current hotkey displayed prominently using `HotkeyKeyBadge` components showing individual key symbols (⌘⇧Space)
+- "Try it now" prompt with pulsing dot indicator encourages user to test hotkey
+- Visual feedback when hotkey pressed: icon changes to checkmark, card scales up, "Perfect!" success message appears
+- "Change Hotkey" option expands `OnboardingHotkeyRecorder` component for customization
+- Default hotkey recommendation: "Tip: The default ⌘⇧Space works well for most users"
+- Updated `OnboardingContainerView` to accept `hotkeyManager` and render `HotkeyIntroductionView`
+- Updated `OnboardingWindowController` to accept `hotkeyManager` parameter
+- Updated `AppDelegate.setupOnboarding()` to pass `hotkeyManager` to onboarding
+- Hotkey test listener setup hooks into `hotkeyManager.onHotkeyPressed` callback
+- Added preview for `HotkeyIntroductionView` for development testing
+- Verified via `swift build` - typecheck passes
 
 ---
 

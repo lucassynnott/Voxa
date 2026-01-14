@@ -1,0 +1,21 @@
+## Summary
+
+Successfully implemented **US-520: Audio Test Step** for the WispFlow onboarding wizard:
+
+**What was implemented:**
+- Created `AudioTestView` with a live audio level meter that updates at 20fps
+- Added "Start Test" button that begins audio capture using the existing AudioManager
+- Implemented visual feedback including animated pulsing ring, waveform icon, and color-coded level badges (Good/Quiet/Silent/Too Loud)
+- Added device selector dropdown that appears when multiple input devices are available
+- Created "Sounds Good!" button that appears after user speaks (level > -40dB)
+- Added "Having Issues?" link with 5 troubleshooting tips for users having microphone problems
+- Created `OnboardingAudioLevelMeter` and `TroubleshootingTipRow` reusable components
+- Integrated the audio test step into the onboarding flow by updating `OnboardingStep` enum and passing `AudioManager` through the component hierarchy
+
+**Verification:**
+- `swift build` passes (typecheck successful)
+- Working tree is clean after commits
+
+**Commits:**
+- `161ab7e` feat(US-520): implement audio test step for onboarding wizard
+- `0ec082f` docs: update progress log for US-520 implementation
