@@ -2047,3 +2047,35 @@ Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-124540-90947-it
   - When assigned a completed story, verify the implementation exists and documentation is correct
   - No code changes needed - only verification of existing implementation
 ---
+
+## [2026-01-14 13:15] - US-513: Clipboard Preservation
+Thread: codex exec session
+Run: 20260114-123019-87886 (iteration 5)
+Run log: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-123019-87886-iter-5.log
+Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-123019-87886-iter-5.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: 8f0edae feat(US-513): implement clipboard preservation
+- Post-commit status: clean
+- Verification:
+  - Command: `swift build` -> PASS (build complete with only informational Sendable warning)
+- Files changed:
+  - Sources/WispFlow/TextInserter.swift (update delay and background thread implementation)
+  - .agents/tasks/prd-audio-permissions-hotkeys-overhaul.md (mark US-513 complete)
+  - .ralph/IMPLEMENTATION_PLAN.md (update task status with implementation notes)
+- What was implemented:
+  - Updated `defaultRestoreDelay` from 0.5s (500ms) to 0.8s (800ms) per acceptance criteria
+  - Refactored `scheduleClipboardRestore()` to use `DispatchQueue.global(qos: .utility)` for true background thread delay
+  - Background thread sleeps for 800ms, then dispatches to main thread for pasteboard restoration
+  - Added `restoreClipboardContentsSync(items:)` helper method for clean separation of restoration logic
+  - Enhanced logging with `[US-513]` tags throughout clipboard preservation flow for debugging
+  - Clipboard items are deep-copied before text insertion to preserve all data types (not just strings)
+  - Immediate restoration (`restoreClipboardContents()`) remains available for error recovery cases
+  - Build produces informational warning about NSPasteboardItem Sendable conformance (harmless - AppKit classes not marked Sendable)
+- **Learnings for future iterations:**
+  - TextInserter already had most clipboard preservation functionality implemented
+  - Key changes were: (1) update delay to 800ms, (2) use actual background thread for delay
+  - `DispatchQueue.global(qos: .utility).async` + `Thread.sleep` provides true background thread delay
+  - NSPasteboard operations must happen on main thread, but delay can be in background
+  - NSPasteboardItem is not Sendable (AppKit limitation), warning is informational only
+---
