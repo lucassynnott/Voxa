@@ -652,6 +652,33 @@ extension ToastManager {
             duration: 4.0
         )
     }
+    
+    // MARK: - US-603: Recording Timeout Toast Notifications
+    
+    /// Show warning toast when recording approaches the maximum duration
+    /// Parameter remainingSeconds: Time remaining until auto-stop (typically 60 seconds)
+    func showRecordingTimeoutWarning(remainingSeconds: TimeInterval) {
+        let minutes = Int(remainingSeconds / 60)
+        let seconds = Int(remainingSeconds.truncatingRemainder(dividingBy: 60))
+        let timeString = minutes > 0 ? "\(minutes) minute\(minutes > 1 ? "s" : "")" : "\(seconds) seconds"
+        
+        showWarning(
+            "Recording Limit Approaching",
+            message: "\(timeString) remaining until auto-stop",
+            icon: "clock.badge.exclamationmark",
+            duration: 6.0
+        )
+    }
+    
+    /// Show info toast when recording auto-stops due to reaching maximum duration
+    func showRecordingAutoStopped() {
+        showInfo(
+            "Recording Auto-Stopped",
+            message: "Maximum duration reached. Transcribing...",
+            icon: "stop.circle.fill",
+            duration: 4.0
+        )
+    }
 }
 
 // MARK: - Notification Names

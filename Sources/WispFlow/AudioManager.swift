@@ -182,6 +182,11 @@ final class AudioManager: NSObject, ObservableObject {
         static let selectedDeviceKey = "selectedAudioInputDeviceUID"
         static let silenceThresholdDB: Float = -55.0  // Below this is considered silence (lowered from -40dB for more permissive detection)
         static let minimumRecordingDuration: TimeInterval = 0.5 // Minimum 0.5s recording
+        
+        // US-603: Recording Timeout Safety - prevent runaway recordings
+        static let maxRecordingDurationKey = "maxRecordingDuration"
+        static let defaultMaxRecordingDuration: TimeInterval = 300.0 // 5 minutes default
+        static let warningOffsetFromMax: TimeInterval = 60.0 // Warning 1 minute before max (at 4 minutes)
     }
     
     // MARK: - Properties
@@ -204,6 +209,11 @@ final class AudioManager: NSObject, ObservableObject {
     /// US-302: Timer to alert if no tap callbacks received within 2 seconds
     private var noCallbackAlertTimer: Timer?
     private var emptyCallbackCount: Int = 0  // Track callbacks with empty/zero data
+    
+    // US-603: Recording Timeout Timers
+    private var recordingTimeoutWarningTimer: Timer?
+    private var recordingTimeoutMaxTimer: Timer?
+    private var hasShownTimeoutWarning: Bool = false
     private var zeroDataCallbackCount: Int = 0  // Track callbacks where all samples are zero
     
     private var isCapturing = false
@@ -224,6 +234,14 @@ final class AudioManager: NSObject, ObservableObject {
     var onSilenceDetected: ((Float) -> Void)?  // Called if recording stops with only silence, passes measured dB level
     var onRecordingTooShort: (() -> Void)?  // Called if recording is below minimum duration
     var onNoTapCallbacks: (() -> Void)?  // US-302: Called if no tap callbacks received within 2 seconds
+    
+    // MARK: - US-603: Recording Timeout Safety Callbacks
+    
+    /// Called when recording approaches the maximum duration (warning at 4 minutes by default)
+    var onRecordingTimeoutWarning: ((TimeInterval) -> Void)?
+    
+    /// Called when recording reaches the maximum duration and will auto-stop
+    var onRecordingTimeoutReached: (() -> Void)?
     var onLowQualityDeviceSelected: ((AudioInputDevice) -> Void)?  // US-501: Called when only a low-quality (Bluetooth) device is available
     
     // MARK: - US-601: Audio Device Hot-Plug Support
@@ -1650,8 +1668,12 @@ final class AudioManager: NSObject, ObservableObject {
         // US-302: Start timer to alert if no tap callbacks received within 2 seconds
         startNoCallbackAlertTimer()
         
+        // US-603: Start recording timeout timers (warning at 4 min, auto-stop at 5 min)
+        startRecordingTimeoutTimers()
+        
         print("AudioManager: [STAGE 1] ✓ Audio engine started - capturing audio")
         print("AudioManager: [US-302] 2-second no-callback alert timer started")
+        print("AudioManager: [US-603] Recording timeout timers started (warning: \(Self.warningDuration)s, max: \(Self.maxRecordingDuration)s)")
     }
     
     /// Stop capturing audio and return the result
@@ -1667,6 +1689,9 @@ final class AudioManager: NSObject, ObservableObject {
         
         // US-302: Stop the no-callback alert timer
         stopNoCallbackAlertTimer()
+        
+        // US-603: Stop the recording timeout timers
+        stopRecordingTimeoutTimers()
         
         // Stop engine and remove tap
         audioEngine.inputNode.removeTap(onBus: 0)
@@ -1838,6 +1863,9 @@ final class AudioManager: NSObject, ObservableObject {
         // US-302: Stop the no-callback alert timer
         stopNoCallbackAlertTimer()
         
+        // US-603: Stop the recording timeout timers
+        stopRecordingTimeoutTimers()
+        
         audioEngine.inputNode.removeTap(onBus: 0)
         audioEngine.stop()
         
@@ -1901,6 +1929,71 @@ final class AudioManager: NSObject, ObservableObject {
     private func stopNoCallbackAlertTimer() {
         noCallbackAlertTimer?.invalidate()
         noCallbackAlertTimer = nil
+    }
+    
+    // MARK: - US-603: Recording Timeout Timer Methods
+    
+    /// US-603: Start timers for recording timeout warning and auto-stop
+    private func startRecordingTimeoutTimers() {
+        // Invalidate any existing timers
+        stopRecordingTimeoutTimers()
+        hasShownTimeoutWarning = false
+        
+        let maxDuration = Self.maxRecordingDuration
+        let warningDuration = Self.warningDuration
+        
+        print("╔═══════════════════════════════════════════════════════════════╗")
+        print("║       US-603: RECORDING TIMEOUT TIMERS STARTED                ║")
+        print("╠═══════════════════════════════════════════════════════════════╣")
+        print("║ Warning at:              \(String(format: "%10.0f", warningDuration)) seconds (\(String(format: "%.1f", warningDuration / 60.0)) min)       ║")
+        print("║ Auto-stop at:            \(String(format: "%10.0f", maxDuration)) seconds (\(String(format: "%.1f", maxDuration / 60.0)) min)       ║")
+        print("╚═══════════════════════════════════════════════════════════════╝")
+        
+        // Start warning timer (fires at 4 minutes by default)
+        if warningDuration > 0 {
+            recordingTimeoutWarningTimer = Timer.scheduledTimer(withTimeInterval: warningDuration, repeats: false) { [weak self] _ in
+                guard let self = self, self.isCapturing, !self.hasShownTimeoutWarning else { return }
+                
+                self.hasShownTimeoutWarning = true
+                let remaining = Self.maxRecordingDuration - (self.captureStartTime.map { Date().timeIntervalSince($0) } ?? 0)
+                
+                print("╔═══════════════════════════════════════════════════════════════╗")
+                print("║     ⚠️ US-603: RECORDING TIMEOUT WARNING                        ║")
+                print("╠═══════════════════════════════════════════════════════════════╣")
+                print("║ Recording has reached \(String(format: "%.0f", warningDuration / 60.0)) minutes.                                 ║")
+                print("║ \(String(format: "%.0f", remaining / 60.0)) minute(s) remaining until auto-stop.                      ║")
+                print("╚═══════════════════════════════════════════════════════════════╝")
+                
+                DispatchQueue.main.async {
+                    self.onRecordingTimeoutWarning?(remaining)
+                }
+            }
+        }
+        
+        // Start max timer (fires at 5 minutes by default - auto-stops recording)
+        recordingTimeoutMaxTimer = Timer.scheduledTimer(withTimeInterval: maxDuration, repeats: false) { [weak self] _ in
+            guard let self = self, self.isCapturing else { return }
+            
+            print("╔═══════════════════════════════════════════════════════════════╗")
+            print("║     ⛔ US-603: RECORDING TIMEOUT REACHED - AUTO-STOPPING       ║")
+            print("╠═══════════════════════════════════════════════════════════════╣")
+            print("║ Recording has reached the maximum duration of \(String(format: "%.0f", maxDuration / 60.0)) minutes.      ║")
+            print("║ Auto-stopping and triggering transcription.                   ║")
+            print("╚═══════════════════════════════════════════════════════════════╝")
+            
+            DispatchQueue.main.async {
+                self.onRecordingTimeoutReached?()
+            }
+        }
+    }
+    
+    /// US-603: Stop recording timeout timers
+    private func stopRecordingTimeoutTimers() {
+        recordingTimeoutWarningTimer?.invalidate()
+        recordingTimeoutWarningTimer = nil
+        recordingTimeoutMaxTimer?.invalidate()
+        recordingTimeoutMaxTimer = nil
+        hasShownTimeoutWarning = false
     }
     
     /// US-302: Log callback statistics summary after capture stops
@@ -2213,6 +2306,43 @@ final class AudioManager: NSObject, ObservableObject {
     /// Minimum recording duration in seconds
     static var minimumDuration: TimeInterval {
         return Constants.minimumRecordingDuration
+    }
+    
+    // MARK: - US-603: Recording Timeout Configuration
+    
+    /// Maximum recording duration in seconds (configurable, default 5 minutes)
+    static var maxRecordingDuration: TimeInterval {
+        get {
+            let stored = UserDefaults.standard.double(forKey: Constants.maxRecordingDurationKey)
+            return stored > 0 ? stored : Constants.defaultMaxRecordingDuration
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: Constants.maxRecordingDurationKey)
+            print("AudioManager: [US-603] Max recording duration set to \(newValue) seconds (\(newValue / 60.0) minutes)")
+        }
+    }
+    
+    /// Warning duration (time at which warning is shown, e.g., 4 minutes)
+    static var warningDuration: TimeInterval {
+        return maxRecordingDuration - Constants.warningOffsetFromMax
+    }
+    
+    /// Get the elapsed recording time (returns 0 if not recording)
+    var elapsedRecordingTime: TimeInterval {
+        guard let startTime = captureStartTime, isCapturing else {
+            return 0
+        }
+        return Date().timeIntervalSince(startTime)
+    }
+    
+    /// Get the remaining recording time until max limit (returns nil if not recording)
+    var remainingRecordingTime: TimeInterval? {
+        guard isCapturing else {
+            return nil
+        }
+        let elapsed = elapsedRecordingTime
+        let remaining = Self.maxRecordingDuration - elapsed
+        return max(0, remaining)
     }
 }
 

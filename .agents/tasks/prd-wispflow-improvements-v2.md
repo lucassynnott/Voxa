@@ -52,17 +52,17 @@ This PRD outlines improvements, optimizations, and bugfixes for WispFlow, a priv
 
 ---
 
-### US-603: Recording Timeout Safety
+### [x] US-603: Recording Timeout Safety
 **Priority**: Medium  
 **Estimate**: 1 point
 
 **Description**: Prevent runaway recordings that could fill disk space.
 
 **Acceptance Criteria**:
-- [ ] Maximum recording duration of 5 minutes (configurable)
-- [ ] Warning toast at 4 minutes
-- [ ] Auto-stop and transcribe at limit
-- [ ] Show elapsed time in recording indicator
+- [x] Maximum recording duration of 5 minutes (configurable)
+- [x] Warning toast at 4 minutes
+- [x] Auto-stop and transcribe at limit
+- [x] Show elapsed time in recording indicator
 
 ---
 

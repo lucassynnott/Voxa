@@ -1,0 +1,29 @@
+There are many more stories remaining in the PRD (US-603 through US-631). The selected story US-602 has been completed, but not all stories in the PRD are complete, so I should not output the COMPLETE signal.
+
+## Summary
+
+I have successfully completed US-602: Audio Format Negotiation Improvement. Here's what was implemented:
+
+1. **AudioFormatInfo struct** - A new struct to represent supported audio formats with:
+   - Properties: sampleRate, channelCount, bitsPerChannel, formatID, formatFlags
+   - Human-readable description generation
+   - Priority scoring system (PCM +100, 48kHz +50, 44.1kHz +45, mono +15, stereo +10, 16-bit+ +5)
+   - Standard format detection (`isStandardFormat`)
+
+2. **Format query methods**:
+   - `querySupportedFormats(deviceID:)` - Uses `kAudioDevicePropertyStreamConfiguration` and `kAudioStreamPropertyAvailablePhysicalFormats`
+   - `queryStreamFormats(streamID:)` - Queries per-stream physical and virtual formats
+   - `getFallbackFormat(deviceID:)` - Provides fallback using device's nominal sample rate
+
+3. **Format selection and validation**:
+   - `selectBestFormat(from:)` - Selects best format preferring standard formats (44.1kHz, 48kHz stereo/mono)
+   - `checkFormatCompatibility(deviceID:)` - Returns error message if no compatible format found
+
+4. **Error handling**:
+   - Added `AudioCaptureError.noCompatibleFormat(String)` error case
+
+5. **Integration**: Format checking is now integrated into `startCapturing()` before audio capture begins
+
+**Commits:**
+- `bce52c2` feat(US-602): implement audio format negotiation improvement
+- `2a0d2df` docs: add verification progress log for US-602 iteration 2

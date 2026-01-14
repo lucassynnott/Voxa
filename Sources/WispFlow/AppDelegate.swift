@@ -251,6 +251,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 ToastManager.shared.showPreferredDeviceReconnected(deviceName: deviceName)
             }
         }
+        
+        // US-603: Handle recording timeout warning (shown at 4 minutes by default)
+        audioManager?.onRecordingTimeoutWarning = { remainingSeconds in
+            print("AppDelegate: [US-603] Recording timeout warning - \(remainingSeconds) seconds remaining")
+            ErrorLogger.shared.log(
+                "Recording timeout warning",
+                category: .audio,
+                severity: .warning,
+                context: ["remainingSeconds": "\(remainingSeconds)"]
+            )
+            DispatchQueue.main.async {
+                ToastManager.shared.showRecordingTimeoutWarning(remainingSeconds: remainingSeconds)
+            }
+        }
+        
+        // US-603: Handle recording timeout reached (auto-stop at 5 minutes by default)
+        audioManager?.onRecordingTimeoutReached = { [weak self] in
+            print("AppDelegate: [US-603] Recording timeout reached - auto-stopping and transcribing")
+            ErrorLogger.shared.log(
+                "Recording timeout reached - auto-stopping",
+                category: .audio,
+                severity: .warning,
+                context: ["maxDuration": "\(AudioManager.maxRecordingDuration)"]
+            )
+            DispatchQueue.main.async {
+                ToastManager.shared.showRecordingAutoStopped()
+                // Trigger the same flow as pressing the hotkey to stop recording
+                // This will stop capture, transcribe, and process the audio
+                self?.statusBarController?.setRecordingState(.idle)
+            }
+        }
     }
     
     private func showSilenceWarning(measuredDbLevel: Float) {

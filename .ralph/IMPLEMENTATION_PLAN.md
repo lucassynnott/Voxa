@@ -1028,3 +1028,46 @@ This plan implements a comprehensive overhaul of WispFlow's core systems based o
 - Graceful error messages explain why format is incompatible (no PCM, bad sample rate, etc.)
 - Format checking integrated into `startCapturing()` with clear error logging box
 - Verified via `swift build` - typecheck passes
+
+---
+
+### US-603: Recording Timeout Safety
+**Status:** complete
+**Priority:** medium
+**Estimated effort:** small
+
+**Description:** Prevent runaway recordings that could fill disk space.
+
+**Tasks:**
+- [x] Add `maxRecordingDuration` constant (default 5 minutes = 300 seconds, configurable via UserDefaults)
+- [x] Add `warningDuration` constant (default 4 minutes = 240 seconds)
+- [x] Add recording timeout timer in AudioManager that fires at max duration
+- [x] Add warning timer that fires at warning duration
+- [x] Add `onRecordingTimeoutWarning` callback to AudioManager for 4-minute warning
+- [x] Add `onRecordingTimeoutReached` callback to AudioManager for auto-stop at 5 minutes
+- [x] Update RecordingIndicatorWindow to display elapsed time (already shows duration via durationLabel)
+- [x] Add toast notification for 4-minute warning ("Recording Limit Approaching - X remaining")
+- [x] Implement auto-stop and transcribe at 5-minute limit
+- [x] Wire up callbacks in AppDelegate to handle timeout warnings and auto-stop
+- [x] Build verification (`swift build` succeeds)
+
+**Acceptance Criteria:**
+- [x] Maximum recording duration of 5 minutes (configurable via `AudioManager.maxRecordingDuration`)
+- [x] Warning toast at 4 minutes (via `showRecordingTimeoutWarning`)
+- [x] Auto-stop and transcribe at limit (via `onRecordingTimeoutReached` callback triggering state change)
+- [x] Show elapsed time in recording indicator (via existing `durationLabel` in `RecordingIndicatorWindow`)
+
+**Implementation Notes:**
+- Added timeout constants to `AudioManager.Constants`: `maxRecordingDurationKey`, `defaultMaxRecordingDuration` (300s), `warningOffsetFromMax` (60s)
+- Added `recordingTimeoutWarningTimer` and `recordingTimeoutMaxTimer` Timer properties
+- Added `hasShownTimeoutWarning` flag to prevent duplicate warnings
+- Added `onRecordingTimeoutWarning: ((TimeInterval) -> Void)?` callback that passes remaining time
+- Added `onRecordingTimeoutReached: (() -> Void)?` callback for auto-stop
+- Added `startRecordingTimeoutTimers()` and `stopRecordingTimeoutTimers()` methods
+- Integrated timer start/stop into `startCapturing()`, `stopCapturing()`, and `cancelCapturing()`
+- Added static properties: `maxRecordingDuration` (getter/setter with UserDefaults), `warningDuration` (computed)
+- Added instance properties: `elapsedRecordingTime`, `remainingRecordingTime`
+- Added toast methods to `ToastManager`: `showRecordingTimeoutWarning(remainingSeconds:)`, `showRecordingAutoStopped()`
+- Wired up callbacks in `AppDelegate.setupAudioManager()` to show toasts and trigger auto-stop
+- RecordingIndicatorWindow already has `durationLabel` that displays "M:SS" format, updated every second
+- Verified via `swift build` - typecheck passes
