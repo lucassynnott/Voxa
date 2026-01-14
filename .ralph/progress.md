@@ -2280,3 +2280,38 @@ Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-130140-94307-it
   - PRD and implementation plan were already updated with complete status
   - Clean working tree indicates no further changes needed
 ---
+
+## [2026-01-14 13:15] - US-517: Onboarding Welcome Screen
+Thread: codex exec session
+Run: 20260114-130140-94307 (iteration 3)
+Run log: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-130140-94307-iter-3.log
+Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-130140-94307-iter-3.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: 9dd0cd1 feat(US-517): implement onboarding welcome screen for first launch
+- Post-commit status: clean
+- Verification:
+  - Command: `swift build` -> PASS (build complete with only informational Swift 6 warnings)
+- Files changed:
+  - Sources/WispFlow/OnboardingWindow.swift (new)
+  - Sources/WispFlow/AppDelegate.swift (modified)
+  - .ralph/IMPLEMENTATION_PLAN.md (updated)
+  - .agents/tasks/prd-audio-permissions-hotkeys-overhaul.md (updated)
+- What was implemented:
+  - Created `OnboardingWindow.swift` with complete onboarding wizard infrastructure
+  - `WelcomeView` implements the welcome screen with:
+    - App logo: Custom circle design with waveform.and.mic icon representing voice-to-text
+    - Brief description: "Voice-to-text for your Mac" displayed prominently
+    - 4 feature bullet points using `FeatureRow` component
+    - "Get Started" button (prominent coral accent style) advances to next step
+    - "Skip Setup" link (subtle, not prominent) at bottom
+  - `OnboardingContainerView` manages navigation between steps
+  - `OnboardingWindowController` (@MainActor) manages window lifecycle
+  - `AppDelegate.setupOnboarding()` initializes and shows onboarding on first launch
+  - Uses existing design system (Color.Wispflow, Font.Wispflow, Spacing, CornerRadius)
+- **Learnings for future iterations:**
+  - Use @MainActor annotation for window controllers that access MainActor-isolated properties
+  - Use `nonisolated` for NSWindowDelegate methods with Task{} for MainActor access
+  - Existing design system (DesignSystem.swift) provides consistent styling
+  - OnboardingManager from US-516 integrates directly with new window controller
+---
