@@ -829,6 +829,7 @@ struct TranscriptionStatusHero: View {
 // MARK: - Model Selection Card (US-407)
 
 /// Card-based model picker item with elegant design
+/// US-525: Added contentShape for reliable hit testing in ScrollViews
 struct ModelSelectionCard: View {
     let model: WhisperManager.ModelSize
     let isSelected: Bool
@@ -906,6 +907,7 @@ struct ModelSelectionCard: View {
                 }
             }
             .padding(Spacing.md)
+            .contentShape(Rectangle()) // US-525: Ensure entire card is clickable
             .background(
                 RoundedRectangle(cornerRadius: CornerRadius.medium)
                     .fill(isHovering ? Color.Wispflow.border.opacity(0.2) : Color.Wispflow.surface)
@@ -1143,6 +1145,7 @@ enum TranscriptionLanguage: String, CaseIterable, Identifiable {
 // MARK: - Language Picker (US-407)
 
 /// Elegant language picker with flags
+/// US-525: Added contentShape for reliable dropdown interaction in ScrollViews
 struct LanguagePicker: View {
     @Binding var selectedLanguage: TranscriptionLanguage
     @State private var isExpanded = false
@@ -1183,6 +1186,7 @@ struct LanguagePicker: View {
                         .rotationEffect(.degrees(isExpanded ? 180 : 0))
                 }
                 .padding(Spacing.md)
+                .contentShape(Rectangle()) // US-525: Ensure entire dropdown trigger is clickable
                 .background(
                     RoundedRectangle(cornerRadius: CornerRadius.medium)
                         .fill(isHovering ? Color.Wispflow.border.opacity(0.3) : Color.Wispflow.surface)
@@ -1235,6 +1239,7 @@ struct LanguagePicker: View {
 // MARK: - Language Row (US-407)
 
 /// Single row in the language picker
+/// US-525: Added contentShape for reliable hit testing in dropdown menus
 struct LanguageRow: View {
     let language: TranscriptionLanguage
     let isSelected: Bool
@@ -1274,6 +1279,7 @@ struct LanguageRow: View {
                 }
             }
             .padding(Spacing.md)
+            .contentShape(Rectangle()) // US-525: Ensure entire row is clickable
             .background(
                 RoundedRectangle(cornerRadius: CornerRadius.small)
                     .fill(isHovering ? Color.Wispflow.accentLight : Color.clear)
@@ -2005,6 +2011,7 @@ struct CleanupModeSegmentedControl: View {
 }
 
 /// Individual segment in the mode picker
+/// US-525: Added contentShape for reliable hit testing in segmented controls
 struct CleanupModeSegment: View {
     let mode: TextCleanupManager.CleanupMode
     let isSelected: Bool
@@ -2061,6 +2068,7 @@ struct CleanupModeSegment: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, Spacing.md)
+            .contentShape(Rectangle()) // US-525: Ensure entire segment is clickable
             .background(
                 RoundedRectangle(cornerRadius: CornerRadius.small - 2)
                     .fill(isSelected ? Color.Wispflow.accentLight : (isHovering ? Color.Wispflow.border.opacity(0.3) : Color.clear))
@@ -2175,6 +2183,7 @@ struct CleanupPreviewCard: View {
 // MARK: - LLM Model Selection Card (US-408)
 
 /// Card-based model picker item for LLM selection
+/// US-525: Added contentShape for reliable hit testing in ScrollViews
 struct LLMModelSelectionCard: View {
     let model: LLMManager.ModelSize
     let isSelected: Bool
@@ -2250,6 +2259,7 @@ struct LLMModelSelectionCard: View {
                 }
             }
             .padding(Spacing.md)
+            .contentShape(Rectangle()) // US-525: Ensure entire card is clickable
             .background(
                 RoundedRectangle(cornerRadius: CornerRadius.medium)
                     .fill(isHovering ? Color.Wispflow.border.opacity(0.2) : Color.Wispflow.surface)
@@ -2700,6 +2710,8 @@ struct GeneralSettingsView: View {
                         
                         // Reset to default button
                         Button(action: {
+                            // US-524: Console log button action
+                            print("[US-524] Button action: Reset Hotkey to Default")
                             hotkeyManager.resetToDefault()
                         }) {
                             HStack(spacing: Spacing.xs) {
@@ -2996,6 +3008,7 @@ struct HotkeyRecorderView: View {
             .frame(minWidth: 160)
             .padding(.horizontal, Spacing.lg)
             .padding(.vertical, Spacing.md)
+            .contentShape(Rectangle()) // US-525: Ensure entire button is clickable
             .background(
                 ZStack {
                     // Base background
@@ -3187,6 +3200,8 @@ struct AudioSettingsView: View {
                     HStack {
                         Spacer()
                         Button(action: {
+                            // US-524: Console log button action
+                            print("[US-524] Button action: Refresh Audio Devices")
                             audioManager.refreshAvailableDevices()
                         }) {
                             HStack(spacing: Spacing.xs) {
@@ -3442,6 +3457,7 @@ struct AudioSettingsView: View {
 
 /// Elegant dropdown picker for audio input devices with device icons
 /// US-505: Shows warning icons for low-quality devices (Bluetooth, AirPods, etc.)
+/// US-525: Added contentShape for reliable dropdown interaction in ScrollViews
 struct AudioDevicePicker: View {
     let devices: [AudioManager.AudioInputDevice]
     let selectedDevice: AudioManager.AudioInputDevice?
@@ -3499,6 +3515,7 @@ struct AudioDevicePicker: View {
                         .rotationEffect(.degrees(isExpanded ? 180 : 0))
                 }
                 .padding(Spacing.md)
+                .contentShape(Rectangle()) // US-525: Ensure entire dropdown trigger is clickable
                 .background(
                     RoundedRectangle(cornerRadius: CornerRadius.medium)
                         .fill(isHovering ? Color.Wispflow.border.opacity(0.3) : Color.Wispflow.surface)
@@ -3607,6 +3624,7 @@ struct AudioDevicePicker: View {
 
 /// Single row in the audio device picker dropdown
 /// US-505: Shows warning icon for low-quality devices with tooltip
+/// US-525: Added contentShape for reliable hit testing in dropdown menus
 struct AudioDeviceRow: View {
     let device: AudioManager.AudioInputDevice
     let isSelected: Bool
@@ -3665,6 +3683,7 @@ struct AudioDeviceRow: View {
                 }
             }
             .padding(Spacing.md)
+            .contentShape(Rectangle()) // US-525: Ensure entire row is clickable
             .background(
                 RoundedRectangle(cornerRadius: CornerRadius.small)
                     .fill(isHovering ? Color.Wispflow.accentLight : Color.clear)

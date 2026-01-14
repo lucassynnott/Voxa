@@ -338,6 +338,7 @@ struct WispflowButtonStyle: ButtonStyle {
 }
 
 /// Internal view for button content with proper @State management
+/// US-525: Added contentShape for reliable hit testing within ScrollViews
 private struct WispflowButtonContent: View {
     let configuration: ButtonStyleConfiguration
     let variant: WispflowButtonStyle.Variant
@@ -355,6 +356,7 @@ private struct WispflowButtonContent: View {
             .frame(maxWidth: isFullWidth ? .infinity : nil)
             .background(backgroundColor(isPressed: configuration.isPressed))
             .cornerRadius(CornerRadius.small)
+            .contentShape(Rectangle()) // US-525: Ensure entire button area is clickable
             .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
             .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
             .onHover { hovering in
@@ -405,6 +407,7 @@ private struct WispflowButtonContent: View {
 // MARK: - Wispflow Card Style (View Modifier)
 
 /// Custom card style modifier for Wispflow with soft shadow and rounded corners
+/// US-525: Added contentShape for reliable hit testing within ScrollViews
 struct WispflowCardStyle: ViewModifier {
     let padding: CGFloat
     let shadow: ShadowStyle
@@ -419,6 +422,7 @@ struct WispflowCardStyle: ViewModifier {
             .padding(padding)
             .background(Color.Wispflow.surface)
             .cornerRadius(CornerRadius.medium)
+            .contentShape(Rectangle()) // US-525: Ensure entire card area is tappable
             .wispflowShadow(shadow)
     }
 }
@@ -433,6 +437,7 @@ extension View {
 // MARK: - Wispflow Toggle Style
 
 /// Custom toggle style with coral accent color
+/// US-525: Enhanced hit area for reliable toggle interactions in ScrollViews
 struct WispflowToggleStyle: ToggleStyle {
     func makeBody(configuration: Configuration) -> some View {
         HStack {
@@ -441,6 +446,7 @@ struct WispflowToggleStyle: ToggleStyle {
             Spacer()
             
             // Custom toggle capsule
+            // US-525: Wrapped in a larger hit area for easier tapping
             ZStack {
                 Capsule()
                     .fill(configuration.isOn ? Color.Wispflow.accent : Color.Wispflow.border)
@@ -454,10 +460,13 @@ struct WispflowToggleStyle: ToggleStyle {
                     .offset(x: configuration.isOn ? 10 : -10)
                     .animation(.spring(response: 0.3, dampingFraction: 0.7), value: configuration.isOn)
             }
+            .frame(width: 52, height: 32) // US-525: Larger frame for hit testing
+            .contentShape(Rectangle()) // US-525: Ensure entire area responds to taps
             .onTapGesture {
                 configuration.isOn.toggle()
             }
         }
+        .contentShape(Rectangle()) // US-525: Make entire row tappable
     }
 }
 

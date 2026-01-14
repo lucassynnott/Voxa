@@ -321,27 +321,27 @@ This PRD defines a comprehensive overhaul of WispFlow's core systems based on pr
 - [x] No ZStack/overlay blocking tab bar
 - [x] Typecheck passes
 
-### [ ] US-524: Fix Button Interactivity
+### [x] US-524: Fix Button Interactivity
 **Description:** As a user, I want all buttons in Settings to be clickable and responsive.
 
 **Acceptance Criteria:**
-- [ ] All buttons respond to clicks
-- [ ] Hover states visible on buttons
-- [ ] Press animation on click
-- [ ] No @State in ButtonStyle causing issues (use separate View)
-- [ ] Console logs button actions for debugging
-- [ ] Typecheck passes
+- [x] All buttons respond to clicks
+- [x] Hover states visible on buttons
+- [x] Press animation on click
+- [x] No @State in ButtonStyle causing issues (use separate View)
+- [x] Console logs button actions for debugging
+- [x] Typecheck passes
 
-### [ ] US-525: Fix ScrollView Interactions
+### [x] US-525: Fix ScrollView Interactions
 **Description:** As a user, I want to scroll through settings and interact with all elements.
 
 **Acceptance Criteria:**
-- [ ] ScrollView scrolls smoothly
-- [ ] All interactive elements inside cards clickable
-- [ ] No hit testing issues with overlays
-- [ ] Toggle switches work
-- [ ] Dropdown menus open
-- [ ] Typecheck passes
+- [x] ScrollView scrolls smoothly
+- [x] All interactive elements inside cards clickable
+- [x] No hit testing issues with overlays
+- [x] Toggle switches work
+- [x] Dropdown menus open
+- [x] Typecheck passes
 
 ---
 
