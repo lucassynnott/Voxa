@@ -469,7 +469,6 @@ struct TranscriptionSettingsView: View {
     @Binding var showDeleteConfirmation: Bool
     @Binding var modelToDelete: WhisperManager.ModelSize?
     @State private var showErrorAlert: Bool = false
-    @State private var selectedLanguage: TranscriptionLanguage = .automatic
     
     var body: some View {
         ScrollView {
@@ -650,8 +649,9 @@ struct TranscriptionSettingsView: View {
                         .font(Font.Wispflow.caption)
                         .foregroundColor(Color.Wispflow.textSecondary)
                     
-                    // Language picker with flags (US-407)
-                    LanguagePicker(selectedLanguage: $selectedLanguage)
+                    // Language picker with flags (US-407, US-606)
+                    // US-606: Now bound to WhisperManager.selectedLanguage for persistence
+                    LanguagePicker(selectedLanguage: $whisperManager.selectedLanguage)
                 }
                 .wispflowCard()
                 
@@ -1088,66 +1088,13 @@ struct GradientProgressBar: View {
     }
 }
 
-// MARK: - Transcription Language (US-407)
-
-/// Supported transcription languages with flags
-enum TranscriptionLanguage: String, CaseIterable, Identifiable {
-    case automatic = "auto"
-    case english = "en"
-    case spanish = "es"
-    case french = "fr"
-    case german = "de"
-    case italian = "it"
-    case portuguese = "pt"
-    case japanese = "ja"
-    case chinese = "zh"
-    case korean = "ko"
-    case russian = "ru"
-    case arabic = "ar"
-    
-    var id: String { rawValue }
-    
-    var displayName: String {
-        switch self {
-        case .automatic: return "Auto-Detect"
-        case .english: return "English"
-        case .spanish: return "Spanish"
-        case .french: return "French"
-        case .german: return "German"
-        case .italian: return "Italian"
-        case .portuguese: return "Portuguese"
-        case .japanese: return "Japanese"
-        case .chinese: return "Chinese"
-        case .korean: return "Korean"
-        case .russian: return "Russian"
-        case .arabic: return "Arabic"
-        }
-    }
-    
-    var flag: String {
-        switch self {
-        case .automatic: return "🌐"
-        case .english: return "🇺🇸"
-        case .spanish: return "🇪🇸"
-        case .french: return "🇫🇷"
-        case .german: return "🇩🇪"
-        case .italian: return "🇮🇹"
-        case .portuguese: return "🇵🇹"
-        case .japanese: return "🇯🇵"
-        case .chinese: return "🇨🇳"
-        case .korean: return "🇰🇷"
-        case .russian: return "🇷🇺"
-        case .arabic: return "🇸🇦"
-        }
-    }
-}
-
-// MARK: - Language Picker (US-407)
+// MARK: - Language Picker (US-407, US-606)
 
 /// Elegant language picker with flags
 /// US-525: Added contentShape for reliable dropdown interaction in ScrollViews
+/// US-606: Updated to use WhisperManager.TranscriptionLanguage for persistence
 struct LanguagePicker: View {
-    @Binding var selectedLanguage: TranscriptionLanguage
+    @Binding var selectedLanguage: WhisperManager.TranscriptionLanguage
     @State private var isExpanded = false
     @State private var isHovering = false
     
@@ -1207,7 +1154,8 @@ struct LanguagePicker: View {
             if isExpanded {
                 ScrollView {
                     VStack(spacing: 0) {
-                        ForEach(TranscriptionLanguage.allCases) { language in
+                        // US-606: Use WhisperManager.TranscriptionLanguage
+                        ForEach(WhisperManager.TranscriptionLanguage.allCases) { language in
                             LanguageRow(
                                 language: language,
                                 isSelected: language == selectedLanguage,
@@ -1236,12 +1184,13 @@ struct LanguagePicker: View {
     }
 }
 
-// MARK: - Language Row (US-407)
+// MARK: - Language Row (US-407, US-606)
 
 /// Single row in the language picker
 /// US-525: Added contentShape for reliable hit testing in dropdown menus
+/// US-606: Updated to use WhisperManager.TranscriptionLanguage
 struct LanguageRow: View {
-    let language: TranscriptionLanguage
+    let language: WhisperManager.TranscriptionLanguage
     let isSelected: Bool
     let onSelect: () -> Void
     

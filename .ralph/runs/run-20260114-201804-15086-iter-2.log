@@ -1,0 +1,14 @@
+## Summary
+
+**US-605: Whisper Model Selection** has been verified as complete. All acceptance criteria were already fully implemented in previous iterations:
+
+1. ✅ **Settings option for model size (tiny, base, small, medium)** - `WhisperManager.ModelSize` enum with card-based picker in `TranscriptionSettingsView`
+2. ✅ **Show estimated transcription speed and accuracy for each** - `ModelSelectionCard` displays size (~75MB to ~1.5GB), speed (Fastest/Fast/Medium/Slower), and accuracy (Basic/Good/Great/Best)
+3. ✅ **Download progress indicator for model switching** - `GradientProgressBar` component with `modelStatus: .downloading(progress: Double)` tracking
+4. ✅ **Persist model preference across restarts** - UserDefaults storage with key `selectedWhisperModel`
+
+**Commits:**
+- `c17339f` - docs(US-605): mark whisper model selection as complete
+- `b320f99` - docs: add verification progress log for US-605 iteration 2
+
+**Verification:** `swift build` passed (Build complete! 0.12s)

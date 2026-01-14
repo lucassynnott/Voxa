@@ -1174,3 +1174,46 @@ This plan implements a comprehensive overhaul of WispFlow's core systems based o
 - Delete functionality allows removing downloaded models to free disk space
 - Error handling with detailed messages and retry option for failed downloads
 - Verified via `swift build` - typecheck passes
+
+---
+
+### US-606: Language Selection
+**Status:** complete
+**Priority:** medium
+**Estimated effort:** small
+
+**Description:** Allow users to specify transcription language for better accuracy.
+
+**Tasks:**
+- [x] Add `TranscriptionLanguage` enum to WhisperManager with common languages (Auto-detect + 11 common languages)
+- [x] Add `selectedLanguage` @Published property to WhisperManager
+- [x] Add `selectedLanguageKey` constant for UserDefaults persistence
+- [x] Load saved language preference on init (default: `.automatic`)
+- [x] Persist language changes to UserDefaults via didSet observer
+- [x] Add `whisperLanguageCode` computed property for WhisperKit integration
+- [x] Create `DecodingOptions` in `transcribe()` method with language hint
+- [x] Pass `detectLanguage: true` for auto-detect, `false` for specific language
+- [x] Update LanguagePicker in SettingsWindow to bind to `whisperManager.selectedLanguage`
+- [x] Remove duplicate `TranscriptionLanguage` enum from SettingsWindow
+- [x] Update LanguageRow to use `WhisperManager.TranscriptionLanguage`
+- [x] Build verification (`swift build` succeeds)
+
+**Acceptance Criteria:**
+- [x] Language dropdown in Settings (Auto-detect + common languages)
+- [x] Pass language hint to WhisperKit (via `DecodingOptions`)
+- [x] Remember language preference (persisted via UserDefaults)
+- [x] "Auto-detect" as default (`.automatic` case)
+
+**Implementation Notes:**
+- `WhisperManager.TranscriptionLanguage` enum provides 12 language options: automatic (auto-detect), English, Spanish, French, German, Italian, Portuguese, Japanese, Chinese, Korean, Russian, Arabic
+- Each language has `displayName`, `flag` (emoji), and `whisperLanguageCode` properties
+- `whisperLanguageCode` returns `nil` for automatic mode (tells WhisperKit to auto-detect)
+- Language preference persisted in UserDefaults under `selectedTranscriptionLanguage` key
+- Loads saved preference on init, defaults to `.automatic` if none saved
+- SettingsWindow's LanguagePicker bound to `$whisperManager.selectedLanguage` for two-way binding
+- Removed duplicate `TranscriptionLanguage` enum from SettingsWindow.swift
+- DecodingOptions created in `transcribe()` method with:
+  - `language`: the Whisper language code (or nil for auto-detect)
+  - `detectLanguage`: true for automatic, false for specific language
+  - `usePrefillPrompt`: true for better accuracy
+- Verified via `swift build` - typecheck passes

@@ -103,17 +103,17 @@ This PRD outlines improvements, optimizations, and bugfixes for WispFlow, a priv
 
 ---
 
-### US-606: Language Selection
+### [x] US-606: Language Selection
 **Priority**: Medium  
 **Estimate**: 2 points
 
 **Description**: Allow users to specify transcription language for better accuracy.
 
 **Acceptance Criteria**:
-- [ ] Language dropdown in Settings (Auto-detect + common languages)
-- [ ] Pass language hint to WhisperKit
-- [ ] Remember language preference
-- [ ] "Auto-detect" as default
+- [x] Language dropdown in Settings (Auto-detect + common languages)
+- [x] Pass language hint to WhisperKit
+- [x] Remember language preference
+- [x] "Auto-detect" as default
 
 ---
 

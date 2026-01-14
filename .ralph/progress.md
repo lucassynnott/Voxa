@@ -2869,3 +2869,34 @@ Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-201804-15086-it
   - Delete functionality allows removing downloaded models to free disk space
   - Error handling includes detailed messages and retry option for failed downloads
 ---
+
+## [2026-01-14 20:45] - US-606: Language Selection
+Thread: codex exec session
+Run: 20260114-203422-21008 (iteration 1)
+Run log: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-203422-21008-iter-1.log
+Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-203422-21008-iter-1.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: 28514a3 feat(US-606): implement language selection for transcription
+- Post-commit status: clean
+- Verification:
+  - Command: `swift build` -> PASS (Build complete! 10.91s)
+- Files changed:
+  - Sources/WispFlow/SettingsWindow.swift (wired LanguagePicker to WhisperManager.selectedLanguage, removed duplicate TranscriptionLanguage enum)
+  - Sources/WispFlow/WhisperManager.swift (TranscriptionLanguage enum and language persistence already existed)
+  - .agents/tasks/prd-wispflow-improvements-v2.md (marked US-606 acceptance criteria complete)
+  - .ralph/IMPLEMENTATION_PLAN.md (added US-606 section with tasks and implementation notes)
+- What was implemented:
+  - **Language dropdown in Settings**: LanguagePicker component with Auto-detect + 11 common languages (English, Spanish, French, German, Italian, Portuguese, Japanese, Chinese, Korean, Russian, Arabic)
+  - **Pass language hint to WhisperKit**: DecodingOptions created in transcribe() method with language code and detectLanguage flag
+  - **Remember language preference**: UserDefaults storage with key `selectedTranscriptionLanguage`, loaded on init with `.automatic` default
+  - **Auto-detect as default**: TranscriptionLanguage.automatic returns nil for whisperLanguageCode, letting WhisperKit auto-detect
+  - Removed duplicate TranscriptionLanguage enum from SettingsWindow.swift - now uses WhisperManager.TranscriptionLanguage
+  - Updated LanguagePicker to bind to $whisperManager.selectedLanguage for two-way binding
+- **Learnings for future iterations:**
+  - WhisperKit's DecodingOptions accepts language as String? (nil for auto-detect) and detectLanguage: Bool
+  - TranscriptionLanguage enum already existed in WhisperManager with full implementation
+  - SettingsWindow had a duplicate enum that was not connected to persistence or WhisperKit
+  - The fix was to wire up the existing implementation by using WhisperManager.TranscriptionLanguage directly
+  - Language selection takes effect immediately on next transcription without requiring model reload
+---

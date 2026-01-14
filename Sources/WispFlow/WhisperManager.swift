@@ -133,10 +133,76 @@ final class WhisperManager: ObservableObject {
     
     private struct Constants {
         static let selectedModelKey = "selectedWhisperModel"
+        static let selectedLanguageKey = "selectedTranscriptionLanguage"  // US-606
         static let modelRepo = "argmaxinc/whisperkit-coreml"
         static let expectedSampleRate: Double = 16000.0
         static let minimumDuration: Double = 0.5    // seconds
         static let maximumDuration: Double = 120.0  // seconds
+    }
+    
+    // MARK: - US-606: Transcription Language
+    
+    /// Supported transcription languages
+    /// "auto" means auto-detect (nil language hint to WhisperKit)
+    enum TranscriptionLanguage: String, CaseIterable, Identifiable {
+        case automatic = "auto"
+        case english = "en"
+        case spanish = "es"
+        case french = "fr"
+        case german = "de"
+        case italian = "it"
+        case portuguese = "pt"
+        case japanese = "ja"
+        case chinese = "zh"
+        case korean = "ko"
+        case russian = "ru"
+        case arabic = "ar"
+        
+        var id: String { rawValue }
+        
+        var displayName: String {
+            switch self {
+            case .automatic: return "Auto-Detect"
+            case .english: return "English"
+            case .spanish: return "Spanish"
+            case .french: return "French"
+            case .german: return "German"
+            case .italian: return "Italian"
+            case .portuguese: return "Portuguese"
+            case .japanese: return "Japanese"
+            case .chinese: return "Chinese"
+            case .korean: return "Korean"
+            case .russian: return "Russian"
+            case .arabic: return "Arabic"
+            }
+        }
+        
+        var flag: String {
+            switch self {
+            case .automatic: return "🌐"
+            case .english: return "🇺🇸"
+            case .spanish: return "🇪🇸"
+            case .french: return "🇫🇷"
+            case .german: return "🇩🇪"
+            case .italian: return "🇮🇹"
+            case .portuguese: return "🇵🇹"
+            case .japanese: return "🇯🇵"
+            case .chinese: return "🇨🇳"
+            case .korean: return "🇰🇷"
+            case .russian: return "🇷🇺"
+            case .arabic: return "🇸🇦"
+            }
+        }
+        
+        /// Returns the language code to pass to WhisperKit, or nil for auto-detect
+        var whisperLanguageCode: String? {
+            switch self {
+            case .automatic:
+                return nil  // nil tells WhisperKit to auto-detect
+            default:
+                return rawValue
+            }
+        }
     }
     
     /// Audio validation error types
@@ -186,6 +252,15 @@ final class WhisperManager: ObservableObject {
     /// Last error message for UI display (detailed)
     @Published private(set) var lastErrorMessage: String?
     
+    /// US-606: Currently selected transcription language
+    @Published var selectedLanguage: TranscriptionLanguage {
+        didSet {
+            // Persist language preference when changed
+            UserDefaults.standard.set(selectedLanguage.rawValue, forKey: Constants.selectedLanguageKey)
+            print("WhisperManager: [US-606] Language changed to \(selectedLanguage.displayName) (\(selectedLanguage.rawValue))")
+        }
+    }
+    
     /// Model download and caching directory
     private var modelsDirectory: URL {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
@@ -216,7 +291,15 @@ final class WhisperManager: ObservableObject {
             selectedModel = .base // Default to base model
         }
         
-        print("WhisperManager initialized with model: \(selectedModel.rawValue)")
+        // US-606: Load saved language preference
+        if let savedLanguage = UserDefaults.standard.string(forKey: Constants.selectedLanguageKey),
+           let language = TranscriptionLanguage(rawValue: savedLanguage) {
+            selectedLanguage = language
+        } else {
+            selectedLanguage = .automatic // Default to auto-detect
+        }
+        
+        print("WhisperManager initialized with model: \(selectedModel.rawValue), language: \(selectedLanguage.rawValue)")
     }
     
     // MARK: - Model Management
@@ -738,8 +821,21 @@ final class WhisperManager: ObservableObject {
             
             print("WhisperManager: Transcribing \(samples.count) samples (\(String(format: "%.2f", Double(samples.count) / sampleRate))s)")
             
-            // Perform transcription
-            let results = try await whisper.transcribe(audioArray: samples)
+            // US-606: Create decoding options with language hint
+            let languageCode = selectedLanguage.whisperLanguageCode
+            let detectLanguage = selectedLanguage == .automatic
+            
+            let decodingOptions = DecodingOptions(
+                task: .transcribe,
+                language: languageCode,  // nil for auto-detect
+                usePrefillPrompt: true,
+                detectLanguage: detectLanguage  // true for auto-detect, false when specific language is set
+            )
+            
+            print("WhisperManager: [US-606] Using language: \(languageCode ?? "auto-detect"), detectLanguage: \(detectLanguage)")
+            
+            // Perform transcription with language options
+            let results = try await whisper.transcribe(audioArray: samples, decodeOptions: decodingOptions)
             
             // Extract text from results (WhisperKit returns an array of TranscriptionResult)
             let transcribedText = results.map { $0.text }.joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
