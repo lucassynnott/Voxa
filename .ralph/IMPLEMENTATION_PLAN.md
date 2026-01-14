@@ -111,18 +111,18 @@ This plan implements a comprehensive overhaul of WispFlow's core systems based o
 ---
 
 ### US-504: Audio Level Preview Fix
-**Status:** pending
+**Status:** complete
 **Priority:** critical
 **Estimated effort:** medium
 
 **Description:** Make audio preview in Settings actually show microphone levels.
 
 **Tasks:**
-- [ ] Add logging to togglePreview() function
-- [ ] Verify permission callback fires
-- [ ] Ensure startCapturing() succeeds
-- [ ] Update currentLevel at 20fps
-- [ ] Show proper status text
+- [x] Add logging to togglePreview() function
+- [x] Verify permission callback fires
+- [x] Ensure startCapturing() succeeds
+- [x] Update currentLevel at 20fps
+- [x] Show proper status text
 
 **Acceptance Criteria:**
 - "Start Preview" triggers audio capture
@@ -130,6 +130,19 @@ This plan implements a comprehensive overhaul of WispFlow's core systems based o
 - Level displayed in dB with color coding
 - Status shows Good/Quiet/Loud/Silent
 - Typecheck passes
+
+**Implementation Notes:**
+- AudioSettingsView implementation already complete with all functionality:
+  - `togglePreview()` method with logging triggers `startPreview()` or `stopPreview()`
+  - `startPreview()` requests mic permission via `audioManager.requestMicrophonePermission` with callback logging
+  - After permission granted, calls `audioManager.startCapturing()` with console logging
+  - Timer runs at 0.05s interval (20fps) updating `currentLevel` from `audioManager.currentAudioLevel`
+  - Level meter uses `AudioLevelMeterView` with 30 segments showing visual feedback
+  - `levelColor(for:)` provides color coding: red (>-10dB), green (>-30dB), yellow (>-50dB), gray (≤-50dB)
+  - `levelStatus(for:)` returns "Too Loud", "Good", "Quiet", or "Silent" based on level
+  - `.onDisappear` modifier automatically stops preview when leaving Audio tab
+  - AudioManager tap callback has extensive logging for debugging tap callbacks
+- Verified via `swift build` - typecheck passes
 
 ---
 

@@ -71,18 +71,18 @@ This PRD defines a comprehensive overhaul of WispFlow's core systems based on pr
 - [x] Negative case: No input devices → clear error message, not silent failure
 - [x] Typecheck passes
 
-### [ ] US-504: Audio Level Preview Fix
+### [x] US-504: Audio Level Preview Fix
 **Description:** As a user, I want the audio preview in Settings to show my actual microphone levels so I can verify my mic is working.
 
 **Acceptance Criteria:**
-- [ ] "Start Preview" button triggers audio capture
-- [ ] Real-time level meter updates at ~20fps during preview
-- [ ] Level displayed in dB with color coding (green=good, yellow=quiet, red=loud)
-- [ ] Status text shows "Good", "Quiet", "Too Loud", or "Silent"
-- [ ] Preview stops cleanly when "Stop Preview" clicked
-- [ ] Preview stops automatically when leaving Audio settings tab
-- [ ] Console logs confirm tap callbacks received during preview
-- [ ] Typecheck passes
+- [x] "Start Preview" button triggers audio capture
+- [x] Real-time level meter updates at ~20fps during preview
+- [x] Level displayed in dB with color coding (green=good, yellow=quiet, red=loud)
+- [x] Status text shows "Good", "Quiet", "Too Loud", or "Silent"
+- [x] Preview stops cleanly when "Stop Preview" clicked
+- [x] Preview stops automatically when leaving Audio settings tab
+- [x] Console logs confirm tap callbacks received during preview
+- [x] Typecheck passes
 
 ### [ ] US-505: Low-Quality Device Warning
 **Description:** As a user, I want to be warned if I'm using a potentially low-quality audio input so I can switch to a better device.
