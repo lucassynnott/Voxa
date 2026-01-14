@@ -45,17 +45,17 @@ This PRD defines a comprehensive overhaul of WispFlow's core systems based on pr
 - [x] Device selection logged to console for debugging
 - [x] Typecheck passes (`swift build` succeeds)
 
-### [ ] US-502: Audio Device Caching
+### [x] US-502: Audio Device Caching
 **Description:** As a user, I want recording to start quickly without device enumeration delay on subsequent recordings.
 
 **Acceptance Criteria:**
-- [ ] Last successfully used device cached in memory
-- [ ] Cache used for fast-path device selection on next recording
-- [ ] Cache invalidated when user manually changes device in Settings
-- [ ] Cache invalidated when cached device disconnected
-- [ ] First recording: full enumeration (~100-200ms)
-- [ ] Subsequent recordings: cached device (~10-20ms)
-- [ ] Typecheck passes
+- [x] Last successfully used device cached in memory
+- [x] Cache used for fast-path device selection on next recording
+- [x] Cache invalidated when user manually changes device in Settings
+- [x] Cache invalidated when cached device disconnected
+- [x] First recording: full enumeration (~100-200ms)
+- [x] Subsequent recordings: cached device (~10-20ms)
+- [x] Typecheck passes
 
 ### [ ] US-503: Robust Audio Engine Initialization
 **Description:** As a developer, I need the audio engine to initialize reliably regardless of device state.

@@ -1,0 +1,22 @@
+## Summary
+
+I have successfully implemented **US-501: Smart Audio Device Selection** for WispFlow. The implementation includes:
+
+1. **Device Quality Scoring System**: Added a `DeviceQuality` enum with 5 priority tiers (bluetooth, lowSampleRate, builtIn, usb, professional) to rank audio input devices.
+
+2. **Keyword-based Detection**: 
+   - Low-quality devices: airpods, beats, bluetooth, hfp, headset, wireless
+   - Built-in mics: built-in, macbook, imac, mac mini, mac studio, mac pro
+   - USB/professional: usb, yeti, blue, rode, shure, focusrite, scarlett, etc.
+
+3. **Sample Rate Detection**: Added sample rate querying for each device (devices ≤16kHz are deprioritized).
+
+4. **Smart Selection**: `selectBestDevice()` automatically selects the highest quality available device with detailed console logging.
+
+5. **Warning Toast**: Added `ToastType.warning` and shows a toast notification when only a Bluetooth device is available.
+
+**Commits:**
+- `1655ba9` feat(US-501): add smart audio device selection with quality scoring
+- `81dd9b1` docs: update progress log for US-501
+
+The working tree is clean and `swift build` succeeds.

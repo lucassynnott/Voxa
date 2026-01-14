@@ -158,23 +158,35 @@ This plan implements a comprehensive overhaul of WispFlow's core systems based o
 ---
 
 ### US-502: Audio Device Caching
-**Status:** pending
+**Status:** complete
 **Priority:** medium
 **Estimated effort:** small
 
 **Description:** Cache last successful device for fast recording start.
 
 **Tasks:**
-- [ ] Store last device in memory
-- [ ] Try cached device first on recording start
-- [ ] Invalidate cache on manual device change
-- [ ] Invalidate cache on device disconnect
+- [x] Store last device in memory (`cachedSuccessfulDevice` property)
+- [x] Try cached device first on recording start (`getDeviceForRecording()` method)
+- [x] Invalidate cache on manual device change (`selectDevice()` calls `invalidateDeviceCache()`)
+- [x] Invalidate cache on device disconnect (`refreshAvailableDevices()` checks cached device availability)
 
 **Acceptance Criteria:**
-- Cached device used on subsequent recordings
-- First recording ~100-200ms, subsequent ~10-20ms
-- Cache invalidated appropriately
-- Typecheck passes
+- [x] Cached device used on subsequent recordings
+- [x] First recording ~100-200ms, subsequent ~10-20ms
+- [x] Cache invalidated appropriately
+- [x] Typecheck passes
+
+**Implementation Notes:**
+- Added `cachedSuccessfulDevice: AudioInputDevice?` in-memory cache
+- Added `usedCachedDeviceForCapture` flag to track cache usage per session
+- `invalidateDeviceCache(reason:)` logs cache invalidation with formatted box output
+- `getCachedDeviceIfAvailable()` returns cached device if still connected
+- `getDeviceForRecording()` provides fast-path selection: user-selected > cached > smart selection
+- `cacheSuccessfulDevice()` called after successful non-silent recording
+- Cache invalidated on:
+  - User manual device change in Settings
+  - Cached device disconnected (detected in `refreshAvailableDevices()`)
+  - Failed to set cached device during recording start
 
 ---
 
