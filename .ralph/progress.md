@@ -2247,3 +2247,36 @@ Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-124540-90947-it
   - Split "complete" and "skip" into separate methods for clearer logging despite same behavior
   - `UserDefaults.standard.synchronize()` ensures persistence (though usually not required)
 ---
+
+## [2026-01-14 13:07] - US-516: First Launch Detection (Verification)
+Thread: codex exec session
+Run: 20260114-130140-94307 (iteration 2)
+Run log: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-130140-94307-iter-2.log
+Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-130140-94307-iter-2.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: none - US-516 already implemented and committed (deecf6f)
+- Post-commit status: clean (working tree was already clean)
+- Verification:
+  - Command: `swift build` -> PASS (build complete, no errors)
+  - Verified all acceptance criteria are met in OnboardingManager.swift:
+    - [x] Check UserDefaults for `hasCompletedOnboarding` flag (line 43)
+    - [x] First launch: flag is nil or false (storedValue ?? false)
+    - [x] Subsequent launches: flag is true
+    - [x] Flag only set to true after wizard completed or skipped (markOnboardingCompleted/markOnboardingSkipped)
+    - [x] Typecheck passes (swift build succeeds)
+- Files changed:
+  - None - story was already complete
+- What was implemented:
+  - This was a verification run - US-516 was fully implemented in prior iteration
+  - OnboardingManager.swift already exists with:
+    - Singleton `OnboardingManager.shared`
+    - `hasCompletedOnboarding` @Published property
+    - `isFirstLaunch` computed property
+    - `markOnboardingCompleted()` and `markOnboardingSkipped()` methods
+    - `resetOnboardingState()` for debugging
+- **Learnings for future iterations:**
+  - Always audit existing code before implementing - US-516 was complete from iteration 1
+  - PRD and implementation plan were already updated with complete status
+  - Clean working tree indicates no further changes needed
+---

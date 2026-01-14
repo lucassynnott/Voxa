@@ -1,0 +1,25 @@
+There are still 9 unchecked stories remaining in the PRD (US-517 through US-525), so I should NOT output the `<promise>COMPLETE</promise>` signal. US-516 is complete, and I've:
+
+1. ✅ Read guardrails.md before code changes
+2. ✅ Read errors.log for repeated failures
+3. ✅ Read the PRD
+4. ✅ Read and updated IMPLEMENTATION_PLAN.md for US-516
+5. ✅ Fully audited necessary files
+6. ✅ Followed AGENTS.md build/test instructions
+7. ✅ Implemented only US-516 tasks
+8. ✅ Ran verification command (`swift build` → PASS)
+9. ✅ Updated IMPLEMENTATION_PLAN.md with tasks checked and notes
+10. ✅ Updated PRD with all acceptance criteria checked and story marked complete
+11. ✅ Committed changes with clean working tree
+12. ✅ Appended progress entry to progress.md
+
+## Summary
+
+I implemented **US-516: First Launch Detection** for WispFlow's onboarding wizard:
+
+- Created `OnboardingManager.swift` with singleton pattern matching other managers in the codebase
+- The manager checks `UserDefaults` for `hasCompletedOnboarding` flag on initialization
+- First launch detection: `isFirstLaunch` returns true when flag is nil or false
+- Flag is only set to true via `markOnboardingCompleted()` or `markOnboardingSkipped()` methods (not before wizard is done)
+- Typecheck passes (`swift build` successful)
+- Commits: `deecf6f` (implementation) and `0e5ec8a` (progress log update)
