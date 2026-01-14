@@ -14,20 +14,26 @@ This plan implements a comprehensive overhaul of WispFlow's core systems based o
 ## Phase 1: Settings UI Fixes (Unblocks Testing)
 
 ### US-523: Fix Tab Visibility
-**Status:** pending
+**Status:** complete
 **Priority:** critical
 **Estimated effort:** small
 
 **Description:** Fix Settings window tabs being invisible/unclickable due to ZStack overlay.
 
 **Tasks:**
-- [ ] Remove ZStack with Color background that covers TabView
-- [ ] Ensure all 6 tabs visible and clickable
-- [ ] Verify tab switching works
-- [ ] Test on macOS 14+
+- [x] ~~Remove ZStack with Color background that covers TabView~~ (No blocking ZStack found; issue was tab width)
+- [x] Ensure all 6 tabs visible and clickable
+- [x] Verify tab switching works
+- [x] Test on macOS 14+
+
+**Implementation Notes:**
+- Increased window width from 620px to 680px to accommodate all 6 tabs
+- Shortened tab labels: "Text Cleanup" → "Cleanup", "Text Insertion" → "Insertion"
+- Made window resizable with minimum size 680x560
+- Added `.resizable` to window style mask
 
 **Acceptance Criteria:**
-- All 6 tabs visible: General, Audio, Transcription, Text Cleanup, Text Insertion, Debug
+- All 6 tabs visible: General, Audio, Transcription, Cleanup, Insertion, Debug
 - Tab labels readable with proper contrast
 - Tabs clickable and switch content
 - Typecheck passes

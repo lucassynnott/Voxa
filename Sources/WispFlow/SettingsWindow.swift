@@ -94,7 +94,8 @@ struct SettingsView: View {
                 }
         }
         .animation(WispflowAnimation.tabTransition, value: selectedTab)
-        .frame(width: 620, height: 560)
+        // US-523: Width set to 750 to ensure all 6 full tab labels are visible
+        .frame(width: 750, height: 560)
         .alert("Delete Model?", isPresented: $showDeleteConfirmation, presenting: modelToDelete) { model in
             Button("Delete", role: .destructive) {
                 Task {
@@ -3876,7 +3877,9 @@ final class SettingsWindowController: NSObject {
         
         let window = NSWindow(contentViewController: hostingController)
         window.title = "WispFlow Settings"
-        window.styleMask = [.titled, .closable, .miniaturizable]
+        // US-523: Added .resizable to allow users to adjust window size if needed for tab visibility
+        window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
+        window.minSize = NSSize(width: 750, height: 560)
         window.center()
         window.setFrameAutosaveName("SettingsWindow")
         

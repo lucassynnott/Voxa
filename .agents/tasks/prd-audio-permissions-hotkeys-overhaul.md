@@ -311,15 +311,15 @@ This PRD defines a comprehensive overhaul of WispFlow's core systems based on pr
 
 ### Phase 6: Settings UI Fixes
 
-### [ ] US-523: Fix Tab Visibility
+### [x] US-523: Fix Tab Visibility
 **Description:** As a user, I want to see and click all tabs in the Settings window.
 
 **Acceptance Criteria:**
-- [ ] All 6 tabs visible: General, Audio, Transcription, Text Cleanup, Text Insertion, Debug
-- [ ] Tab labels readable (proper contrast)
-- [ ] Tabs clickable and switch content
-- [ ] No ZStack/overlay blocking tab bar
-- [ ] Typecheck passes
+- [x] All 6 tabs visible: General, Audio, Transcription, Text Cleanup, Text Insertion, Debug
+- [x] Tab labels readable (proper contrast)
+- [x] Tabs clickable and switch content
+- [x] No ZStack/overlay blocking tab bar
+- [x] Typecheck passes
 
 ### [ ] US-524: Fix Button Interactivity
 **Description:** As a user, I want all buttons in Settings to be clickable and responsive.
