@@ -32,75 +32,68 @@ struct SettingsView: View {
     }
     
     var body: some View {
-        ZStack {
-            // Warm ivory background
-            Color.Wispflow.background
-                .ignoresSafeArea()
+        TabView(selection: $selectedTab) {
+            // General tab (hotkey, launch at login)
+            GeneralSettingsView(hotkeyManager: hotkeyManager)
+                .tabContentTransition()
+                .tag(SettingsTab.general)
+                .tabItem {
+                    Label("General", systemImage: "gear")
+                }
             
-            TabView(selection: $selectedTab) {
-                // General tab (hotkey, launch at login)
-                GeneralSettingsView(hotkeyManager: hotkeyManager)
-                    .tabContentTransition()
-                    .tag(SettingsTab.general)
-                    .tabItem {
-                        Label("General", systemImage: "gear")
-                    }
-                
-                // Audio tab (US-406)
-                AudioSettingsView(audioManager: audioManager)
-                    .tabContentTransition()
-                    .tag(SettingsTab.audio)
-                    .tabItem {
-                        Label("Audio", systemImage: "speaker.wave.2")
-                    }
-                
-                // Transcription tab
-                TranscriptionSettingsView(
-                    whisperManager: whisperManager,
-                    isLoadingModel: $isLoadingWhisperModel,
-                    showDeleteConfirmation: $showDeleteConfirmation,
-                    modelToDelete: $modelToDelete
-                )
+            // Audio tab (US-406)
+            AudioSettingsView(audioManager: audioManager)
                 .tabContentTransition()
-                .tag(SettingsTab.transcription)
+                .tag(SettingsTab.audio)
                 .tabItem {
-                    Label("Transcription", systemImage: "waveform")
+                    Label("Audio", systemImage: "speaker.wave.2")
                 }
-                
-                // Text Cleanup tab
-                TextCleanupSettingsView(
-                    textCleanupManager: textCleanupManager,
-                    llmManager: llmManager,
-                    isLoadingModel: $isLoadingCleanupModel,
-                    isLoadingLLMModel: $isLoadingLLMModel,
-                    showLLMDeleteConfirmation: $showLLMDeleteConfirmation,
-                    llmModelToDelete: $llmModelToDelete
-                )
-                .tabContentTransition()
-                .tag(SettingsTab.textCleanup)
-                .tabItem {
-                    Label("Text Cleanup", systemImage: "text.badge.checkmark")
-                }
-                
-                // Text Insertion tab
-                TextInsertionSettingsView(textInserter: textInserter)
-                    .tabContentTransition()
-                    .tag(SettingsTab.textInsertion)
-                    .tabItem {
-                        Label("Text Insertion", systemImage: "doc.on.clipboard")
-                    }
-                
-                // Debug tab
-                DebugSettingsView(debugManager: debugManager, onOpenDebugWindow: onOpenDebugWindow)
-                    .tabContentTransition()
-                    .tag(SettingsTab.debug)
-                    .tabItem {
-                        Label("Debug", systemImage: "ladybug")
-                    }
+            
+            // Transcription tab
+            TranscriptionSettingsView(
+                whisperManager: whisperManager,
+                isLoadingModel: $isLoadingWhisperModel,
+                showDeleteConfirmation: $showDeleteConfirmation,
+                modelToDelete: $modelToDelete
+            )
+            .tabContentTransition()
+            .tag(SettingsTab.transcription)
+            .tabItem {
+                Label("Transcription", systemImage: "waveform")
             }
-            .background(Color.Wispflow.background)
-            .animation(WispflowAnimation.tabTransition, value: selectedTab)
+            
+            // Text Cleanup tab
+            TextCleanupSettingsView(
+                textCleanupManager: textCleanupManager,
+                llmManager: llmManager,
+                isLoadingModel: $isLoadingCleanupModel,
+                isLoadingLLMModel: $isLoadingLLMModel,
+                showLLMDeleteConfirmation: $showLLMDeleteConfirmation,
+                llmModelToDelete: $llmModelToDelete
+            )
+            .tabContentTransition()
+            .tag(SettingsTab.textCleanup)
+            .tabItem {
+                Label("Text Cleanup", systemImage: "text.badge.checkmark")
+            }
+            
+            // Text Insertion tab
+            TextInsertionSettingsView(textInserter: textInserter)
+                .tabContentTransition()
+                .tag(SettingsTab.textInsertion)
+                .tabItem {
+                    Label("Text Insertion", systemImage: "doc.on.clipboard")
+                }
+            
+            // Debug tab
+            DebugSettingsView(debugManager: debugManager, onOpenDebugWindow: onOpenDebugWindow)
+                .tabContentTransition()
+                .tag(SettingsTab.debug)
+                .tabItem {
+                    Label("Debug", systemImage: "ladybug")
+                }
         }
+        .animation(WispflowAnimation.tabTransition, value: selectedTab)
         .frame(width: 620, height: 560)
         .alert("Delete Model?", isPresented: $showDeleteConfirmation, presenting: modelToDelete) { model in
             Button("Delete", role: .destructive) {
@@ -3194,6 +3187,7 @@ struct AudioSettingsView: View {
     // MARK: - Preview Control
     
     private func togglePreview() {
+        print("AudioSettingsView: togglePreview() called, isPreviewingAudio=\(isPreviewingAudio)")
         if isPreviewingAudio {
             stopPreview()
         } else {
@@ -3202,19 +3196,36 @@ struct AudioSettingsView: View {
     }
     
     private func startPreview() {
-        // Start audio capture for preview
-        do {
-            try audioManager.startCapturing()
-            isPreviewingAudio = true
-            
-            // Start timer to read audio level
-            previewTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
-                // Apply gain to the visual level display
-                let rawLevel = audioManager.currentAudioLevel
-                currentLevel = rawLevel + Float(20 * log10(inputGain)) // Convert gain to dB adjustment
+        print("AudioSettingsView: startPreview() called")
+        print("AudioSettingsView: Requesting microphone permission...")
+        audioManager.requestMicrophonePermission { granted in
+            print("AudioSettingsView: Permission callback received, granted=\(granted)")
+            DispatchQueue.main.async {
+                guard granted else {
+                    print("Audio preview blocked: microphone permission denied")
+                    self.isPreviewingAudio = false
+                    self.currentLevel = -60.0
+                    return
+                }
+                // Start audio capture for preview
+                do {
+                    print("AudioSettingsView: Starting audio capture...")
+                    try self.audioManager.startCapturing()
+                    self.isPreviewingAudio = true
+                    print("AudioSettingsView: Audio capture started successfully")
+                    
+                    // Start timer to read audio level
+                    self.previewTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
+                        // Apply gain to the visual level display
+                        let rawLevel = self.audioManager.currentAudioLevel
+                        self.currentLevel = rawLevel + Float(20 * log10(self.inputGain)) // Convert gain to dB adjustment
+                    }
+                } catch {
+                    print("Failed to start audio preview: \(error)")
+                    self.isPreviewingAudio = false
+                    self.currentLevel = -60.0
+                }
             }
-        } catch {
-            print("Failed to start audio preview: \(error)")
         }
     }
     

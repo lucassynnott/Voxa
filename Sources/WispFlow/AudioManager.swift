@@ -14,11 +14,43 @@ final class AudioManager: NSObject, ObservableObject {
         let uid: String
         let name: String
         let isDefault: Bool
+        let sampleRate: Float64  // US-501: Sample rate for quality scoring
         
         static func == (lhs: AudioInputDevice, rhs: AudioInputDevice) -> Bool {
             return lhs.uid == rhs.uid
         }
     }
+    
+    // MARK: - US-501: Device Quality Scoring
+    
+    /// Device quality category for scoring
+    enum DeviceQuality: Int, Comparable {
+        case bluetooth = 0      // Lowest priority - AirPods, Beats, etc.
+        case lowSampleRate = 1  // Deprioritized - ≤16kHz
+        case builtIn = 2        // Medium priority - MacBook microphone
+        case usb = 3            // High priority - external USB mics
+        case professional = 4   // Highest priority - professional audio interfaces
+        
+        static func < (lhs: DeviceQuality, rhs: DeviceQuality) -> Bool {
+            return lhs.rawValue < rhs.rawValue
+        }
+    }
+    
+    /// Keywords that indicate low-quality Bluetooth devices
+    private static let lowQualityKeywords = [
+        "airpods", "airpod", "beats", "bluetooth", "hfp", "headset", "wireless"
+    ]
+    
+    /// Keywords that indicate built-in microphones
+    private static let builtInKeywords = [
+        "built-in", "macbook", "imac", "mac mini", "mac studio", "mac pro"
+    ]
+    
+    /// Keywords that indicate USB/external microphones (high quality)
+    private static let usbKeywords = [
+        "usb", "yeti", "blue", "rode", "shure", "audio-technica", "at2020",
+        "samson", "focusrite", "scarlett", "apollo", "universal audio"
+    ]
     
     /// Audio capture completion result
     struct AudioCaptureResult {
@@ -62,6 +94,8 @@ final class AudioManager: NSObject, ObservableObject {
     // MARK: - Properties
     
     private let audioEngine = AVAudioEngine()
+    /// Muted sink to keep the input node actively rendering so taps receive data
+    private let inputMixerNode = AVAudioMixerNode()
     
     /// UNIFIED AUDIO BUFFER (US-301): Single masterBuffer is the ONLY audio storage
     /// Both level meter and transcription read from this same buffer
@@ -97,6 +131,7 @@ final class AudioManager: NSObject, ObservableObject {
     var onSilenceDetected: ((Float) -> Void)?  // Called if recording stops with only silence, passes measured dB level
     var onRecordingTooShort: (() -> Void)?  // Called if recording is below minimum duration
     var onNoTapCallbacks: (() -> Void)?  // US-302: Called if no tap callbacks received within 2 seconds
+    var onLowQualityDeviceSelected: ((AudioInputDevice) -> Void)?  // US-501: Called when only a low-quality (Bluetooth) device is available
     
     // MARK: - Initialization
     
@@ -181,12 +216,16 @@ final class AudioManager: NSObject, ObservableObject {
         return availableInputDevices
     }
     
-    /// Get currently selected device (or default if none selected)
+    /// Get currently selected device (or best available if none selected)
     var currentDevice: AudioInputDevice? {
         if let selectedUID = selectedDeviceUID {
-            return availableInputDevices.first { $0.uid == selectedUID }
+            if let device = availableInputDevices.first(where: { $0.uid == selectedUID }) {
+                return device
+            }
         }
-        return availableInputDevices.first { $0.isDefault } ?? availableInputDevices.first
+        // US-501: Use smart device selection when no device is manually selected
+        let (bestDevice, _) = selectBestDevice()
+        return bestDevice
     }
     
     /// Select an audio input device by UID
@@ -224,14 +263,18 @@ final class AudioManager: NSObject, ObservableObject {
         // Validate selected device still exists
         if let selectedUID = selectedDeviceUID,
            !availableInputDevices.contains(where: { $0.uid == selectedUID }) {
-            print("AudioManager: Previously selected device no longer available, using default")
+            print("AudioManager: Previously selected device no longer available, selecting best available")
             selectedDeviceUID = nil
             saveSelectedDevice()
+            // US-501: Trigger smart device selection when cached device disconnected
+            selectBestDevice()
         }
         
+        // US-501: Enhanced logging with sample rate and quality info
         print("AudioManager: Found \(availableInputDevices.count) audio input device(s)")
         for device in availableInputDevices {
-            print("  - \(device.name) (default: \(device.isDefault))")
+            let quality = calculateDeviceQuality(device)
+            print("  - \(device.name) (default: \(device.isDefault), rate: \(device.sampleRate)Hz, quality: \(quality))")
         }
         
         onDevicesChanged?(availableInputDevices)
@@ -344,17 +387,172 @@ final class AudioManager: NSObject, ObservableObject {
             if let uidCF = uidRef?.takeRetainedValue(), let nameCF = nameRef?.takeRetainedValue() {
                 let uid = uidCF as String
                 let name = nameCF as String
+                
+                // US-501: Get device sample rate for quality scoring
+                let sampleRate = getDeviceSampleRate(deviceID: deviceID)
+                
                 let device = AudioInputDevice(
                     id: deviceID,
                     uid: uid,
                     name: name,
-                    isDefault: deviceID == defaultDeviceID
+                    isDefault: deviceID == defaultDeviceID,
+                    sampleRate: sampleRate
                 )
                 devices.append(device)
             }
         }
         
         return devices
+    }
+    
+    // MARK: - US-501: Smart Device Selection
+    
+    /// Get the nominal sample rate for an audio device
+    private func getDeviceSampleRate(deviceID: AudioDeviceID) -> Float64 {
+        var sampleRateAddress = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyNominalSampleRate,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        
+        var sampleRate: Float64 = 0
+        var sampleRateSize = UInt32(MemoryLayout<Float64>.size)
+        
+        let status = AudioObjectGetPropertyData(
+            deviceID,
+            &sampleRateAddress,
+            0,
+            nil,
+            &sampleRateSize,
+            &sampleRate
+        )
+        
+        if status != noErr {
+            print("AudioManager: [US-501] Could not get sample rate for device \(deviceID), defaulting to 0")
+            return 0
+        }
+        
+        return sampleRate
+    }
+    
+    /// Calculate quality score for an audio device (US-501)
+    /// Higher score = better quality device
+    func calculateDeviceQuality(_ device: AudioInputDevice) -> DeviceQuality {
+        let nameLower = device.name.lowercased()
+        
+        // Check for Bluetooth/low-quality devices first (lowest priority)
+        for keyword in Self.lowQualityKeywords {
+            if nameLower.contains(keyword) {
+                print("AudioManager: [US-501] Device '\(device.name)' matched low-quality keyword '\(keyword)' → Quality: bluetooth")
+                return .bluetooth
+            }
+        }
+        
+        // Check for low sample rate (≤16kHz is deprioritized)
+        if device.sampleRate > 0 && device.sampleRate <= 16000 {
+            print("AudioManager: [US-501] Device '\(device.name)' has low sample rate (\(device.sampleRate)Hz) → Quality: lowSampleRate")
+            return .lowSampleRate
+        }
+        
+        // Check for USB/external professional microphones (high priority)
+        for keyword in Self.usbKeywords {
+            if nameLower.contains(keyword) {
+                // Differentiate between professional and consumer USB mics
+                let professionalKeywords = ["focusrite", "scarlett", "apollo", "universal audio", "shure", "rode"]
+                for proKeyword in professionalKeywords {
+                    if nameLower.contains(proKeyword) {
+                        print("AudioManager: [US-501] Device '\(device.name)' matched professional keyword '\(proKeyword)' → Quality: professional")
+                        return .professional
+                    }
+                }
+                print("AudioManager: [US-501] Device '\(device.name)' matched USB keyword '\(keyword)' → Quality: usb")
+                return .usb
+            }
+        }
+        
+        // Check for built-in microphones (medium priority)
+        for keyword in Self.builtInKeywords {
+            if nameLower.contains(keyword) {
+                print("AudioManager: [US-501] Device '\(device.name)' matched built-in keyword '\(keyword)' → Quality: builtIn")
+                return .builtIn
+            }
+        }
+        
+        // Default: assume built-in if no other matches (safe default for Mac)
+        print("AudioManager: [US-501] Device '\(device.name)' no keyword match, assuming built-in → Quality: builtIn")
+        return .builtIn
+    }
+    
+    /// Check if a device is considered low-quality (Bluetooth/low sample rate)
+    func isLowQualityDevice(_ device: AudioInputDevice) -> Bool {
+        let quality = calculateDeviceQuality(device)
+        return quality == .bluetooth || quality == .lowSampleRate
+    }
+    
+    /// Select the best available audio input device automatically (US-501)
+    /// Returns the selected device and whether it's the only option (for warning toast)
+    @discardableResult
+    func selectBestDevice() -> (device: AudioInputDevice?, isOnlyOption: Bool) {
+        guard !availableInputDevices.isEmpty else {
+            print("AudioManager: [US-501] No input devices available")
+            return (nil, false)
+        }
+        
+        print("╔═══════════════════════════════════════════════════════════════╗")
+        print("║        US-501: SMART AUDIO DEVICE SELECTION                   ║")
+        print("╠═══════════════════════════════════════════════════════════════╣")
+        
+        // Score all devices and sort by quality (highest first)
+        let scoredDevices = availableInputDevices.map { device -> (device: AudioInputDevice, quality: DeviceQuality) in
+            let quality = calculateDeviceQuality(device)
+            return (device, quality)
+        }.sorted { $0.quality > $1.quality }
+        
+        // Log all devices with their scores
+        print("║ Available devices (sorted by quality):                        ║")
+        for (index, scored) in scoredDevices.enumerated() {
+            let marker = index == 0 ? "→" : " "
+            let qualityStr = String(describing: scored.quality).padding(toLength: 12, withPad: " ", startingAt: 0)
+            let nameStr = scored.device.name.prefix(35).padding(toLength: 35, withPad: " ", startingAt: 0)
+            print("║ \(marker) [\(qualityStr)] \(nameStr)   ║")
+        }
+        
+        // Select the best device
+        guard let bestScored = scoredDevices.first else {
+            print("║ Status: No suitable device found                              ║")
+            print("╚═══════════════════════════════════════════════════════════════╝")
+            return (nil, false)
+        }
+        
+        let bestDevice = bestScored.device
+        let bestQuality = bestScored.quality
+        
+        // Check if this is the only option (all devices are low quality)
+        let nonBluetoothDevices = scoredDevices.filter { $0.quality > .bluetooth }
+        let isOnlyOption = nonBluetoothDevices.isEmpty
+        
+        if isOnlyOption {
+            print("║                                                               ║")
+            print("║ ⚠️  WARNING: Only low-quality (Bluetooth) device available     ║")
+            print("║    Recording will proceed but quality may be degraded.        ║")
+        }
+        
+        // Select the device
+        selectedDeviceUID = bestDevice.uid
+        saveSelectedDevice()
+        
+        print("║                                                               ║")
+        print("║ Selected: \(bestDevice.name.prefix(48).padding(toLength: 48, withPad: " ", startingAt: 0))   ║")
+        print("║ Quality:  \(String(describing: bestQuality).padding(toLength: 48, withPad: " ", startingAt: 0))   ║")
+        print("║ Sample Rate: \(String(format: "%.0f Hz", bestDevice.sampleRate).padding(toLength: 45, withPad: " ", startingAt: 0))   ║")
+        print("╚═══════════════════════════════════════════════════════════════╝")
+        
+        // Fire callback if only low-quality device is available
+        if isOnlyOption && bestQuality == .bluetooth {
+            onLowQualityDeviceSelected?(bestDevice)
+        }
+        
+        return (bestDevice, isOnlyOption)
     }
     
     // MARK: - Device Persistence
@@ -429,12 +627,6 @@ final class AudioManager: NSObject, ObservableObject {
         }
         print("AudioManager: [STAGE 1] ✓ Microphone permission authorized")
         
-        // Set the input device if one is selected
-        if let device = currentDevice {
-            try setAudioInputDevice(device)
-            print("AudioManager: [STAGE 1] ✓ Input device set: \(device.name)")
-        }
-        
         // Clear previous buffers (US-301: Clear unified masterBuffer)
         // US-303: Log buffer clear event
         bufferLock.lock()
@@ -453,11 +645,50 @@ final class AudioManager: NSObject, ObservableObject {
         print("║ Status:                  Buffer ready for new recording        ║")
         print("╚═══════════════════════════════════════════════════════════════╝")
         
-        // Configure audio engine
+        // Stop any previous engine run before reconfiguring
+        if audioEngine.isRunning {
+            audioEngine.stop()
+        }
+
+        // Reset the audio engine to clear any cached state from previous recordings
+        // This is important to ensure we get fresh format readings after device changes
+        audioEngine.reset()
+        print("AudioManager: [STAGE 1] ✓ Audio engine reset")
+        
+        // IMPORTANT: First access the inputNode to initialize the audio graph
+        // This is required before we can set a custom input device
         let inputNode = audioEngine.inputNode
+        
+        // Prepare the audio engine to ensure the audio unit is available
+        audioEngine.prepare()
+        print("AudioManager: [STAGE 1] ✓ Audio engine prepared")
+        
+        // Now set the input device if one is selected (audioUnit should be available after prepare)
+        if let device = currentDevice {
+            do {
+                try setAudioInputDevice(device)
+                print("AudioManager: [STAGE 1] ✓ Input device set: \(device.name)")
+            } catch {
+                print("AudioManager: [STAGE 1] ⚠️ Failed to set input device: \(error.localizedDescription)")
+                print("AudioManager: [STAGE 1] ⚠️ Continuing with default input device")
+            }
+        }
+        
+        // Get the input format AFTER setting the device to ensure we get the correct format
         let inputFormat = inputNode.outputFormat(forBus: 0)
         
+        // Validate the input format
+        guard inputFormat.sampleRate > 0 && inputFormat.channelCount > 0 else {
+            print("AudioManager: [STAGE 1] ✗ Invalid input format - Sample rate: \(inputFormat.sampleRate), Channels: \(inputFormat.channelCount)")
+            throw AudioCaptureError.formatCreationFailed
+        }
+        
         print("AudioManager: [STAGE 1] Input format - Sample rate: \(inputFormat.sampleRate), Channels: \(inputFormat.channelCount)")
+
+        // Wire input to a muted mixer sink so the graph actively pulls mic data
+        configureInputGraph(inputNode: inputNode, format: inputFormat)
+        audioEngine.prepare()
+        print("AudioManager: [STAGE 1] ✓ Audio graph prepared after wiring")
         
         // Create format for Whisper (16kHz mono)
         guard let whisperFormat = AVAudioFormat(
@@ -491,6 +722,7 @@ final class AudioManager: NSObject, ObservableObject {
         print("╚═══════════════════════════════════════════════════════════════╝")
         
         // Install tap on input node - US-301: All audio goes to single masterBuffer
+        inputNode.removeTap(onBus: 0)
         inputNode.installTap(onBus: 0, bufferSize: 4096, format: inputFormat) { [weak self] buffer, time in
             guard let self = self else { return }
             
@@ -885,10 +1117,14 @@ final class AudioManager: NSObject, ObservableObject {
         #if os(macOS)
         let audioUnit = audioEngine.inputNode.audioUnit
         guard let au = audioUnit else {
+            print("AudioManager: audioUnit is nil - cannot set input device")
+            print("AudioManager: This usually means the audio engine has not been prepared yet")
             throw AudioCaptureError.audioUnitNotAvailable
         }
         
         var deviceID = device.id
+        print("AudioManager: Setting input device to ID \(deviceID) (\(device.name))")
+        
         let status = AudioUnitSetProperty(
             au,
             kAudioOutputUnitProperty_CurrentDevice,
@@ -899,14 +1135,49 @@ final class AudioManager: NSObject, ObservableObject {
         )
         
         if status != noErr {
-            print("AudioManager: Failed to set input device: \(status)")
+            print("AudioManager: Failed to set input device: OSStatus \(status)")
             throw AudioCaptureError.deviceSelectionFailed(status)
         }
         
-        print("AudioManager: Set input device to '\(device.name)'")
+        // Verify the device was set by reading it back
+        var verifyDeviceID: AudioDeviceID = 0
+        var verifySize = UInt32(MemoryLayout<AudioDeviceID>.size)
+        let verifyStatus = AudioUnitGetProperty(
+            au,
+            kAudioOutputUnitProperty_CurrentDevice,
+            kAudioUnitScope_Global,
+            0,
+            &verifyDeviceID,
+            &verifySize
+        )
+        
+        if verifyStatus == noErr {
+            if verifyDeviceID == deviceID {
+                print("AudioManager: ✓ Verified input device set to '\(device.name)' (ID: \(verifyDeviceID))")
+            } else {
+                print("AudioManager: ⚠️ Device ID mismatch: requested \(deviceID), got \(verifyDeviceID)")
+            }
+        } else {
+            print("AudioManager: ⚠️ Could not verify device setting (status: \(verifyStatus))")
+        }
         #endif
     }
     
+
+    /// Ensure the input node is connected to a muted mixer sink so taps receive data
+    private func configureInputGraph(inputNode: AVAudioInputNode, format: AVAudioFormat) {
+        if !audioEngine.attachedNodes.contains(inputMixerNode) {
+            audioEngine.attach(inputMixerNode)
+        }
+        inputMixerNode.outputVolume = 0
+        audioEngine.disconnectNodeOutput(inputNode)
+        audioEngine.disconnectNodeInput(inputMixerNode)
+        audioEngine.disconnectNodeOutput(inputMixerNode)
+        audioEngine.connect(inputNode, to: inputMixerNode, format: format)
+        audioEngine.connect(inputMixerNode, to: audioEngine.mainMixerNode, format: nil)
+        print("AudioManager: [STAGE 1] ✓ Input graph configured with muted mixer sink (sample rate: \(format.sampleRate), channels: \(format.channelCount))")
+    }
+
     // MARK: - US-301: Unified Buffer Access
     
     /// US-301: Get audio buffer directly - returns masterBuffer contents

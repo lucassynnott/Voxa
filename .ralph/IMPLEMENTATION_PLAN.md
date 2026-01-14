@@ -1,652 +1,580 @@
-# Implementation Plan - WispFlow v0.5
+# Implementation Plan: Audio, Permissions & Hotkeys Overhaul
+
+**PRD Source:** `.agents/tasks/prd-audio-permissions-hotkeys-overhaul.md`
+**Generated:** 2026-01-14
+
+---
+
+## Overview
+
+This plan implements a comprehensive overhaul of WispFlow's core systems based on Voquill patterns. The implementation is ordered to fix blocking issues first (Settings UI), then core functionality (audio, permissions, hotkeys), and finally polish (onboarding).
+
+---
+
+## Phase 1: Settings UI Fixes (Unblocks Testing)
+
+### US-523: Fix Tab Visibility
+**Status:** pending
+**Priority:** critical
+**Estimated effort:** small
+
+**Description:** Fix Settings window tabs being invisible/unclickable due to ZStack overlay.
+
+**Tasks:**
+- [ ] Remove ZStack with Color background that covers TabView
+- [ ] Ensure all 6 tabs visible and clickable
+- [ ] Verify tab switching works
+- [ ] Test on macOS 14+
+
+**Acceptance Criteria:**
+- All 6 tabs visible: General, Audio, Transcription, Text Cleanup, Text Insertion, Debug
+- Tab labels readable with proper contrast
+- Tabs clickable and switch content
+- Typecheck passes
+
+---
+
+### US-524: Fix Button Interactivity
+**Status:** pending
+**Priority:** critical
+**Estimated effort:** small
+
+**Description:** Fix buttons in Settings not responding to clicks due to @State in ButtonStyle.
+
+**Tasks:**
+- [ ] Refactor WispflowButtonStyle to use wrapper View for @State
+- [ ] Move hover state tracking to WispflowButtonContent view
+- [ ] Add console logging to button actions for debugging
+- [ ] Test all buttons in Settings
+
+**Acceptance Criteria:**
+- All buttons respond to clicks
+- Hover states visible
+- Press animation works
+- Console logs confirm button actions
+- Typecheck passes
+
+---
+
+### US-525: Fix ScrollView Interactions
+**Status:** pending
+**Priority:** high
+**Estimated effort:** small
+
+**Tasks:**
+- [ ] Verify ScrollView scrolls smoothly
+- [ ] Test all interactive elements inside cards
+- [ ] Add contentShape if needed for hit testing
+- [ ] Test toggles, dropdowns, sliders
+
+**Acceptance Criteria:**
+- ScrollView scrolls smoothly
+- All interactive elements clickable
+- Toggle switches work
+- Dropdown menus open
+- Typecheck passes
+
+---
+
+## Phase 2: Audio System Overhaul
+
+### US-503: Robust Audio Engine Initialization
+**Status:** pending
+**Priority:** critical
+**Estimated effort:** medium
+
+**Description:** Fix audio engine initialization sequence to ensure tap receives data.
+
+**Tasks:**
+- [ ] Reset audio engine before each recording
+- [ ] Prepare engine before setting input device
+- [ ] Set input device after preparation
+- [ ] Query format after device is set
+- [ ] Connect input to muted mixer sink
+- [ ] Add detailed logging at each stage
+
+**Acceptance Criteria:**
+- Engine reset → prepare → set device → get format → install tap → start
+- Invalid format throws clear error
+- Tap callbacks logged during recording
+- Typecheck passes
+
+---
+
+### US-504: Audio Level Preview Fix
+**Status:** pending
+**Priority:** critical
+**Estimated effort:** medium
+
+**Description:** Make audio preview in Settings actually show microphone levels.
+
+**Tasks:**
+- [ ] Add logging to togglePreview() function
+- [ ] Verify permission callback fires
+- [ ] Ensure startCapturing() succeeds
+- [ ] Update currentLevel at 20fps
+- [ ] Show proper status text
+
+**Acceptance Criteria:**
+- "Start Preview" triggers audio capture
+- Level meter updates in real-time
+- Level displayed in dB with color coding
+- Status shows Good/Quiet/Loud/Silent
+- Typecheck passes
+
+---
+
+### US-501: Smart Audio Device Selection
+**Status:** complete
+**Priority:** high
+**Estimated effort:** medium
+
+**Description:** Automatically select best available microphone, avoiding Bluetooth.
+
+**Tasks:**
+- [x] Create device scoring function (`calculateDeviceQuality()` in AudioManager.swift)
+- [x] Define low-quality keywords list (airpods, beats, bluetooth, hfp, headset, wireless)
+- [x] Score: professional > USB > built-in > lowSampleRate > bluetooth
+- [x] Select highest scored device by default (`selectBestDevice()`)
+- [x] Log device selection reasoning (detailed console output with quality scores)
+- [x] Add warning toast when only Bluetooth device available
+- [x] Add sample rate fetching for each device
+- [x] Integrate with AppDelegate for toast notifications
+
+**Acceptance Criteria:**
+- [x] Bluetooth devices deprioritized
+- [x] Built-in mic preferred over Bluetooth
+- [x] USB mics get highest priority
+- [x] Device selection logged
+- [x] Typecheck passes (`swift build` succeeds)
+
+**Implementation Notes:**
+- Added `DeviceQuality` enum with 5 tiers: bluetooth, lowSampleRate, builtIn, usb, professional
+- Added `sampleRate` field to `AudioInputDevice` struct
+- Device selection logged in formatted box with quality scores for all devices
+- Toast notification shows when only low-quality device is available
+- Cache invalidation triggers automatic device re-selection
+
+---
+
+### US-502: Audio Device Caching
+**Status:** pending
+**Priority:** medium
+**Estimated effort:** small
+
+**Description:** Cache last successful device for fast recording start.
+
+**Tasks:**
+- [ ] Store last device in memory
+- [ ] Try cached device first on recording start
+- [ ] Invalidate cache on manual device change
+- [ ] Invalidate cache on device disconnect
+
+**Acceptance Criteria:**
+- Cached device used on subsequent recordings
+- First recording ~100-200ms, subsequent ~10-20ms
+- Cache invalidated appropriately
+- Typecheck passes
+
+---
+
+### US-505: Low-Quality Device Warning
+**Status:** pending
+**Priority:** low
+**Estimated effort:** small
+
+**Description:** Warn users when using potentially low-quality audio input.
+
+**Tasks:**
+- [ ] Flag devices matching low-quality keywords
+- [ ] Show warning icon in device picker
+- [ ] Add tooltip explaining quality concern
+- [ ] Show toast when recording with flagged device
+
+**Acceptance Criteria:**
+- Warning icon on flagged devices
+- Tooltip explains quality concern
+- Toast notification on recording start
+- Warning doesn't block recording
+- Typecheck passes
+
+---
+
+## Phase 3: Permission System Overhaul
+
+### US-506: Permission Status Tracking
+**Status:** pending
+**Priority:** high
+**Estimated effort:** small
+
+**Description:** Accurate real-time permission status tracking.
+
+**Tasks:**
+- [ ] Check mic via AVCaptureDevice.authorizationStatus
+- [ ] Check accessibility via AXIsProcessTrusted()
+- [ ] Poll permissions when app becomes active
+- [ ] Publish status changes to UI
+
+**Acceptance Criteria:**
+- Correct status enum returned
+- Status updates on app activation
+- Published properties trigger UI updates
+- Typecheck passes
+
+---
+
+### US-507: Automatic Permission Prompting
+**Status:** pending
+**Priority:** high
+**Estimated effort:** medium
+
+**Description:** Show permission dialogs automatically when needed.
+
+**Tasks:**
+- [ ] Request mic permission on first recording if notDetermined
+- [ ] Request accessibility on first text insertion
+- [ ] Open System Settings if previously denied
+- [ ] Add permission prompt to setupTextInserter
+
+**Acceptance Criteria:**
+- System permission dialog shown when appropriate
+- Denied permissions open System Settings
+- Typecheck passes
+
+---
+
+### US-508: Open System Settings Helper
+**Status:** pending
+**Priority:** medium
+**Estimated effort:** small
+
+**Description:** Open correct System Settings pane directly.
+
+**Tasks:**
+- [ ] Implement openMicrophoneSettings() with URL scheme
+- [ ] Implement openAccessibilitySettings() with URL scheme
+- [ ] Add fallback for older macOS versions
+- [ ] Test on macOS 13+
+
+**Acceptance Criteria:**
+- Opens Privacy & Security > Microphone
+- Opens Privacy & Security > Accessibility
+- Works on macOS 13+
+- Typecheck passes
+
+---
+
+### US-509: Permission Status UI
+**Status:** pending
+**Priority:** medium
+**Estimated effort:** small
+
+**Description:** Show permission status in Settings with visual indicators.
+
+**Tasks:**
+- [ ] Add status icon (✓/✗) for each permission
+- [ ] Add "Grant Permission" button when not granted
+- [ ] Button opens appropriate Settings pane
+- [ ] Auto-update status when user returns
+
+**Acceptance Criteria:**
+- Green checkmark when granted
+- Red X when denied
+- Button opens Settings
+- Status updates automatically
+- Typecheck passes
+
+---
+
+## Phase 4: Hotkey System Overhaul
+
+### US-510: Global Event Tap for Hotkeys
+**Status:** pending
+**Priority:** critical
+**Estimated effort:** large
+
+**Description:** Implement reliable global hotkey detection using CGEvent tap.
+
+**Tasks:**
+- [ ] Create CGEvent tap at session level
+- [ ] Register for key down events
+- [ ] Check for modifier keys (Cmd, Shift, Option, Control)
+- [ ] Match against configured hotkey
+- [ ] Trigger recording toggle on match
+- [ ] Handle accessibility permission requirement
+
+**Acceptance Criteria:**
+- Hotkey works from any focused application
+- Works when WispFlow window not visible
+- Requires accessibility permission
+- Typecheck passes
+
+---
+
+### US-511: Hotkey Recording in Settings
+**Status:** pending
+**Priority:** medium
+**Estimated effort:** medium
+
+**Description:** Allow users to customize hotkey by recording key combination.
+
+**Tasks:**
+- [ ] Add "Record Hotkey" button
+- [ ] Show pulsing indicator during recording
+- [ ] Capture next key combination with modifiers
+- [ ] Validate combination has modifier
+- [ ] Persist to UserDefaults
+- [ ] Display human-readable format
+
+**Acceptance Criteria:**
+- Recording mode with visual indicator
+- Key combination captured correctly
+- Escape cancels recording
+- Invalid combinations rejected
+- Typecheck passes
+
+---
+
+### US-512: Hotkey Conflict Detection
+**Status:** pending
+**Priority:** low
+**Estimated effort:** small
+
+**Description:** Warn about conflicts with system shortcuts.
+
+**Tasks:**
+- [ ] Define list of common system shortcuts
+- [ ] Check new hotkey against list
+- [ ] Show warning if conflict detected
+- [ ] Allow user to proceed anyway
+
+**Acceptance Criteria:**
+- Warning shown for conflicts
+- User can proceed despite warning
+- Reset to default available
+- Typecheck passes
+
+---
+
+## Phase 5: Text Insertion Improvements
+
+### US-513: Clipboard Preservation
+**Status:** pending
+**Priority:** high
+**Estimated effort:** medium
+
+**Description:** Preserve clipboard content during text insertion.
+
+**Tasks:**
+- [ ] Save clipboard before insertion
+- [ ] Place transcription on clipboard
+- [ ] Simulate Cmd+V paste
+- [ ] Restore original clipboard after 800ms
+- [ ] Use background thread for restoration
+
+**Acceptance Criteria:**
+- Original clipboard saved
+- Transcription pasted
+- Original restored after delay
+- Typecheck passes
+
+---
+
+### US-514: Keyboard Event Simulation
+**Status:** pending
+**Priority:** high
+**Estimated effort:** medium
+
+**Description:** Reliable keyboard simulation for paste operations.
+
+**Tasks:**
+- [ ] Use CGEvent for key simulation
+- [ ] Create key down event with Cmd modifier
+- [ ] Add 10ms delay between down and up
+- [ ] Post to HID event tap location
+- [ ] Test in various applications
+
+**Acceptance Criteria:**
+- CGEvent used (not AppleScript)
+- Works in Electron apps
+- Works in native apps
+- Typecheck passes
+
+---
+
+### US-515: Text Insertion Fallback
+**Status:** pending
+**Priority:** medium
+**Estimated effort:** small
+
+**Description:** Fallback when keyboard simulation fails.
+
+**Tasks:**
+- [ ] Detect paste simulation failure
+- [ ] Keep text on clipboard
+- [ ] Show toast notification
+- [ ] Log error details
+
+**Acceptance Criteria:**
+- Fallback to manual paste
+- Toast shows "Press Cmd+V to paste"
+- Error logged
+- Typecheck passes
+
+---
+
+## Phase 6: Onboarding Wizard
+
+### US-516: First Launch Detection
+**Status:** pending
+**Priority:** high
+**Estimated effort:** small
+
+**Tasks:**
+- [ ] Check UserDefaults for hasCompletedOnboarding
+- [ ] Show wizard if flag not set
+- [ ] Set flag after completion
+
+**Acceptance Criteria:**
+- First launch detected correctly
+- Flag persists across launches
+- Typecheck passes
+
+---
+
+### US-517: Onboarding Welcome Screen
+**Status:** pending
+**Priority:** medium
+**Estimated effort:** medium
+
+**Tasks:**
+- [ ] Create OnboardingWindow view
+- [ ] Design welcome screen with logo
+- [ ] Add feature highlights
+- [ ] Add "Get Started" and "Skip" buttons
+
+**Acceptance Criteria:**
+- Welcome screen shown on first launch
+- Logo and description visible
+- Navigation buttons work
+- Typecheck passes
+
+---
+
+### US-518: Microphone Permission Step
+**Status:** pending
+**Priority:** medium
+**Estimated effort:** medium
+
+**Tasks:**
+- [ ] Create mic permission screen
+- [ ] Show current status
+- [ ] Add "Grant Access" button
+- [ ] Update status after permission
+
+**Acceptance Criteria:**
+- Permission status displayed
+- Button triggers system dialog
+- Status updates on grant
+- Typecheck passes
+
+---
+
+### US-519: Accessibility Permission Step
+**Status:** pending
+**Priority:** medium
+**Estimated effort:** medium
+
+**Tasks:**
+- [ ] Create accessibility permission screen
+- [ ] Show current status
+- [ ] Add "Open System Settings" button
+- [ ] Show instructions for enabling
+
+**Acceptance Criteria:**
+- Status displayed
+- Button opens Settings
+- Instructions clear
+- Status updates on return
+- Typecheck passes
+
+---
+
+### US-520: Audio Test Step
+**Status:** pending
+**Priority:** medium
+**Estimated effort:** medium
+
+**Tasks:**
+- [ ] Create audio test screen
+- [ ] Add live level meter
+- [ ] Add device selector
+- [ ] Add "Sounds Good!" button
+
+**Acceptance Criteria:**
+- Level meter shows mic input
+- Device selector works
+- Can proceed when satisfied
+- Typecheck passes
+
+---
+
+### US-521: Hotkey Introduction Step
+**Status:** pending
+**Priority:** medium
+**Estimated effort:** small
+
+**Tasks:**
+- [ ] Create hotkey intro screen
+- [ ] Display default hotkey
+- [ ] Add "Try it now" prompt
+- [ ] Add visual feedback on press
+
+**Acceptance Criteria:**
+- Hotkey displayed clearly
+- Feedback on press
+- Option to customize
+- Typecheck passes
+
+---
+
+### US-522: Onboarding Completion
+**Status:** pending
+**Priority:** medium
+**Estimated effort:** small
+
+**Tasks:**
+- [ ] Create completion screen
+- [ ] Show success checkmarks
+- [ ] Set hasCompletedOnboarding flag
+- [ ] Close wizard and show menu bar
+
+**Acceptance Criteria:**
+- Success state shown
+- Flag persisted
+- App ready to use
+- Typecheck passes
+
+---
 
 ## Summary
 
-WispFlow v0.4 (US-301 through US-306) is complete with unified audio buffer architecture, tap verification, buffer integrity logging, model download improvements, and audio debug export.
-
-**v0.5 focuses on a comprehensive UI refresh to transform WispFlow into a polished, premium macOS application:**
-
-1. **No Design System Exists**: The codebase has no centralized design tokens. All colors, fonts, spacing, and styles are hardcoded inline throughout `SettingsWindow.swift`, `RecordingIndicatorWindow.swift`, and `StatusBarController.swift`.
-
-2. **Current UI State**:
-   - Settings window: 520x580 pixels, uses default SwiftUI Form/Section styling
-   - Recording indicator: NSPanel with NSVisualEffectView (.hudWindow material), standard SF Symbols
-   - Menu bar: Standard NSStatusItem with system icons
-   - No custom theming, no warm color palette, no custom animations
-
-3. **Key Gaps vs PRD Requirements**:
-   - Missing: DesignSystem.swift with color/typography/spacing tokens
-   - Missing: Warm ivory/cream (#FEFCF8) background instead of default system colors
-   - Missing: Coral accent (#E07A5F) instead of system blue
-   - Missing: Custom button styles (WispflowButtonStyle)
-   - Missing: Card-based section styling with soft shadows
-   - Missing: Custom toggle switches with coral accent
-   - Missing: Toast notification system
-   - Missing: Live waveform visualization (current is simple bar meter)
-   - Missing: Micro-interactions and button press animations
-   - Missing: Welcome/onboarding flow (lower priority for MVP)
-
-### Priority Order (based on design dependency graph):
-1. **US-401 (Design System Foundation)** - All other stories depend on this
-2. **US-404 (Modern Settings Window)** - Largest visual impact, uses design system
-3. **US-403 (Beautiful Recording Indicator)** - High visibility during use
-4. **US-402 (Refined Menu Bar Experience)** - AppKit/NSStatusItem changes
-5. **US-405-408 (Settings Tab Polish)** - Incremental improvements per tab
-6. **US-409 (Toast Notification System)** - New component
-7. **US-410 (Micro-interactions & Polish)** - Final polish pass
-
----
-
-## Tasks
-
-### US-401: Design System Foundation
-As a developer, I want a centralized design system so all UI components are consistent.
-
-- [x] Create DesignSystem.swift with color definitions
-  - Scope: Create new file `Sources/WispFlow/DesignSystem.swift`
-  - Define `Color.Wispflow.background` (#FEFCF8 warm ivory)
-  - Define `Color.Wispflow.surface` (white #FFFFFF)
-  - Define `Color.Wispflow.accent` (#E07A5F warm coral)
-  - Define `Color.Wispflow.success` (#81B29A muted sage)
-  - Define `Color.Wispflow.textPrimary` (#2D3436 warm charcoal)
-  - Define `Color.Wispflow.textSecondary` (#636E72 warm gray)
-  - Define `Color.Wispflow.border` (#E8E4DF subtle warm gray)
-  - Add NSColor equivalents for AppKit components
-  - Acceptance: All colors defined as static properties with hex extension helper
-  - Verification: `swift build` passes ✓
-
-- [x] Define typography styles in DesignSystem.swift
-  - Scope: Add `Font.Wispflow` namespace in `Sources/WispFlow/DesignSystem.swift`
-  - Define `Font.Wispflow.largeTitle` (28pt, bold, rounded)
-  - Define `Font.Wispflow.title` (20pt, semibold, rounded)
-  - Define `Font.Wispflow.headline` (16pt, semibold, rounded)
-  - Define `Font.Wispflow.body` (14pt, regular)
-  - Define `Font.Wispflow.caption` (12pt, medium)
-  - Define `Font.Wispflow.small` (11pt, regular)
-  - Add NSFont equivalents for AppKit components
-  - Acceptance: All font styles defined and use .rounded design where specified
-  - Verification: `swift build` passes ✓
-
-- [x] Define spacing constants in DesignSystem.swift
-  - Scope: Add `Spacing` namespace in `Sources/WispFlow/DesignSystem.swift`
-  - Define `Spacing.xs` (4pt), `Spacing.sm` (8pt), `Spacing.md` (12pt), `Spacing.lg` (16pt), `Spacing.xl` (24pt), `Spacing.xxl` (32pt)
-  - Define `CornerRadius.small` (8pt), `CornerRadius.medium` (12pt), `CornerRadius.large` (16pt)
-  - Define shadow styles: `ShadowStyle.card`, `ShadowStyle.floating`
-  - Acceptance: All constants defined and documented
-  - Verification: `swift build` passes ✓
-
-- [x] Create WispflowButtonStyle view modifier
-  - Scope: Add custom ButtonStyle in `Sources/WispFlow/DesignSystem.swift`
-  - Primary style: coral background, white text, rounded corners
-  - Secondary style: light gray background, coral text
-  - Ghost style: transparent background, coral text
-  - Include press animation (scale down 0.97)
-  - Include hover state color change
-  - Acceptance: Button styles work on SwiftUI buttons
-  - Verification: `swift build` passes ✓
-
-- [x] Create WispflowCardStyle view modifier
-  - Scope: Add custom ViewModifier in `Sources/WispFlow/DesignSystem.swift`
-  - White background with soft warm shadow
-  - 12px corner radius
-  - Generous internal padding (16pt)
-  - Acceptance: Can wrap any view in card styling
-  - Verification: `swift build` passes ✓
-
-- [x] Create WispflowToggleStyle
-  - Scope: Add custom ToggleStyle in `Sources/WispFlow/DesignSystem.swift`
-  - Coral (#E07A5F) thumb when on
-  - Smooth animation on toggle
-  - Match system toggle size
-  - Acceptance: Toggle shows coral accent when enabled
-  - Verification: `swift build` passes ✓
-
-**Implementation Notes (US-401):**
-- Created comprehensive DesignSystem.swift with ~400 lines of code
-- Added Color.Wispflow and NSColor.Wispflow namespaces with full color palette
-- Added Font.Wispflow and NSFont.Wispflow namespaces with all typography styles
-- Added Spacing enum with xs/sm/md/lg/xl/xxl constants
-- Added CornerRadius enum with small/medium/large/extraLarge constants
-- Added ShadowStyle enum with card/floating/subtle presets and .wispflowShadow() modifier
-- Created WispflowButtonStyle with primary/secondary/ghost variants and press animations
-- Created WispflowCardStyle ViewModifier with .wispflowCard() extension
-- Created WispflowToggleStyle with coral accent and smooth animation
-- Created WispflowTextFieldStyle for consistent text input styling
-- Added WispflowAnimation presets for micro-interactions
-
----
-
-### US-402: Refined Menu Bar Experience
-As a user, I want an elegant menu bar presence that feels premium.
-
-- [x] Update menu bar icon with custom tinting
-  - Scope: Modify `Sources/WispFlow/StatusBarController.swift`
-  - Use warm charcoal (#2D3436) tint for idle icon
-  - Use coral (#E07A5F) tint for recording state
-  - Keep existing SF Symbols but apply custom tinting
-  - Acceptance: Menu bar icon uses warm colors instead of system defaults
-  - Verification: `swift build` passes ✓
-
-- [x] Redesign dropdown menu with warm styling
-  - Scope: Modify `Sources/WispFlow/StatusBarController.swift` setupMenu()
-  - Apply warm ivory background if possible via NSAppearance
-  - Add subtle icons to menu items (gear for settings, speaker for audio, power for quit)
-  - Improve menu item typography with proper spacing
-  - Acceptance: Menu has consistent styling with design system colors
-  - Verification: `swift build` passes ✓
-
-- [x] Add recording state visual feedback
-  - Scope: Modify `Sources/WispFlow/StatusBarController.swift` updateIcon()
-  - Pulsing effect on menu bar icon during recording (via NSTimer animation)
-  - Coral tint during active recording
-  - Acceptance: Menu bar icon pulses/glows when recording is active
-  - Verification: `swift build` passes ✓
-
-**Implementation Notes (US-402):**
-- Added warm color tinting to menu bar icon using NSColor.Wispflow palette
-- Idle state uses warm charcoal (#2D3436) for ready icon, textSecondary for other states
-- Recording state uses coral accent (#E07A5F) with pulsing animation
-- Added icons to dropdown menu items: gear for Settings, mic for Audio Input, arrow.counterclockwise.circle for Launch at Login, power for Quit
-- Implemented pulse animation using Timer at 0.05s intervals with sine wave oscillation
-- Pulse varies alpha between 0.7-1.0 and adjusts coral brightness for glow effect
-- Created helper methods: createTintedStatusIcon(), createMenuIcon(), startPulseAnimation(), stopPulseAnimation()
-- Animation properly cleans up on state change and controller deallocation
-
----
-
-### US-403: Beautiful Recording Indicator
-As a user, I want a stunning recording indicator that's a joy to look at.
-
-- [x] Update recording indicator colors to design system
-  - Scope: Modify `Sources/WispFlow/RecordingIndicatorWindow.swift`
-  - Use coral (#E07A5F) for recording dot instead of systemRed
-  - Use warm charcoal (#2D3436) for text instead of labelColor
-  - Update cancel button to warm gray with coral hover via HoverGlowButton
-  - Acceptance: Recording indicator uses design system colors ✓
-  - Verification: `swift build` passes ✓
-
-- [x] Enhance frosted glass effect with warm tint
-  - Scope: Modify `Sources/WispFlow/RecordingIndicatorWindow.swift` setupUI()
-  - Apply warm ivory tint overlay to NSVisualEffectView
-  - Increased corner radius to 26px for larger pill
-  - Added warm drop shadow for floating effect
-  - Acceptance: Floating pill has warmer appearance ✓
-  - Verification: `swift build` passes ✓
-
-- [x] Replace audio level meter with smooth waveform visualization
-  - Scope: Created `LiveWaveformView` in `Sources/WispFlow/RecordingIndicatorWindow.swift`
-  - Smooth, animated sine wave that responds to audio level
-  - Uses design system colors: coral for active, sage green for normal levels
-  - Organic multi-wave animation at 30fps
-  - Acceptance: Waveform uses warm color palette with smooth animation ✓
-  - Verification: `swift build` passes ✓
-
-- [x] Add recording duration display
-  - Scope: Added duration timer and label to RecordingIndicatorWindow
-  - Shows elapsed time separately from status label (e.g., "0:05")
-  - Uses semibold 14pt font for emphasis
-  - Update label dynamically via 1-second timer
-  - Acceptance: Recording duration shown in real-time ✓
-  - Verification: `swift build` passes ✓
-
-- [x] Enhance show/hide animations
-  - Scope: Modified showWithAnimation()/hideWithAnimation() in RecordingIndicatorWindow
-  - Added slide-down effect on appear (from above screen)
-  - Added slide-up effect on dismiss
-  - Animation duration 0.35s with easeOut/easeIn timing functions
-  - Acceptance: Recording indicator slides in/out elegantly ✓
-  - Verification: `swift build` passes ✓
-
-- [x] Add coral pulsing recording dot
-  - Scope: Replaced mic icon with circular dot that pulses
-  - Smooth pulse animation varies opacity (0.8-1.0) and scale (0.9-1.1)
-  - Uses warm coral (#E07A5F) from design system
-  - Acceptance: Recording dot pulses gently ✓
-  - Verification: `swift build` passes ✓
-
-- [x] Create elegant cancel button with hover glow
-  - Scope: Created `HoverGlowButton` class
-  - Coral glow effect on hover with shadow
-  - Scale animation on press (0.9x)
-  - Uses design system colors
-  - Acceptance: Cancel button has elegant hover/press states ✓
-  - Verification: `swift build` passes ✓
-
-**Implementation Notes (US-403):**
-- Renamed LiveWaveformView to avoid conflict with existing AudioWaveformView (SwiftUI)
-- Recording indicator window size increased from 200x44 to 240x52 for better proportions
-- Added shadow view layer behind visual effect for floating appearance
-- Timer-based animations for pulse and waveform provide smooth 30fps updates
-- Duration timer starts/stops with show/hide to ensure accurate timing
-- All timers properly cleaned up in deinit to prevent memory leaks
-
----
-
-### US-404: Modern Settings Window
-As a user, I want a settings window that feels like a premium app.
-
-- [x] Increase settings window size to 600x500+
-  - Scope: Modify `Sources/WispFlow/SettingsWindow.swift` line ~66
-  - Change `.frame(width: 520, height: 580)` to `.frame(width: 620, height: 560)`
-  - Acceptance: Settings window is larger with more breathing room ✓
-  - Verification: `swift build` passes ✓
-
-- [x] Apply warm ivory background to settings window
-  - Scope: Modify SettingsView in `Sources/WispFlow/SettingsWindow.swift`
-  - Add `.background(Color.Wispflow.background)` to root view
-  - Wrapped in ZStack for full coverage
-  - Acceptance: Settings window has warm ivory (#FEFCF8) background ✓
-  - Verification: `swift build` passes ✓
-
-- [x] Redesign tab bar with icons and styling
-  - Scope: Modify TabView in `Sources/WispFlow/SettingsWindow.swift`
-  - Tab icons use design system colors via background styling
-  - Warm ivory background applied to tab content
-  - Acceptance: Tab bar has consistent warm styling ✓
-  - Verification: `swift build` passes ✓
-
-- [x] Replace Form sections with card-based layout
-  - Scope: Replaced all Form/Section uses in `Sources/WispFlow/SettingsWindow.swift`
-  - All tabs now use ScrollView with VStack and .wispflowCard() modifier
-  - Each settings section is a distinct card with soft shadows
-  - Used Spacing constants for consistent layout
-  - Acceptance: Settings sections display as distinct cards with shadows ✓
-  - Verification: `swift build` passes ✓
-
-- [x] Update all buttons to use WispflowButtonStyle
-  - Scope: Replaced all `.buttonStyle(.borderedProminent)` and `.buttonStyle(.bordered)` in SettingsWindow.swift
-  - Use `.buttonStyle(WispflowButtonStyle.primary)` for main actions
-  - Use `.buttonStyle(WispflowButtonStyle.secondary)` for secondary actions
-  - Use `.buttonStyle(WispflowButtonStyle.ghost)` for tertiary actions
-  - Acceptance: All buttons in settings use coral accent styling ✓
-  - Verification: `swift build` passes ✓
-
-- [x] Update all toggles to use WispflowToggleStyle
-  - Scope: Replaced all `.toggleStyle(.switch)` in SettingsWindow.swift
-  - Use `.toggleStyle(WispflowToggleStyle())` for coral accent
-  - Acceptance: All toggles show coral when enabled ✓
-  - Verification: `swift build` passes ✓
-
-- [x] Update typography to use design system fonts
-  - Scope: Replaced all `.font(.headline)`, `.font(.caption)` etc in SettingsWindow.swift
-  - Use `Font.Wispflow.headline`, `Font.Wispflow.caption`, etc
-  - Use `Color.Wispflow.textPrimary` and `Color.Wispflow.textSecondary` for text colors
-  - Acceptance: All text uses design system typography ✓
-  - Verification: `swift build` passes ✓
-
-**Implementation Notes (US-404):**
-- Increased window size from 520x580 to 620x560 for better breathing room
-- Wrapped main SettingsView in ZStack with Color.Wispflow.background for warm ivory
-- Converted all 5 settings tabs from Form/GroupBox to ScrollView + VStack + .wispflowCard()
-- Updated all buttons to WispflowButtonStyle (primary, secondary, ghost variants)
-- Updated all toggles to WispflowToggleStyle with coral accent
-- Updated all text to use Font.Wispflow and Color.Wispflow typography
-- Updated StatusBadge, LLMStatusBadge, CleanupStatusBadge to use design system colors
-- Updated DebugFeatureRow, CleanupFeatureRow, InsertionFeatureRow to use design system
-- Enhanced HotkeyRecorderView with coral focus glow and hover states
-- Added custom gradient progress bars for download progress (coral gradient fill)
-- Used Spacing and CornerRadius constants throughout for consistency
-
----
-
-### US-405: General Settings Tab Polish
-As a user, I want the General settings to look beautiful.
-
-- [x] Style hotkey recorder with elegant focus state
-  - Scope: Modify `HotkeyRecorderView` in `Sources/WispFlow/SettingsWindow.swift`
-  - Add coral border glow on focus
-  - Use design system colors for background/text
-  - Rounded corners (12px)
-  - Acceptance: Hotkey recorder looks polished with focus glow ✓
-  - Verification: `swift build` passes ✓
-
-- [x] Add About WispFlow section with logo
-  - Scope: Modify `GeneralSettingsView` in `Sources/WispFlow/SettingsWindow.swift`
-  - Add app icon/logo display using SF Symbol waveform.circle.fill with gradient
-  - Show app name with design system largeTitle font
-  - Show version number styled subtly with pill background
-  - Acceptance: About section displays app branding ✓
-  - Verification: `swift build` passes ✓
-
-- [x] Style launch at login toggle
-  - Scope: Modify `GeneralSettingsView` toggle for launch at login
-  - Add helpful description text below toggle
-  - Use WispflowToggleStyle
-  - Acceptance: Toggle is styled consistently with description ✓
-  - Verification: `swift build` passes ✓
-
-- [x] Add links styled as subtle buttons
-  - Scope: Created SubtleLinkButton component
-  - GitHub, Website, Support links with hover effects
-  - Uses design system colors and hover animations
-  - Acceptance: Links appear as elegant buttons with hover state ✓
-  - Verification: `swift build` passes ✓
-
-**Implementation Notes (US-405):**
-- Completely redesigned GeneralSettingsView with hero About section at top
-- Created app logo representation using SF Symbol waveform.circle.fill with gradient overlay
-- App name displayed in largeTitle font (28pt, bold, rounded)
-- Version number displayed with subtle pill-style background
-- Created SubtleLinkButton component with hover animations for GitHub/Website/Support links
-- Enhanced HotkeyRecorderView with:
-  - Pulsing coral dot animation when recording
-  - Command symbol icon with hover color change
-  - Coral glow shadow on focus/recording
-  - Scale animation on recording state
-  - Increased corner radius to medium (12px)
-- Launch at Login section now has icon header and indented description text
-- Global Hotkey section has keyboard icon header
-- All sections use consistent card styling with wispflowCard() modifier
-
----
-
-### US-406: Audio Settings Tab Polish
-As a user, I want the Audio settings to be visually refined.
-
-- [x] Create dedicated AudioSettingsView tab
-  - Scope: Add new `AudioSettingsView` struct in `Sources/WispFlow/SettingsWindow.swift`
-  - Move audio device selection from menu bar to settings
-  - Add audio level preview with real-time meter
-  - Add input gain slider (if supported by Core Audio)
-  - Acceptance: Audio settings has its own tab with device picker and level preview ✓
-  - Verification: `swift build` passes ✓
-
-- [x] Style device picker as elegant dropdown
-  - Scope: Create device picker in AudioSettingsView
-  - Use Picker with custom styling
-  - Add device icons (speaker.wave.2 for each device)
-  - Show current device clearly
-  - Acceptance: Device picker uses design system styling ✓
-  - Verification: `swift build` passes ✓
-
-- [x] Add live audio level meter in settings
-  - Scope: Add real-time level meter component in AudioSettingsView
-  - Connect to AudioManager.currentAudioLevel publisher
-  - Use design system colors (sage green for normal, coral for loud)
-  - Acceptance: Audio level displays in real-time when settings open ✓
-  - Verification: `swift build` passes ✓
-
-**Implementation Notes (US-406):**
-- Created AudioSettingsView struct with 4 polished cards: Device Selection, Audio Level Preview, Input Sensitivity, and Audio Info
-- Created AudioDevicePicker component with elegant dropdown animation and device-specific icons (AirPods, laptop, USB, etc.)
-- Created AudioDeviceRow for individual device items with hover states and checkmark for selection
-- Created AudioLevelMeterView with 30-segment visual meter that shows coral/green/red based on level
-- Added live preview functionality that starts/stops audio capture for testing microphone
-- Created CustomSlider with coral accent gradient and animated thumb with hover/drag states
-- Input Sensitivity slider allows users to adjust visual meter display gain (0.5x-2.0x)
-- Level indicator shows real-time dB value and status (Good/Quiet/Silent/Too Loud) with color-coded badges
-- All components use design system colors, fonts, spacing, and corner radius constants
-- Updated SettingsWindowController to accept AudioManager parameter
-- Updated AppDelegate to pass audioManager to SettingsWindowController
-- Audio tab added to TabView with speaker.wave.2 icon
-
----
-
-### US-407: Transcription Settings Tab Polish
-As a user, I want the Transcription settings to look premium.
-
-- [x] Redesign model selector as card-based picker
-  - Scope: Modify `TranscriptionSettingsView` Picker in SettingsWindow.swift
-  - Replace radio group with card-based selection
-  - Each model as a card with name, size, and download status
-  - Selected card has coral border
-  - Acceptance: Model selection uses elegant card UI ✓
-  - Verification: `swift build` passes ✓
-
-- [x] Style progress bar with gradient fill
-  - Scope: Modify download progress ProgressView in TranscriptionSettingsView
-  - Use coral gradient fill instead of system blue
-  - Add percentage text styled with design system
-  - Acceptance: Download progress shows coral gradient ✓
-  - Verification: `swift build` passes ✓
-
-- [x] Improve model status badges
-  - Scope: Modify `StatusBadge` in SettingsWindow.swift
-  - Use design system colors: coral for error, sage for ready
-  - Improve badge styling with proper padding
-  - Acceptance: Status badges use design system colors ✓
-  - Verification: `swift build` passes ✓
-
-- [x] Add language selector with flag icons
-  - Scope: Add `LanguagePicker` component in TranscriptionSettingsView
-  - Support 12+ languages with emoji flags
-  - Auto-detect as default option
-  - Elegant dropdown with hover states
-  - Acceptance: Language selector displays flags and is functional ✓
-  - Verification: `swift build` passes ✓
-
-- [x] Create hero status section
-  - Scope: Add `TranscriptionStatusHero` component
-  - Shows current transcription status at a glance
-  - Large status icon with contextual colors
-  - Status badge and description
-  - Acceptance: Hero section provides clear visual hierarchy ✓
-  - Verification: `swift build` passes ✓
-
-**Implementation Notes (US-407):**
-- Completely redesigned TranscriptionSettingsView with 4 main sections:
-  1. TranscriptionStatusHero - Hero section with status icon, title, subtitle and badge
-  2. Model Selection Card Grid - Card-based picker with ModelSelectionCard components
-  3. Model Actions Card - Download/load controls with GradientProgressBar
-  4. Language Selection Card - LanguagePicker with flag emoji support
-- Created new components:
-  - TranscriptionStatusHero: Shows current model status prominently
-  - ModelSelectionCard: Card-based model picker with specs (size/speed/accuracy)
-  - ModelCardBadge: Small status badges (Active, Downloaded)
-  - ModelSpec: Compact model specification display
-  - ModelStatusBadge: Enhanced status badge with colors for all states
-  - GradientProgressBar: Elegant progress bar with shimmer effect
-  - TranscriptionLanguage enum: 12 supported languages with emoji flags
-  - LanguagePicker: Dropdown picker with flag icons
-  - LanguageRow: Individual language option in picker
-  - TranscriptionFeatureRow: Feature list item for About section
-- Fixed model enum to use .medium instead of .large (matching WhisperManager.ModelSize)
-- All components use design system colors, fonts, spacing, and corner radius
-- Hover states and animations throughout for premium feel
-
----
-
-### US-408: Text Cleanup Settings Tab Polish
-As a user, I want the Text Cleanup settings beautifully designed.
-
-- [x] Style mode selector as segmented control
-  - Scope: Modify `TextCleanupSettingsView` Picker in SettingsWindow.swift
-  - Created `CleanupModeSegmentedControl` with `CleanupModeSegment` components
-  - Clear visual distinction between modes with icons and coral accent
-  - Acceptance: Cleanup mode uses segmented control styling ✓
-  - Verification: `swift build` passes ✓
-
-- [x] Create hero status section with enable/disable toggle
-  - Scope: Add `CleanupStatusHero` component at top of view
-  - Shows cleanup status, selected mode, and enable/disable state
-  - Enhanced toggle card with icon header and description
-  - Acceptance: Hero section provides clear visual hierarchy ✓
-  - Verification: `swift build` passes ✓
-
-- [x] Improve LLM settings panel styling
-  - Scope: Modify LLM settings section in TextCleanupSettingsView
-  - Created `LLMModelSelectionCard` component for card-based model picker
-  - Separated model selection card from download actions card
-  - Consistent styling with Transcription settings (ModelSelectionCard pattern)
-  - Acceptance: LLM settings match overall design system ✓
-  - Verification: `swift build` passes ✓
-
-- [x] Add cleanup preview panel
-  - Scope: Created `CleanupPreviewCard` component
-  - Shows "Before" and "After" text comparison
-  - Different sample outputs for each cleanup mode
-  - Visual differentiation with colored backgrounds (error/success tints)
-  - Acceptance: Users can see cleanup effect preview ✓
-  - Verification: `swift build` passes ✓
-
-**Implementation Notes (US-408):**
-- Completely redesigned TextCleanupSettingsView with 6 main sections:
-  1. CleanupStatusHero - Hero section showing cleanup status and mode at a glance
-  2. Enable/Disable Card - Toggle with icon header and description
-  3. Mode Selection Card - CleanupModeSegmentedControl with 4 mode options
-  4. CleanupPreviewCard - Before/after text comparison showing cleanup effect
-  5. LLM Model Selection Card - Card-based picker with LLMModelSelectionCard components
-  6. LLM Actions Card - Download/load controls with gradient progress bar
-- Created new components:
-  - CleanupStatusHero: Shows cleanup status with mode badge and icon
-  - CleanupModeSegmentedControl: Horizontal segmented picker with icons
-  - CleanupModeSegment: Individual segment button with hover states
-  - CleanupPreviewCard: Before/after preview with mode-specific outputs
-  - LLMModelSelectionCard: Card-based model picker with specs (reuses ModelCardBadge, ModelSpec)
-  - Added modeDescriptionIcon computed property for contextual icons
-- Fixed LLM model cases to match LLMManager.ModelSize enum (qwen1_5b, phi3_mini, gemma2b)
-- All components use design system colors, fonts, spacing, and corner radius
-- Hover states and animations throughout for premium feel
-
----
-
-### US-409: Toast Notification System
-As a user, I want elegant notifications for app events.
-
-- [x] Create WispflowToast view component
-  - Scope: Created new file `Sources/WispFlow/ToastView.swift`
-  - Frosted glass background using .ultraThinMaterial with warm tint overlay
-  - Icon + message + optional action button layout
-  - Success (sage green), Error (coral), Info (gray) variants with ToastType enum
-  - Auto-dismiss timer with progress indicator bar at bottom
-  - Acceptance: Toast component renders correctly ✓
-  - Verification: `swift build` passes ✓
-
-- [x] Implement toast presentation manager
-  - Scope: Created `ToastManager` class (ObservableObject) with singleton pattern
-  - Queue system for multiple toasts (max 3 visible, queue for overflow)
-  - Slide-in from top-right animation using WispflowAnimation.slide
-  - Auto-dismiss after configurable duration with hover-pause functionality
-  - Acceptance: Toasts can be triggered and displayed ✓
-  - Verification: `swift build` passes ✓
-
-- [x] Integrate toast notifications
-  - Scope: Modified `AppDelegate.swift` to use ToastManager
-  - Added ToastWindowController for floating toast window
-  - Created convenience methods: showTranscriptionSuccess, showTranscriptionError, showModelDownloadComplete, etc.
-  - Added NotificationCenter observer for .openSettings action from toast buttons
-  - Acceptance: App events can trigger appropriate toasts ✓
-  - Verification: `swift build` passes ✓
-
-**Implementation Notes (US-409):**
-- Created comprehensive ToastView.swift (~450 lines) with full toast notification system
-- ToastType enum defines success (sage green), error (coral), info (gray) variants
-- ToastItem struct contains all toast configuration: type, title, message, icon, action, duration
-- ToastManager singleton manages toast queue, visibility, and auto-dismiss timers
-- WispflowToast SwiftUI view with frosted glass effect, progress bar, dismiss button
-- ToastContainerView displays all active toasts with proper positioning
-- ToastWindowController creates NSWindow for displaying toasts above all other windows
-- Convenience extensions for common toasts: transcription, model download, clipboard, etc.
-- Integrated with AppDelegate via setupToastSystem() and notification observer
-
----
-
-### US-410: Micro-interactions & Polish
-As a user, I want delightful micro-interactions throughout the app.
-
-- [x] Add button press animations
-  - Scope: WispflowButtonStyle in DesignSystem.swift already includes scale animation
-  - Press: scale to 0.97 ✓
-  - Release: spring back to 1.0 ✓
-  - Duration: 0.1s ease-out ✓
-  - Acceptance: Buttons visually respond to press ✓
-  - Verification: `swift build` passes ✓
-
-- [x] Add toggle switch animations
-  - Scope: WispflowToggleStyle in DesignSystem.swift already has smooth transition
-  - Thumb slides smoothly with spring animation ✓
-  - Color transition is animated (0.2s easeInOut) ✓
-  - Acceptance: Toggles animate smoothly ✓
-  - Verification: `swift build` passes ✓
-
-- [x] Add tab switching transitions
-  - Scope: Modified TabView in SettingsWindow.swift
-  - Added SettingsTab enum for state tracking
-  - Applied .tabContentTransition() to all tabs for opacity+scale transitions
-  - Added .animation(WispflowAnimation.tabTransition, value: selectedTab)
-  - Created TabContentTransition ViewModifier in DesignSystem.swift
-  - Acceptance: Tab switching feels smooth ✓
-  - Verification: `swift build` passes ✓
-
-- [x] Add hover states on all interactive elements
-  - Scope: Audited and updated all feature rows in SettingsWindow.swift
-  - Updated DebugFeatureRow, TranscriptionFeatureRow, CleanupFeatureRow, InsertionFeatureRow, AudioInfoRow
-  - Each now has .onHover with animated color and background changes
-  - Icon color changes from textSecondary to accent on hover
-  - Text color changes from textSecondary to textPrimary on hover
-  - Added subtle accentLight background highlight on hover
-  - Created HoverHighlight ViewModifier in DesignSystem.swift for reusable hover effects
-  - Acceptance: Interactive elements respond to hover ✓
-  - Verification: `swift build` passes ✓
-
-- [x] Add success checkmark animation
-  - Scope: Created AnimatedCheckmark component in DesignSystem.swift
-  - CheckmarkShape custom Shape for draw-in animation
-  - Green checkmark (Color.Wispflow.success) that draws in with spring animation
-  - Background circle scales in, then checkmark path draws
-  - Integrated into WispflowToast for success notifications
-  - Also created LoadingSpinner for loading states
-  - Also created PulsingDot for activity indicators
-  - Also created SuccessFlashOverlay for full-screen success feedback
-  - Also created BounceOnAppear modifier for entrance animations
-  - Acceptance: Checkmark animation plays for success states ✓
-  - Verification: `swift build` passes ✓
-
-**Implementation Notes (US-410):**
-- Button press animations (scale 0.97) and toggle animations already existed in DesignSystem.swift
-- Added new micro-interaction components to DesignSystem.swift:
-  - AnimatedCheckmark: Draws a checkmark with spring animation
-  - CheckmarkShape: Custom Shape for the checkmark path
-  - LoadingSpinner: Rotating arc for loading states
-  - PulsingDot: Pulsing circle for activity indicators
-  - InteractiveScaleStyle: Generic button style with scale animation
-  - HoverHighlight: ViewModifier for easy hover highlighting
-  - TabContentTransition: ViewModifier for smooth tab transitions
-  - SuccessFlashOverlay: Full-screen success flash with checkmark
-  - BounceOnAppear: ViewModifier for entrance animations
-  - WispflowAnimation.tabTransition: New animation preset for tab switches
-- Updated SettingsWindow.swift:
-  - Added SettingsTab enum for tab state management
-  - Applied tabContentTransition() to all 6 settings tabs
-  - Added tab transition animation
-  - Enhanced all 5 feature row types with hover effects
-- Updated ToastView.swift:
-  - Success toasts now show AnimatedCheckmark instead of static icon
-
----
-
-## Notes
-
-### Discoveries
-
-1. **No Existing Design System**: The codebase has no centralized color/font/spacing definitions. All styling is inline with system defaults. US-401 must be completed first as all other stories depend on it.
-
-2. **AppKit + SwiftUI Mix**: The app uses both AppKit (NSPanel, NSStatusItem, NSVisualEffectView) and SwiftUI (Settings views). Design system must provide both Color/Font and NSColor/NSFont equivalents.
-
-3. **Settings Window Uses Form**: Current SettingsWindow.swift uses SwiftUI Form/Section which has limited customization. May need to replace with VStack/HStack for full design control.
-
-4. **Recording Indicator is AppKit**: RecordingIndicatorWindow.swift is pure AppKit (NSPanel, NSView, NSTextField). Will need to update using NSColor equivalents from design system.
-
-5. **Audio Level Meter Exists**: `AudioLevelMeterView` already exists with color-coded levels. Just needs color updates to use design system palette.
-
-6. **No Toast System**: There is no existing notification/toast system. US-409 requires building from scratch.
-
-7. **Onboarding Not in MVP**: The PRD mentions onboarding/welcome flow (section 4 under Core UI Components) but it's not in the MVP scope stories. Should be deferred to v0.6.
-
-### Risks
-
-1. **SwiftUI TabView Limitations**: SwiftUI's TabView has limited customization options. May not be able to fully style tab bar as desired without custom implementation.
-
-2. **NSVisualEffectView Tinting**: Warm tinting of NSVisualEffectView may be limited. May need alternative approach for frosted glass with warm tint.
-
-3. **Performance of Animations**: Need to ensure micro-interactions don't impact transcription performance. Animations should be lightweight.
-
-4. **Consistency Across macOS Versions**: Need to test visual appearance on macOS 14.0 and later to ensure consistent rendering.
-
-### Technical Notes
-
-- Use `Color(red:green:blue:)` initializer with hex conversion for precise color matching
-- SwiftUI `.shadow()` modifier for card shadows
-- `NSColor(srgbRed:green:blue:alpha:)` for AppKit equivalents
-- `.animation(.spring(response:dampingFraction:))` for micro-interactions
-- Consider `@Environment(\.colorScheme)` for future dark mode support (not in v0.5 scope)
+| Phase | Stories | Priority | Effort |
+|-------|---------|----------|--------|
+| Phase 1: Settings UI | 3 | Critical | Small |
+| Phase 2: Audio | 5 | Critical | Medium |
+| Phase 3: Permissions | 4 | High | Small-Medium |
+| Phase 4: Hotkeys | 3 | Critical | Medium-Large |
+| Phase 5: Text Insertion | 3 | High | Small-Medium |
+| Phase 6: Onboarding | 7 | Medium | Medium |
+
+**Total: 25 User Stories**
+
+**Recommended Implementation Order:**
+1. US-523, US-524, US-525 (Settings UI - unblocks testing)
+2. US-503, US-504 (Audio engine - core functionality)
+3. US-501, US-502, US-505 (Device selection)
+4. US-506, US-507, US-508, US-509 (Permissions)
+5. US-510, US-511, US-512 (Hotkeys)
+6. US-513, US-514, US-515 (Text insertion)
+7. US-516 through US-522 (Onboarding - last, uses all systems)

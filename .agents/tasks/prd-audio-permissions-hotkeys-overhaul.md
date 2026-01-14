@@ -1,0 +1,480 @@
+# PRD: WispFlow Audio, Permissions & Hotkeys Overhaul
+
+## Introduction
+
+This PRD defines a comprehensive overhaul of WispFlow's core systems based on proven patterns from Voquill (an open-source voice-to-text app). The goal is to fix critical reliability issues with audio capture, hotkey detection, and permission handling while adding a polished onboarding experience.
+
+**Key Problems Being Solved:**
+- Audio input not detecting from microphones
+- Hotkeys not being recognized reliably
+- Settings UI elements not clickable/visible
+- No guided setup for permissions on first launch
+- Clipboard content lost during text insertion
+
+**Reference Implementation:** [Voquill](https://github.com/josiahsrc/voquill) - patterns ported to Swift equivalents.
+
+---
+
+## Goals
+
+- Fix audio capture reliability across all macOS input devices
+- Implement smart device selection that avoids low-quality inputs (Bluetooth, AirPods)
+- Create robust global hotkey detection that works consistently
+- Add guided onboarding wizard for permissions on first launch
+- Preserve clipboard content during text insertion
+- Improve Settings UI accessibility and interactivity
+- Provide real-time audio level preview that actually works
+
+---
+
+## User Stories
+
+### Phase 1: Audio System Overhaul
+
+### [x] US-501: Smart Audio Device Selection
+**Description:** As a user, I want WispFlow to automatically select the best available microphone so I don't have to manually configure audio settings.
+
+**Acceptance Criteria:**
+- [x] System ranks available input devices by quality score
+- [x] Bluetooth devices (AirPods, Beats, etc.) deprioritized automatically
+- [x] Devices with sample rate ≤16kHz deprioritized
+- [x] Built-in microphone preferred over Bluetooth when both available
+- [x] USB/external microphones given highest priority
+- [x] Example: MacBook with AirPods connected → selects "MacBook Pro Microphone" not "AirPods Pro"
+- [x] Negative case: Only Bluetooth mic available → uses it with warning toast
+- [x] Device selection logged to console for debugging
+- [x] Typecheck passes (`swift build` succeeds)
+
+### [ ] US-502: Audio Device Caching
+**Description:** As a user, I want recording to start quickly without device enumeration delay on subsequent recordings.
+
+**Acceptance Criteria:**
+- [ ] Last successfully used device cached in memory
+- [ ] Cache used for fast-path device selection on next recording
+- [ ] Cache invalidated when user manually changes device in Settings
+- [ ] Cache invalidated when cached device disconnected
+- [ ] First recording: full enumeration (~100-200ms)
+- [ ] Subsequent recordings: cached device (~10-20ms)
+- [ ] Typecheck passes
+
+### [ ] US-503: Robust Audio Engine Initialization
+**Description:** As a developer, I need the audio engine to initialize reliably regardless of device state.
+
+**Acceptance Criteria:**
+- [ ] Audio engine reset before each recording session
+- [ ] Engine prepared before setting input device
+- [ ] Input device set after engine preparation (audioUnit available)
+- [ ] Format queried after device is set
+- [ ] Invalid format (0 sample rate, 0 channels) throws clear error
+- [ ] Engine connected to muted mixer sink to ensure tap receives data
+- [ ] Example: Start recording → engine reset → prepare → set device → get format → install tap → start
+- [ ] Negative case: No input devices → clear error message, not silent failure
+- [ ] Typecheck passes
+
+### [ ] US-504: Audio Level Preview Fix
+**Description:** As a user, I want the audio preview in Settings to show my actual microphone levels so I can verify my mic is working.
+
+**Acceptance Criteria:**
+- [ ] "Start Preview" button triggers audio capture
+- [ ] Real-time level meter updates at ~20fps during preview
+- [ ] Level displayed in dB with color coding (green=good, yellow=quiet, red=loud)
+- [ ] Status text shows "Good", "Quiet", "Too Loud", or "Silent"
+- [ ] Preview stops cleanly when "Stop Preview" clicked
+- [ ] Preview stops automatically when leaving Audio settings tab
+- [ ] Console logs confirm tap callbacks received during preview
+- [ ] Typecheck passes
+
+### [ ] US-505: Low-Quality Device Warning
+**Description:** As a user, I want to be warned if I'm using a potentially low-quality audio input so I can switch to a better device.
+
+**Acceptance Criteria:**
+- [ ] Devices matching low-quality keywords flagged: "airpods", "bluetooth", "beats", "headset", "hfp"
+- [ ] Warning icon shown next to flagged devices in device picker
+- [ ] Tooltip explains why device may have poor quality
+- [ ] Toast notification when recording starts with flagged device
+- [ ] User can dismiss warning and continue
+- [ ] Warning does not block recording
+- [ ] Typecheck passes
+
+---
+
+### Phase 2: Permission System Overhaul
+
+### [ ] US-506: Permission Status Tracking
+**Description:** As a developer, I need accurate real-time permission status so the UI reflects the current state.
+
+**Acceptance Criteria:**
+- [ ] Microphone permission checked via `AVCaptureDevice.authorizationStatus`
+- [ ] Accessibility permission checked via `AXIsProcessTrusted()`
+- [ ] Permission status polled when app becomes active (user returns from System Settings)
+- [ ] Status enum: `.authorized`, `.denied`, `.notDetermined`, `.restricted`
+- [ ] Published properties trigger UI updates on change
+- [ ] Typecheck passes
+
+### [ ] US-507: Automatic Permission Prompting
+**Description:** As a user, I want permission dialogs to appear automatically when needed so I don't have to find them in Settings.
+
+**Acceptance Criteria:**
+- [ ] Microphone permission requested on first recording attempt if `.notDetermined`
+- [ ] Accessibility permission requested on first text insertion attempt if not trusted
+- [ ] System permission dialog shown (not custom alert)
+- [ ] If permission previously denied, open System Settings directly
+- [ ] Example: First launch → user presses hotkey → mic permission dialog appears
+- [ ] Typecheck passes
+
+### [ ] US-508: Open System Settings Helper
+**Description:** As a user, I want to be taken directly to the correct System Settings pane when I need to grant permissions.
+
+**Acceptance Criteria:**
+- [ ] "Open Settings" button opens Privacy & Security > Microphone pane
+- [ ] Accessibility settings opens Privacy & Security > Accessibility pane
+- [ ] Uses URL scheme: `x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone`
+- [ ] Works on macOS 13+ (Ventura and later)
+- [ ] Fallback to general Privacy settings if specific pane fails
+- [ ] Typecheck passes
+
+### [ ] US-509: Permission Status UI
+**Description:** As a user, I want to see my current permission status in Settings with clear visual indicators.
+
+**Acceptance Criteria:**
+- [ ] Microphone permission status shown with icon (✓ green / ✗ red)
+- [ ] Accessibility permission status shown with icon
+- [ ] "Grant Permission" button shown when permission not granted
+- [ ] Button opens appropriate System Settings pane
+- [ ] Status updates automatically when user grants permission and returns
+- [ ] Typecheck passes
+
+---
+
+### Phase 3: Hotkey System Overhaul
+
+### [ ] US-510: Global Event Tap for Hotkeys
+**Description:** As a user, I want hotkeys to work reliably regardless of which app is focused.
+
+**Acceptance Criteria:**
+- [ ] Global hotkey detection using CGEvent tap (not just Carbon RegisterEventHotKey)
+- [ ] Event tap installed at `kCGSessionEventTap` level
+- [ ] Modifier keys detected: Command, Shift, Option, Control
+- [ ] Default hotkey: Cmd+Shift+Space
+- [ ] Hotkey works when any application is focused
+- [ ] Hotkey works even when WispFlow window is not visible
+- [ ] Example: User in Safari, presses Cmd+Shift+Space → recording starts
+- [ ] Negative case: Hotkey pressed without accessibility permission → shows permission prompt
+- [ ] Typecheck passes
+
+### [ ] US-511: Hotkey Recording in Settings
+**Description:** As a user, I want to customize my hotkey by pressing the key combination I want to use.
+
+**Acceptance Criteria:**
+- [ ] "Record Hotkey" button in Settings enters recording mode
+- [ ] Recording mode shows pulsing indicator
+- [ ] Next key combination with modifier captured as new hotkey
+- [ ] Escape cancels recording without changing hotkey
+- [ ] Invalid combinations rejected (modifier-only, no modifier)
+- [ ] New hotkey persisted to UserDefaults
+- [ ] Hotkey display shows human-readable format (⌘⇧Space)
+- [ ] Typecheck passes
+
+### [ ] US-512: Hotkey Conflict Detection
+**Description:** As a user, I want to be warned if my chosen hotkey conflicts with system shortcuts.
+
+**Acceptance Criteria:**
+- [ ] Common system shortcuts detected: Cmd+Space (Spotlight), Cmd+Tab, etc.
+- [ ] Warning shown when conflicting hotkey recorded
+- [ ] User can proceed despite warning
+- [ ] "Reset to Default" button restores Cmd+Shift+Space
+- [ ] Typecheck passes
+
+---
+
+### Phase 4: Text Insertion Improvements
+
+### [ ] US-513: Clipboard Preservation
+**Description:** As a user, I want my clipboard content preserved when WispFlow inserts text so I don't lose what I copied.
+
+**Acceptance Criteria:**
+- [ ] Current clipboard content saved before text insertion
+- [ ] Transcribed text placed on clipboard
+- [ ] Cmd+V simulated to paste text
+- [ ] Original clipboard content restored after delay (800ms)
+- [ ] Restoration happens in background thread
+- [ ] Example: User has "important text" copied → WispFlow inserts transcription → clipboard returns to "important text"
+- [ ] Typecheck passes
+
+### [ ] US-514: Keyboard Event Simulation
+**Description:** As a developer, I need reliable keyboard event simulation for paste operations.
+
+**Acceptance Criteria:**
+- [ ] Uses CGEvent for key simulation (not AppleScript)
+- [ ] Key down event with Command modifier
+- [ ] Small delay between down and up (10ms)
+- [ ] Key up event with Command modifier
+- [ ] Events posted to HID event tap location
+- [ ] Works in all applications including Electron apps
+- [ ] Typecheck passes
+
+### [ ] US-515: Text Insertion Fallback
+**Description:** As a user, I want text insertion to work even if keyboard simulation fails.
+
+**Acceptance Criteria:**
+- [ ] Primary method: Cmd+V paste simulation
+- [ ] Fallback: Copy to clipboard and show notification to paste manually
+- [ ] Error logged with details when simulation fails
+- [ ] User shown toast: "Text copied - press Cmd+V to paste"
+- [ ] Typecheck passes
+
+---
+
+### Phase 5: Onboarding Wizard
+
+### [ ] US-516: First Launch Detection
+**Description:** As a developer, I need to detect first launch to show the onboarding wizard.
+
+**Acceptance Criteria:**
+- [ ] Check UserDefaults for `hasCompletedOnboarding` flag
+- [ ] First launch: flag is nil or false
+- [ ] Subsequent launches: flag is true
+- [ ] Flag only set to true after wizard completed or skipped
+- [ ] Typecheck passes
+
+### [ ] US-517: Onboarding Welcome Screen
+**Description:** As a new user, I want a welcome screen that explains what WispFlow does.
+
+**Acceptance Criteria:**
+- [ ] Welcome screen shown on first launch
+- [ ] App icon/logo displayed prominently
+- [ ] Brief description: "Voice-to-text for your Mac"
+- [ ] Key features listed (3-4 bullet points)
+- [ ] "Get Started" button advances to next step
+- [ ] "Skip Setup" link available (not prominent)
+- [ ] Typecheck passes
+
+### [ ] US-518: Microphone Permission Step
+**Description:** As a new user, I want guided setup for microphone permission.
+
+**Acceptance Criteria:**
+- [ ] Screen explains why microphone access is needed
+- [ ] Current permission status displayed
+- [ ] "Grant Access" button triggers system permission dialog
+- [ ] Status updates after permission granted
+- [ ] "Continue" enabled only after permission granted (or "Skip" always available)
+- [ ] Illustration/icon showing microphone
+- [ ] Typecheck passes
+
+### [ ] US-519: Accessibility Permission Step
+**Description:** As a new user, I want guided setup for accessibility permission.
+
+**Acceptance Criteria:**
+- [ ] Screen explains why accessibility access is needed (hotkeys + text insertion)
+- [ ] Current permission status displayed
+- [ ] "Open System Settings" button opens Accessibility pane
+- [ ] Instructions: "Enable WispFlow in the list"
+- [ ] Status updates when user returns to app
+- [ ] "Continue" enabled only after permission granted (or "Skip" available)
+- [ ] Typecheck passes
+
+### [ ] US-520: Audio Test Step
+**Description:** As a new user, I want to test my microphone during setup to ensure it works.
+
+**Acceptance Criteria:**
+- [ ] Live audio level meter displayed
+- [ ] "Start Test" button begins audio capture
+- [ ] Visual feedback shows mic is working
+- [ ] Device selector dropdown if multiple devices
+- [ ] "Sounds Good!" button advances when user satisfied
+- [ ] "Having Issues?" link shows troubleshooting tips
+- [ ] Typecheck passes
+
+### [ ] US-521: Hotkey Introduction Step
+**Description:** As a new user, I want to learn and optionally customize the recording hotkey.
+
+**Acceptance Criteria:**
+- [ ] Current hotkey displayed prominently (⌘⇧Space)
+- [ ] "Try it now" prompt - user can test hotkey
+- [ ] Visual feedback when hotkey pressed
+- [ ] "Change Hotkey" option for customization
+- [ ] Default hotkey recommended for most users
+- [ ] Typecheck passes
+
+### [ ] US-522: Onboarding Completion
+**Description:** As a new user, I want confirmation that setup is complete.
+
+**Acceptance Criteria:**
+- [ ] Success screen with checkmarks for completed steps
+- [ ] Brief recap of how to use: "Press ⌘⇧Space to start recording"
+- [ ] "Start Using WispFlow" button closes wizard
+- [ ] `hasCompletedOnboarding` flag set to true
+- [ ] Menu bar icon visible and ready
+- [ ] Typecheck passes
+
+---
+
+### Phase 6: Settings UI Fixes
+
+### [ ] US-523: Fix Tab Visibility
+**Description:** As a user, I want to see and click all tabs in the Settings window.
+
+**Acceptance Criteria:**
+- [ ] All 6 tabs visible: General, Audio, Transcription, Text Cleanup, Text Insertion, Debug
+- [ ] Tab labels readable (proper contrast)
+- [ ] Tabs clickable and switch content
+- [ ] No ZStack/overlay blocking tab bar
+- [ ] Typecheck passes
+
+### [ ] US-524: Fix Button Interactivity
+**Description:** As a user, I want all buttons in Settings to be clickable and responsive.
+
+**Acceptance Criteria:**
+- [ ] All buttons respond to clicks
+- [ ] Hover states visible on buttons
+- [ ] Press animation on click
+- [ ] No @State in ButtonStyle causing issues (use separate View)
+- [ ] Console logs button actions for debugging
+- [ ] Typecheck passes
+
+### [ ] US-525: Fix ScrollView Interactions
+**Description:** As a user, I want to scroll through settings and interact with all elements.
+
+**Acceptance Criteria:**
+- [ ] ScrollView scrolls smoothly
+- [ ] All interactive elements inside cards clickable
+- [ ] No hit testing issues with overlays
+- [ ] Toggle switches work
+- [ ] Dropdown menus open
+- [ ] Typecheck passes
+
+---
+
+## Functional Requirements
+
+### Audio System
+- **FR-1:** AudioManager must reset engine before each recording session
+- **FR-2:** AudioManager must prepare engine before setting input device
+- **FR-3:** AudioManager must validate input format (sample rate > 0, channels > 0)
+- **FR-4:** AudioManager must connect input to muted mixer sink for tap to receive data
+- **FR-5:** AudioManager must cache last successful device for fast subsequent recordings
+- **FR-6:** AudioManager must score devices: USB mics > built-in > Bluetooth
+- **FR-7:** AudioManager must emit currentAudioLevel at 20Hz during capture
+
+### Permissions
+- **FR-8:** App must check microphone permission before recording
+- **FR-9:** App must check accessibility permission before hotkey registration
+- **FR-10:** App must open specific System Settings pane via URL scheme
+- **FR-11:** App must re-check permissions when becoming active
+
+### Hotkeys
+- **FR-12:** HotkeyManager must use CGEvent tap for global detection
+- **FR-13:** HotkeyManager must require accessibility permission
+- **FR-14:** HotkeyManager must support Cmd+Shift+Space as default
+- **FR-15:** HotkeyManager must persist custom hotkey to UserDefaults
+
+### Text Insertion
+- **FR-16:** TextInserter must save clipboard before insertion
+- **FR-17:** TextInserter must restore clipboard after 800ms delay
+- **FR-18:** TextInserter must use CGEvent for Cmd+V simulation
+- **FR-19:** TextInserter must provide fallback notification on failure
+
+### Onboarding
+- **FR-20:** App must show onboarding wizard on first launch
+- **FR-21:** Onboarding must guide through microphone permission
+- **FR-22:** Onboarding must guide through accessibility permission
+- **FR-23:** Onboarding must include audio test step
+- **FR-24:** Onboarding must set completion flag in UserDefaults
+
+---
+
+## Non-Goals (Out of Scope)
+
+- **No cross-platform support** - This PRD is macOS only
+- **No Rust/Swift bridge** - Pure Swift implementation
+- **No screen context extraction** - Advanced accessibility features deferred
+- **No real-time transcription streaming** - Batch transcription only
+- **No cloud-based audio processing** - Local Whisper only
+- **No multi-language onboarding** - English only for now
+- **No automatic updates** - Manual updates via GitHub releases
+
+---
+
+## Technical Considerations
+
+### Audio Architecture
+- Use `AVAudioEngine` with proper initialization sequence
+- Install tap on input node with buffer size 4096
+- Convert to 16kHz mono for Whisper
+- Use `AVAudioMixerNode` as sink to ensure tap receives data
+
+### Permission APIs
+- `AVCaptureDevice.authorizationStatus(for: .audio)` for microphone
+- `AXIsProcessTrusted()` for accessibility
+- `AXIsProcessTrustedWithOptions()` with prompt for first request
+- `NSWorkspace.shared.open(URL)` for System Settings
+
+### Hotkey Implementation
+- `CGEvent.tapCreate()` for global event monitoring
+- `CGEventTapLocation.cgSessionEventTap` for user session events
+- `CGEventMask` for key down events
+- Run loop source for event processing
+
+### SwiftUI Considerations
+- Avoid `@State` directly in `ButtonStyle` - use wrapper View
+- Use `contentShape(Rectangle())` for hit testing
+- Avoid `ZStack` overlays that block interaction
+- Test all UI interactions after each change
+
+---
+
+## Success Metrics
+
+- **Audio capture success rate:** 95%+ of recordings capture actual audio
+- **Hotkey reliability:** 99%+ of hotkey presses detected
+- **Permission setup completion:** 80%+ of new users complete onboarding
+- **Settings usability:** All buttons/toggles clickable on first try
+- **Time to first transcription:** < 2 minutes for new users with onboarding
+
+---
+
+## Open Questions
+
+1. Should we add a "Test Recording" feature in Settings (record → playback)?
+2. Should onboarding include Whisper model download or defer to first use?
+3. Should we add keyboard shortcut hints in the UI (tooltips)?
+4. Should we persist audio device preference across app restarts?
+5. Should we add a system tray notification when hotkey is pressed?
+
+---
+
+## Implementation Order
+
+**Recommended sequence:**
+
+1. **US-523, US-524, US-525** - Fix Settings UI first (unblocks testing)
+2. **US-503, US-504** - Fix audio engine initialization and preview
+3. **US-501, US-502** - Smart device selection and caching
+4. **US-506, US-507, US-508** - Permission system
+5. **US-510, US-511** - Hotkey overhaul
+6. **US-513, US-514** - Clipboard preservation
+7. **US-516 through US-522** - Onboarding wizard (last, uses all other systems)
+
+---
+
+## Routing Policy
+- Commit URLs are invalid.
+- Unknown GitHub subpaths canonicalize to repo root.
+
+---
+
+## Appendix: Voquill Reference Code
+
+Key files analyzed from Voquill (Rust/Tauri):
+- `platform/macos/permissions.rs` - Permission handling patterns
+- `platform/macos/input.rs` - Keyboard simulation via CGEvent
+- `platform/macos/accessibility.rs` - AX API usage
+- `platform/audio.rs` - Audio device selection and recording
+- `platform/keyboard.rs` - Global key event monitoring
+- `domain/recording.rs` - Recording state management
+
+All patterns to be ported to Swift equivalents using:
+- AVFoundation for audio
+- ApplicationServices for accessibility
+- CoreGraphics for event simulation
+- AppKit for UI and permissions

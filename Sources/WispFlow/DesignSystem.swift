@@ -298,7 +298,7 @@ extension View {
 
 // MARK: - Wispflow Button Style
 
-/// Custom button style for Wispflow with press animation and hover states
+/// Custom button style for Wispflow with press animation
 struct WispflowButtonStyle: ButtonStyle {
     /// Button variant
     enum Variant {
@@ -310,14 +310,42 @@ struct WispflowButtonStyle: ButtonStyle {
     let variant: Variant
     let isFullWidth: Bool
     
-    @State private var isHovering = false
-    
     init(variant: Variant = .primary, isFullWidth: Bool = false) {
         self.variant = variant
         self.isFullWidth = isFullWidth
     }
     
     func makeBody(configuration: Configuration) -> some View {
+        WispflowButtonContent(
+            configuration: configuration,
+            variant: variant,
+            isFullWidth: isFullWidth
+        )
+    }
+    
+    // Convenience static methods for easy access
+    static var primary: WispflowButtonStyle {
+        WispflowButtonStyle(variant: .primary)
+    }
+    
+    static var secondary: WispflowButtonStyle {
+        WispflowButtonStyle(variant: .secondary)
+    }
+    
+    static var ghost: WispflowButtonStyle {
+        WispflowButtonStyle(variant: .ghost)
+    }
+}
+
+/// Internal view for button content with proper @State management
+private struct WispflowButtonContent: View {
+    let configuration: ButtonStyleConfiguration
+    let variant: WispflowButtonStyle.Variant
+    let isFullWidth: Bool
+    
+    @State private var isHovering = false
+    
+    var body: some View {
         configuration.label
             .font(Font.Wispflow.body)
             .fontWeight(.medium)
@@ -371,19 +399,6 @@ struct WispflowButtonStyle: ButtonStyle {
         case .secondary, .ghost:
             return Color.Wispflow.accent
         }
-    }
-    
-    // Convenience static methods for easy access
-    static var primary: WispflowButtonStyle {
-        WispflowButtonStyle(variant: .primary)
-    }
-    
-    static var secondary: WispflowButtonStyle {
-        WispflowButtonStyle(variant: .secondary)
-    }
-    
-    static var ghost: WispflowButtonStyle {
-        WispflowButtonStyle(variant: .ghost)
     }
 }
 

@@ -7,6 +7,7 @@ import AppKit
 enum ToastType {
     case success
     case error
+    case warning  // US-501: Warning toast type for low-quality device notifications
     case info
     
     /// Background color for the toast type
@@ -16,6 +17,8 @@ enum ToastType {
             return Color.Wispflow.success
         case .error:
             return Color.Wispflow.accent  // Coral for errors per PRD
+        case .warning:
+            return Color.Wispflow.warning  // Orange for warnings
         case .info:
             return Color.Wispflow.textSecondary
         }
@@ -28,6 +31,8 @@ enum ToastType {
             return Color.Wispflow.successLight
         case .error:
             return Color.Wispflow.accentLight
+        case .warning:
+            return Color.Wispflow.warning.opacity(0.2)
         case .info:
             return Color.Wispflow.border
         }
@@ -39,6 +44,8 @@ enum ToastType {
         case .success:
             return "checkmark.circle.fill"
         case .error:
+            return "exclamationmark.triangle.fill"
+        case .warning:
             return "exclamationmark.triangle.fill"
         case .info:
             return "info.circle.fill"
@@ -160,6 +167,27 @@ final class ToastManager: ObservableObject {
     ) {
         let toast = ToastItem(
             type: .info,
+            title: title,
+            message: message,
+            icon: icon,
+            actionTitle: actionTitle,
+            action: action,
+            duration: duration
+        )
+        show(toast)
+    }
+    
+    /// US-501: Show a warning toast
+    func showWarning(
+        _ title: String,
+        message: String? = nil,
+        icon: String? = nil,
+        actionTitle: String? = nil,
+        action: (() -> Void)? = nil,
+        duration: TimeInterval = 4.0
+    ) {
+        let toast = ToastItem(
+            type: .warning,
             title: title,
             message: message,
             icon: icon,
@@ -556,6 +584,20 @@ extension ToastManager {
                     NSWorkspace.shared.activateFileViewerSelecting([url])
                 }
             }
+        )
+    }
+    
+    /// US-501: Show warning toast for low-quality audio device
+    func showLowQualityDeviceWarning(deviceName: String) {
+        showWarning(
+            "Low-Quality Microphone",
+            message: "Using \(deviceName). For best results, connect a better microphone.",
+            icon: "mic.badge.exclamationmark",
+            actionTitle: "Settings",
+            action: {
+                NotificationCenter.default.post(name: .openSettings, object: nil)
+            },
+            duration: 5.0
         )
     }
 }

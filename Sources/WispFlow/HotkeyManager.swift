@@ -80,14 +80,15 @@ final class HotkeyManager: ObservableObject {
     
     // MARK: - Properties
     
-    private var globalMonitor: Any?
-    private var localMonitor: Any?
+    private var hotKeyRef: EventHotKeyRef?
+    private var eventHandler: EventHandlerRef?
     @Published private(set) var configuration: HotkeyConfiguration
     
     /// Callback triggered when the hotkey is pressed
     var onHotkeyPressed: (() -> Void)?
     
     // MARK: - Initialization
+    private static let hotKeySignature: OSType = 0x57495350 // 'WISP'
     
     init(configuration: HotkeyConfiguration? = nil) {
         // Load saved configuration or use default
@@ -133,36 +134,23 @@ final class HotkeyManager: ObservableObject {
     // MARK: - Public API
     
     /// Start listening for global hotkey events
-    /// Note: This requires accessibility permissions to work from other applications
+    /// Uses Carbon RegisterEventHotKey for reliable global delivery without input monitoring
     func start() {
-        // Stop any existing monitors
         stop()
-        
-        // Global monitor - for key events in other applications
-        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            self?.handleKeyEvent(event)
-        }
-        
-        // Local monitor - for key events when our app is active
-        localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            if self?.handleKeyEvent(event) == true {
-                return nil // Consume the event
-            }
-            return event
-        }
-        
-        print("HotkeyManager started - listening for \(configuration.displayString)")
+        installEventHandler()
+        registerHotKey()
+        print("HotkeyManager started - listening for \(configuration.displayString) via Carbon hotkey")
     }
     
     /// Stop listening for global hotkey events
     func stop() {
-        if let monitor = globalMonitor {
-            NSEvent.removeMonitor(monitor)
-            globalMonitor = nil
+        if let hotKeyRef = hotKeyRef {
+            UnregisterEventHotKey(hotKeyRef)
+            self.hotKeyRef = nil
         }
-        if let monitor = localMonitor {
-            NSEvent.removeMonitor(monitor)
-            localMonitor = nil
+        if let handler = eventHandler {
+            RemoveEventHandler(handler)
+            eventHandler = nil
         }
         print("HotkeyManager stopped")
     }
@@ -171,8 +159,8 @@ final class HotkeyManager: ObservableObject {
     func updateConfiguration(_ newConfig: HotkeyConfiguration) {
         configuration = newConfig
         saveConfiguration()
-        // Restart monitors with new configuration
-        if globalMonitor != nil || localMonitor != nil {
+        // Restart hotkey registration with new configuration
+        if hotKeyRef != nil || eventHandler != nil {
             start()
         }
     }
@@ -189,28 +177,44 @@ final class HotkeyManager: ObservableObject {
     
     // MARK: - Private Methods
     
-    /// Handle a key event and check if it matches our hotkey
-    /// Returns true if the event was consumed (matched our hotkey)
-    @discardableResult
-    private func handleKeyEvent(_ event: NSEvent) -> Bool {
-        // Check if the key code matches
-        guard event.keyCode == configuration.keyCode else {
-            return false
+    // MARK: - Carbon Hotkey Registration
+
+    private func registerHotKey() {
+        let hotKeyID = EventHotKeyID(signature: Self.hotKeySignature, id: UInt32(1))
+        let modifiers = carbonFlags(from: configuration.modifiers)
+        let status = RegisterEventHotKey(UInt32(configuration.keyCode), modifiers, hotKeyID, GetApplicationEventTarget(), 0, &hotKeyRef)
+        if status != noErr {
+            print("HotkeyManager: Failed to register hotkey (status: \(status))")
+        } else {
+            print("HotkeyManager: Registered Carbon hotkey \(configuration.displayString) [modifiers: \(modifiers)]")
         }
-        
-        // Check modifier flags
-        // We need to mask out irrelevant flags (like caps lock, function, etc.)
-        let relevantFlags: NSEvent.ModifierFlags = [.command, .shift, .option, .control]
-        let eventFlags = event.modifierFlags.intersection(relevantFlags)
-        let requiredFlags = configuration.modifiers.intersection(relevantFlags)
-        
-        guard eventFlags == requiredFlags else {
-            return false
+    }
+
+    private func installEventHandler() {
+        var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
+        let status = InstallEventHandler(GetApplicationEventTarget(), HotkeyManager.hotKeyHandler, 1, &eventType, UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque()), &eventHandler)
+        if status != noErr {
+            print("HotkeyManager: Failed to install event handler (status: \(status))")
         }
-        
-        // Hotkey matched!
-        print("Hotkey pressed: \(configuration.displayString)")
-        onHotkeyPressed?()
-        return true
+    }
+
+    private func carbonFlags(from modifiers: NSEvent.ModifierFlags) -> UInt32 {
+        var carbon: UInt32 = 0
+        if modifiers.contains(.command) { carbon |= UInt32(cmdKey) }
+        if modifiers.contains(.shift) { carbon |= UInt32(shiftKey) }
+        if modifiers.contains(.option) { carbon |= UInt32(optionKey) }
+        if modifiers.contains(.control) { carbon |= UInt32(controlKey) }
+        return carbon
+    }
+
+    private static let hotKeyHandler: EventHandlerUPP = { _, eventRef, userData in
+        guard let eventRef = eventRef, let userData = userData else { return noErr }
+        let manager = Unmanaged<HotkeyManager>.fromOpaque(userData).takeUnretainedValue()
+        var hotKeyID = EventHotKeyID()
+        let status = GetEventParameter(eventRef, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID), nil, MemoryLayout<EventHotKeyID>.size, nil, &hotKeyID)
+        if status == noErr && hotKeyID.signature == hotKeySignature {
+            manager.onHotkeyPressed?()
+        }
+        return noErr
     }
 }

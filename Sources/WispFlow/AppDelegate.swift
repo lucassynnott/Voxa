@@ -182,6 +182,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             )
             self?.showRecordingTooShortError()
         }
+        
+        // US-501: Handle low-quality device warning
+        audioManager?.onLowQualityDeviceSelected = { device in
+            print("AudioManager: [US-501] Only low-quality device available: \(device.name)")
+            ErrorLogger.shared.log(
+                "Low-quality audio device selected (only option available)",
+                category: .audio,
+                severity: .warning,
+                context: [
+                    "deviceName": device.name,
+                    "deviceUID": device.uid,
+                    "sampleRate": "\(device.sampleRate)Hz"
+                ]
+            )
+            DispatchQueue.main.async {
+                ToastManager.shared.showLowQualityDeviceWarning(deviceName: device.name)
+            }
+        }
     }
     
     private func showSilenceWarning(measuredDbLevel: Float) {
@@ -278,6 +296,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         
         textInserter?.onError = { error in
             print("Text insertion error: \(error)")
+        }
+
+        // Prompt for accessibility permission upfront so keyboard insertion works
+        if textInserter?.hasAccessibilityPermission == false {
+            _ = textInserter?.requestAccessibilityPermission(showPrompt: true)
         }
     }
     
