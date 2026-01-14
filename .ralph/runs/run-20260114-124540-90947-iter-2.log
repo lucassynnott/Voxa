@@ -1,0 +1,14 @@
+**Summary:**
+
+US-513 (Clipboard Preservation) was already fully implemented in a prior iteration (commit `8f0edae feat(US-513): implement clipboard preservation`). All acceptance criteria are verified:
+
+- ✅ Current clipboard content saved before text insertion (`saveClipboardContents()`)
+- ✅ Transcribed text placed on clipboard (`pasteboard.setString()`)
+- ✅ Cmd+V simulated to paste text (`simulatePaste()`)
+- ✅ Original clipboard content restored after delay (800ms via `defaultRestoreDelay = 0.8`)
+- ✅ Restoration happens in background thread (`DispatchQueue.global(qos: .utility)`)
+- ✅ Typecheck passes (`swift build` succeeds)
+
+This run verified the existing implementation and updated the progress log. Commit: `add5203 docs: update progress log for US-513 verification`.
+
+There are still 12 unchecked stories remaining in the PRD (US-514 through US-525).

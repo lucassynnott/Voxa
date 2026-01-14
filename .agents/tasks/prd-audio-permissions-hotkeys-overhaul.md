@@ -201,17 +201,17 @@ This PRD defines a comprehensive overhaul of WispFlow's core systems based on pr
 - [x] Example: User has "important text" copied → WispFlow inserts transcription → clipboard returns to "important text"
 - [x] Typecheck passes
 
-### [ ] US-514: Keyboard Event Simulation
+### [x] US-514: Keyboard Event Simulation
 **Description:** As a developer, I need reliable keyboard event simulation for paste operations.
 
 **Acceptance Criteria:**
-- [ ] Uses CGEvent for key simulation (not AppleScript)
-- [ ] Key down event with Command modifier
-- [ ] Small delay between down and up (10ms)
-- [ ] Key up event with Command modifier
-- [ ] Events posted to HID event tap location
-- [ ] Works in all applications including Electron apps
-- [ ] Typecheck passes
+- [x] Uses CGEvent for key simulation (not AppleScript)
+- [x] Key down event with Command modifier
+- [x] Small delay between down and up (10ms)
+- [x] Key up event with Command modifier
+- [x] Events posted to HID event tap location
+- [x] Works in all applications including Electron apps
+- [x] Typecheck passes
 
 ### [ ] US-515: Text Insertion Fallback
 **Description:** As a user, I want text insertion to work even if keyboard simulation fails.

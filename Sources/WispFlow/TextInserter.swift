@@ -29,7 +29,8 @@ final class TextInserter: ObservableObject {
         static let preserveClipboardKey = "preserveClipboard"
         static let clipboardRestoreDelayKey = "clipboardRestoreDelay"
         static let defaultRestoreDelay: Double = 0.8  // US-513: 800ms as per acceptance criteria
-        static let keystrokeDelay: UInt32 = 50_000    // 50ms in microseconds
+        static let keystrokeDelay: UInt32 = 10_000    // US-514: 10ms in microseconds between key down and key up
+        static let pasteboardReadyDelay: UInt32 = 50_000  // 50ms to ensure pasteboard is ready before paste
         static let permissionPollingInterval: TimeInterval = 1.0  // 1 second polling
     }
     
@@ -259,8 +260,8 @@ final class TextInserter: ObservableObject {
             return .insertionFailed("Failed to copy text to clipboard")
         }
         
-        // Small delay to ensure pasteboard is ready
-        usleep(Constants.keystrokeDelay)
+        // Small delay to ensure pasteboard is ready before simulating paste
+        usleep(Constants.pasteboardReadyDelay)
         
         // Simulate Cmd+V keystroke
         let result = simulatePaste()
@@ -295,32 +296,55 @@ final class TextInserter: ObservableObject {
         return result
     }
     
-    /// Simulate Cmd+V (paste) keystroke
+    /// US-514: Simulate Cmd+V (paste) keystroke using CGEvent
+    /// 
+    /// Implementation details per US-514 acceptance criteria:
+    /// - Uses CGEvent for key simulation (not AppleScript)
+    /// - Key down event with Command modifier
+    /// - Small delay between down and up (10ms)
+    /// - Key up event with Command modifier  
+    /// - Events posted to HID event tap location (.cghidEventTap)
+    /// - Works in all applications including Electron apps
+    ///
+    /// The virtual key code 0x09 corresponds to 'V' on ANSI keyboards (kVK_ANSI_V).
+    /// CGEvent posting at .cghidEventTap level ensures events are processed by the
+    /// window server and delivered to any focused application, including:
+    /// - Native macOS apps (AppKit, SwiftUI)
+    /// - Electron-based apps (VS Code, Slack, Discord, etc.)
+    /// - Cross-platform apps (Java, Qt, etc.)
     private func simulatePaste() -> InsertionResult {
-        // Create key down event for 'V' with Command modifier
+        print("TextInserter: [US-514] Simulating Cmd+V using CGEvent")
+        
+        // US-514: Create key down event for 'V' with Command modifier
+        // Virtual key code 0x09 = kVK_ANSI_V (the 'V' key on ANSI keyboards)
         guard let keyDownEvent = CGEvent(keyboardEventSource: nil, virtualKey: 0x09, keyDown: true) else {
-            print("TextInserter: Failed to create key down event")
+            print("TextInserter: [US-514] Failed to create key down event")
             return .insertionFailed("Failed to create keyboard event")
         }
         
-        // Create key up event for 'V'
+        // US-514: Create key up event for 'V'
         guard let keyUpEvent = CGEvent(keyboardEventSource: nil, virtualKey: 0x09, keyDown: false) else {
-            print("TextInserter: Failed to create key up event")
+            print("TextInserter: [US-514] Failed to create key up event")
             return .insertionFailed("Failed to create keyboard event")
         }
         
-        // Set Command modifier
+        // US-514: Set Command modifier flag on both events
         keyDownEvent.flags = .maskCommand
         keyUpEvent.flags = .maskCommand
         
-        // Post the events
+        // US-514: Post key down event to HID event tap location
+        // .cghidEventTap ensures events are processed like real keyboard input,
+        // making it work in all applications including Electron apps
         keyDownEvent.post(tap: .cghidEventTap)
         
-        // Small delay between key down and key up
-        usleep(Constants.keystrokeDelay)
+        // US-514: Small delay between key down and key up (10ms)
+        // This delay ensures the target application properly registers the key press
+        usleep(Constants.keystrokeDelay)  // 10,000 microseconds = 10ms
         
+        // US-514: Post key up event to HID event tap location
         keyUpEvent.post(tap: .cghidEventTap)
         
+        print("TextInserter: [US-514] Cmd+V simulated successfully via CGEvent at .cghidEventTap")
         return .success
     }
     
