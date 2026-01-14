@@ -1,0 +1,14 @@
+## Summary
+
+Successfully completed **US-507: Automatic Permission Prompting** with the following changes:
+
+1. **PermissionManager.swift** - Added automatic prompting methods:
+   - `requestMicrophonePermission()` async method that shows system dialog if `.notDetermined` or opens System Settings if `.denied`
+   - `requestAccessibilityPermission()` method using `AXIsProcessTrustedWithOptions` for system dialog
+   - `openMicrophoneSettings()` and `openAccessibilitySettings()` helpers using macOS URL schemes
+
+2. **AppDelegate.swift** - Updated `toggleRecordingFromHotkey()` to check microphone permission before starting recording, triggering the system permission dialog on first attempt
+
+3. **TextInserter.swift** - Updated `insertText()` to use PermissionManager for consistent accessibility permission prompting on first text insertion attempt
+
+All prompting uses native system dialogs (not custom alerts) as required. Typecheck passes with `swift build`. Commits: `6ef70c7` (implementation) and `f2a18f2` (progress log).

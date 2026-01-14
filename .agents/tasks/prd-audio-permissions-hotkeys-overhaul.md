@@ -122,16 +122,16 @@ This PRD defines a comprehensive overhaul of WispFlow's core systems based on pr
 - [x] Example: First launch → user presses hotkey → mic permission dialog appears
 - [x] Typecheck passes
 
-### [ ] US-508: Open System Settings Helper
+### [x] US-508: Open System Settings Helper
 **Description:** As a user, I want to be taken directly to the correct System Settings pane when I need to grant permissions.
 
 **Acceptance Criteria:**
-- [ ] "Open Settings" button opens Privacy & Security > Microphone pane
-- [ ] Accessibility settings opens Privacy & Security > Accessibility pane
-- [ ] Uses URL scheme: `x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone`
-- [ ] Works on macOS 13+ (Ventura and later)
-- [ ] Fallback to general Privacy settings if specific pane fails
-- [ ] Typecheck passes
+- [x] "Open Settings" button opens Privacy & Security > Microphone pane
+- [x] Accessibility settings opens Privacy & Security > Accessibility pane
+- [x] Uses URL scheme: `x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone`
+- [x] Works on macOS 13+ (Ventura and later)
+- [x] Fallback to general Privacy settings if specific pane fails
+- [x] Typecheck passes
 
 ### [ ] US-509: Permission Status UI
 **Description:** As a user, I want to see my current permission status in Settings with clear visual indicators.

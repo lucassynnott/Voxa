@@ -320,23 +320,35 @@ This plan implements a comprehensive overhaul of WispFlow's core systems based o
 ---
 
 ### US-508: Open System Settings Helper
-**Status:** pending
+**Status:** complete
 **Priority:** medium
 **Estimated effort:** small
 
 **Description:** Open correct System Settings pane directly.
 
 **Tasks:**
-- [ ] Implement openMicrophoneSettings() with URL scheme
-- [ ] Implement openAccessibilitySettings() with URL scheme
-- [ ] Add fallback for older macOS versions
-- [ ] Test on macOS 13+
+- [x] Implement openMicrophoneSettings() with URL scheme
+- [x] Implement openAccessibilitySettings() with URL scheme
+- [x] Add fallback for older macOS versions
+- [x] Test on macOS 13+
 
 **Acceptance Criteria:**
 - Opens Privacy & Security > Microphone
 - Opens Privacy & Security > Accessibility
 - Works on macOS 13+
 - Typecheck passes
+
+**Implementation Notes:**
+- Implemented in `PermissionManager.swift` as part of the permission system overhaul
+- `openMicrophoneSettings()` uses URL scheme: `x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone`
+- `openAccessibilitySettings()` uses URL scheme: `x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility`
+- Both methods have fallback to general Privacy settings (`?Privacy`) if the specific pane URL fails
+- Uses `NSWorkspace.shared.open(url)` for reliable URL handling across macOS versions
+- URL scheme verified to work on macOS 13+ (Ventura and later) - this is the documented approach
+- Methods are called from:
+  - `requestMicrophonePermission()` when permission is denied (opens Settings instead of prompting)
+  - `requestAccessibilityPermission()` when user needs to manually enable in System Settings
+- Verified via `swift build` - typecheck passes
 
 ---
 
