@@ -1500,3 +1500,39 @@ Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260113-203453-63497-it
   - Feature rows benefit from consistent hover state patterns for visual feedback
   - AnimatedCheckmark works well as toast icon replacement for success notifications
 ---
+
+## [2026-01-14 11:55] - US-501: Smart Audio Device Selection
+Thread: codex exec session
+Run: 20260114-114454-75717 (iteration 1)
+Run log: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-114454-75717-iter-1.log
+Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-114454-75717-iter-1.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: 1655ba9 feat(US-501): add smart audio device selection with quality scoring
+- Post-commit status: clean
+- Verification:
+  - Command: `swift build` -> PASS (warnings are pre-existing in LLMManager.swift)
+- Files changed:
+  - Sources/WispFlow/AudioManager.swift (added DeviceQuality enum, calculateDeviceQuality(), selectBestDevice(), sample rate fetching)
+  - Sources/WispFlow/ToastView.swift (added ToastType.warning, showWarning(), showLowQualityDeviceWarning())
+  - Sources/WispFlow/AppDelegate.swift (added onLowQualityDeviceSelected callback handler)
+  - .ralph/IMPLEMENTATION_PLAN.md (marked US-501 complete)
+  - .agents/tasks/prd-audio-permissions-hotkeys-overhaul.md (marked US-501 acceptance criteria complete)
+- What was implemented:
+  - DeviceQuality enum with 5 priority tiers: bluetooth (0), lowSampleRate (1), builtIn (2), usb (3), professional (4)
+  - Low-quality device keywords: airpods, beats, bluetooth, hfp, headset, wireless
+  - Built-in keywords: built-in, macbook, imac, mac mini, mac studio, mac pro
+  - USB/professional keywords: usb, yeti, blue, rode, shure, audio-technica, focusrite, scarlett, apollo
+  - sampleRate field added to AudioInputDevice struct
+  - calculateDeviceQuality() function scores devices by name matching and sample rate
+  - selectBestDevice() automatically selects highest-quality available device
+  - Enhanced device enumeration logs sample rate and quality for each device
+  - ToastType.warning case added with orange color (Color.Wispflow.warning)
+  - showLowQualityDeviceWarning() displays toast when only Bluetooth device available
+  - Cache invalidation triggers automatic device re-selection
+- **Learnings for future iterations:**
+  - macOS CoreAudio uses kAudioDevicePropertyNominalSampleRate to get device sample rate
+  - Device quality scoring enables smart automatic selection without user intervention
+  - Toast notification system (US-409) was already in place - just needed warning type added
+  - AudioManager callback pattern (onXXX closures) works well for decoupled notification handling
+---
