@@ -19,6 +19,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var lastAudioData: Data?
     private var lastAudioSampleRate: Double = 16000.0
     
+    // US-608: Timer to clear audio buffer after timeout (30 seconds)
+    private var audioBufferClearTimer: Timer?
+    private static let audioBufferTimeoutSeconds: TimeInterval = 30.0
+    
     // Track transcription timing for debug
     private var transcriptionStartTime: Date?
     
