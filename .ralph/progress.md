@@ -1867,3 +1867,44 @@ Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-121455-84404-it
   - `NSWorkspace.shared.open(url)` is the standard way to open URL schemes on macOS
   - Fallback URLs provide graceful degradation if specific pane URL fails
 ---
+
+## [2026-01-14 12:35] - US-509: Permission Status UI
+Thread: codex exec session
+Run: 20260114-121455-84404 (iteration 4)
+Run log: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-121455-84404-iter-4.log
+Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-121455-84404-iter-4.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: 4da9072 feat(US-509): add Permission Status UI to Settings
+- Post-commit status: clean
+- Verification:
+  - Command: `swift build` -> PASS (build complete, no errors)
+- Files changed:
+  - Sources/WispFlow/SettingsWindow.swift (added Permissions card and PermissionStatusRow component)
+  - .agents/tasks/prd-audio-permissions-hotkeys-overhaul.md (mark US-509 complete)
+  - .ralph/IMPLEMENTATION_PLAN.md (update task status with implementation notes)
+- What was implemented:
+  - Added `PermissionStatusRow` component to SettingsWindow.swift:
+    - Shows permission name with icon (mic/hand for microphone/accessibility)
+    - Green checkmark icon (`checkmark.circle.fill`) with "Granted" badge when authorized
+    - Red X icon (`xmark.circle.fill`) with "Not Granted" badge when denied
+    - "Grant Permission" button shown only when permission is not granted
+    - Button triggers appropriate PermissionManager request method
+    - Hover animation for visual feedback
+  - Added Permissions card to GeneralSettingsView:
+    - Shows both Microphone and Accessibility permission status rows
+    - Card includes descriptive header explaining why permissions are needed
+    - Divider separates the two permission rows
+  - Updated GeneralSettingsView to accept `permissionManager: PermissionManager` parameter
+  - Updated SettingsView to pass `PermissionManager.shared` to GeneralSettingsView
+  - Status auto-updates via:
+    - PermissionManager's app activation observer (when returning from System Settings)
+    - Background polling timer while permissions aren't all granted
+    - `refreshAllStatuses()` called on GeneralSettingsView appear
+- **Learnings for future iterations:**
+  - SwiftUI's ObservableObject with @Published properties automatically trigger UI updates
+  - PermissionManager singleton pattern works well for app-wide permission tracking
+  - Visual status indicators (green/red with icons) provide clear feedback at a glance
+  - Reuse existing PermissionManager methods rather than duplicating logic in UI
+  - App activation observer is key for detecting when user returns from System Settings
+---
