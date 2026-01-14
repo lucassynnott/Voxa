@@ -1,0 +1,18 @@
+**Summary:**
+
+Implemented US-522: Onboarding Completion for WispFlow's onboarding wizard:
+
+1. **Added completion step** (`OnboardingStep.completion`) to the onboarding flow
+2. **Created `OnboardingCompletionView`** with:
+   - Animated success illustration with checkmark
+   - Success card showing completed steps (Microphone Access, Accessibility Access, Audio Test, Hotkey Configuration) with dynamic status from `PermissionManager`
+   - Hotkey recap card showing how to start recording (e.g., "Press ⌘⇧Space")
+   - "Start Using WispFlow" button that closes wizard
+3. **`hasCompletedOnboarding` flag** is set to true when user clicks the button (via existing `markOnboardingCompleted()`)
+4. **Menu bar icon** is already visible and ready (set up in AppDelegate)
+
+**Commits:**
+- `d1edf69` feat(US-522): implement onboarding completion step for wizard
+- `9cae091` docs: update progress log for US-522 implementation
+
+**Verification:** `swift build` → PASS
