@@ -1,0 +1,20 @@
+US-708 is now complete. Let me provide a summary:
+
+## Summary
+
+Successfully completed **US-708: Remove Separate Settings Window**. The changes include:
+
+1. **Removed `SettingsWindowController`** class from SettingsWindow.swift (and the entire file since it was no longer needed)
+2. **Updated `AppDelegate.openSettings()`** to call `openMainWindow(initialNavItem: .settings)` instead of the old settings window controller
+3. **Added `.openSettings` notification listener** to `MainWindowView` that navigates to the Settings tab when the notification is received
+4. **Updated `MainWindowController`** to post the notification when the window already exists and a specific tab is requested
+5. **Updated `StatusBarController`** print statement for clarity
+
+The menu bar "Settings..." menu item now opens the main window with the Settings tab selected, providing a unified settings experience. All settings functionality remains accessible through the integrated Settings tab.
+
+**Commits:**
+- `921fea8` feat(settings): remove separate settings window (US-708)
+- `985b1f2` docs: add progress log entry for US-708 completion
+- `98e61a7` docs: mark US-708 tasks complete in implementation plan
+
+**Verification:** Build passes (`swift build` succeeds with no errors).
