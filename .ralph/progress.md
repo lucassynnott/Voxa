@@ -4582,3 +4582,36 @@ Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260115-115707-60521-it
 - **Learnings:**
   - US-704 was completed in parallel run 20260115-115705-60444 iteration 4
 ---
+
+## [2026-01-15 13:XX] - US-705: Migrate Text Cleanup Settings Section
+Thread: 
+Run: 20260115-115705-60444 (iteration 5)
+Run log: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260115-115705-60444-iter-5.log
+Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260115-115705-60444-iter-5.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: 8df6cd0 feat(US-705): Migrate Text Cleanup Settings Section to integrated settings view
+- Post-commit status: clean
+- Verification:
+  - Command: `swift build` -> PASS
+- Files changed:
+  - Sources/WispFlow/MainWindow.swift (modified - expanded TextCleanupSettingsSummary to full settings section)
+  - .ralph/IMPLEMENTATION_PLAN.md (updated - US-705 tasks and acceptance criteria marked complete)
+- What was implemented:
+  - **TextCleanupSettingsSummary:** Expanded from summary view to full settings section with 4 subsections:
+    1. Cleanup Toggle Section: Enable/disable toggle with status badge and description
+    2. Filler Word Removal Section: Card-based mode picker (Basic, Standard, Thorough, AI-Powered) with mode descriptions
+    3. Post-Processing Section: Three toggles for auto-capitalize, add period, trim whitespace - all persist to UserDefaults
+    4. Preview Section: Before/after text comparison showing cleanup effect for each mode
+  - **New Components Created:**
+    - `TextCleanupModeCard` - card-based mode selection with hover effects and LLM status indicator
+    - `TextCleanupModeBadge` - status badges for "LLM Ready"/"LLM Required"
+    - `TextCleanupToggleRow` - toggle row for post-processing options with icon, title, description
+    - `TextCleanupPreviewText` - preview text display with color-coded label for before/after comparison
+  - All toggle changes logged with `[US-705]` prefix for debugging
+- **Learnings for future iterations:**
+  - Consistent component naming pattern (prefix with section name) avoids conflicts with SettingsWindow components
+  - Following the US-702/US-703/US-704 pattern for section expansion works well (summary view → full section)
+  - Uses `@StateObject` with `TextCleanupManager.shared` and `LLMManager.shared` singletons for state management
+  - Post-processing toggles apply even when main cleanup is disabled - important to communicate in UI
+---
