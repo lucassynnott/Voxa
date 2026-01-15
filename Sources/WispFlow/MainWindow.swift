@@ -2536,24 +2536,1048 @@ struct EditSnippetSheet: View {
     }
 }
 
-/// Dictionary view placeholder (to be implemented in US-636)
+// MARK: - US-636: Custom Dictionary View
+
+/// Full custom dictionary view with create, edit, delete, search, and import/export
+/// US-636: Manage custom words and phrases for better transcription accuracy
 struct DictionaryContentView: View {
+    @StateObject private var dictionaryManager = DictionaryManager.shared
+    
+    /// Search query for filtering entries
+    @State private var searchQuery: String = ""
+    
+    /// Whether to show create entry sheet
+    @State private var showCreateSheet = false
+    
+    /// Entry currently being edited (nil means no edit in progress)
+    @State private var entryBeingEdited: DictionaryEntry?
+    
+    /// Entry pending deletion (for confirmation dialog)
+    @State private var entryToDelete: DictionaryEntry?
+    
+    /// Whether to show delete confirmation dialog
+    @State private var showDeleteConfirmation = false
+    
+    /// Whether to show import file picker
+    @State private var showImportPicker = false
+    
+    /// Whether to show export save panel
+    @State private var showExportPanel = false
+    
+    /// Import result message for toast
+    @State private var importResultMessage: String?
+    
+    /// Whether to show import result
+    @State private var showImportResult = false
+    
+    /// Filtered entries based on search query
+    private var filteredEntries: [DictionaryEntry] {
+        dictionaryManager.searchEntries(query: searchQuery)
+    }
+    
     var body: some View {
-        VStack(spacing: Spacing.lg) {
-            Image(systemName: "character.book.closed.fill")
-                .font(.system(size: 48, weight: .light))
-                .foregroundColor(Color.Wispflow.accent.opacity(0.5))
+        VStack(spacing: 0) {
+            // MARK: - Header with search and actions
+            dictionaryHeader
             
-            Text("Dictionary")
-                .font(Font.Wispflow.largeTitle)
-                .foregroundColor(Color.Wispflow.textPrimary)
+            Divider()
+                .background(Color.Wispflow.border)
             
-            Text("Custom words and phrases for better transcription")
-                .font(Font.Wispflow.body)
-                .foregroundColor(Color.Wispflow.textSecondary)
+            // MARK: - Content
+            if dictionaryManager.isEmpty {
+                // Empty state when no entries
+                emptyDictionaryState
+            } else if filteredEntries.isEmpty {
+                // No results for search
+                noSearchResultsState
+            } else {
+                // Dictionary list
+                dictionaryList
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.Wispflow.background)
+        .sheet(isPresented: $showCreateSheet) {
+            CreateDictionaryEntrySheet(onSave: { word, hint in
+                dictionaryManager.createEntry(word: word, pronunciationHint: hint)
+            })
+        }
+        .sheet(item: $entryBeingEdited) { entry in
+            EditDictionaryEntrySheet(
+                entry: entry,
+                onSave: { word, hint in
+                    dictionaryManager.updateEntry(id: entry.id, word: word, pronunciationHint: hint)
+                }
+            )
+        }
+        .alert("Delete Entry?", isPresented: $showDeleteConfirmation, presenting: entryToDelete) { entry in
+            Button("Delete", role: .destructive) {
+                withAnimation(WispflowAnimation.smooth) {
+                    dictionaryManager.deleteEntry(entry)
+                }
+                entryToDelete = nil
+            }
+            Button("Cancel", role: .cancel) {
+                entryToDelete = nil
+            }
+        } message: { entry in
+            Text("Are you sure you want to delete \"\(entry.word)\"? This action cannot be undone.")
+        }
+        .fileImporter(
+            isPresented: $showImportPicker,
+            allowedContentTypes: [.plainText, .json],
+            allowsMultipleSelection: false
+        ) { result in
+            handleImport(result)
+        }
+        .alert("Import Complete", isPresented: $showImportResult) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(importResultMessage ?? "Import completed.")
+        }
+    }
+    
+    // MARK: - Header
+    
+    private var dictionaryHeader: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack {
+                Text("Custom Dictionary")
+                    .font(Font.Wispflow.largeTitle)
+                    .foregroundColor(Color.Wispflow.textPrimary)
+                
+                Spacer()
+                
+                // Import/Export buttons
+                HStack(spacing: Spacing.sm) {
+                    // Import button
+                    Button(action: {
+                        showImportPicker = true
+                    }) {
+                        HStack(spacing: Spacing.xs) {
+                            Image(systemName: "square.and.arrow.down")
+                                .font(.system(size: 12, weight: .medium))
+                            Text("Import")
+                                .font(Font.Wispflow.caption)
+                        }
+                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .padding(.horizontal, Spacing.md)
+                        .padding(.vertical, Spacing.sm)
+                        .background(Color.Wispflow.surfaceSecondary)
+                        .cornerRadius(CornerRadius.small)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .help("Import dictionary from file")
+                    
+                    // Export button
+                    Button(action: {
+                        exportDictionary()
+                    }) {
+                        HStack(spacing: Spacing.xs) {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.system(size: 12, weight: .medium))
+                            Text("Export")
+                                .font(Font.Wispflow.caption)
+                        }
+                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .padding(.horizontal, Spacing.md)
+                        .padding(.vertical, Spacing.sm)
+                        .background(Color.Wispflow.surfaceSecondary)
+                        .cornerRadius(CornerRadius.small)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .disabled(dictionaryManager.isEmpty)
+                    .opacity(dictionaryManager.isEmpty ? 0.5 : 1.0)
+                    .help("Export dictionary to file")
+                }
+                
+                // Add new word button
+                Button(action: {
+                    showCreateSheet = true
+                }) {
+                    HStack(spacing: Spacing.xs) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("Add Word")
+                            .font(Font.Wispflow.body)
+                            .fontWeight(.medium)
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, Spacing.md)
+                    .padding(.vertical, Spacing.sm)
+                    .background(Color.Wispflow.accent)
+                    .cornerRadius(CornerRadius.small)
+                }
+                .buttonStyle(InteractiveScaleStyle())
+                .disabled(dictionaryManager.isAtCapacity)
+                .opacity(dictionaryManager.isAtCapacity ? 0.5 : 1.0)
+                .help(dictionaryManager.isAtCapacity ? "Maximum entries reached" : "Add new word")
+            }
+            
+            HStack(spacing: Spacing.md) {
+                // Search bar
+                HStack(spacing: Spacing.sm) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(Color.Wispflow.textTertiary)
+                    
+                    TextField("Search dictionary...", text: $searchQuery)
+                        .textFieldStyle(.plain)
+                        .font(Font.Wispflow.body)
+                        .foregroundColor(Color.Wispflow.textPrimary)
+                    
+                    if !searchQuery.isEmpty {
+                        Button(action: {
+                            withAnimation(WispflowAnimation.quick) {
+                                searchQuery = ""
+                            }
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(Color.Wispflow.textTertiary)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                }
+                .padding(.horizontal, Spacing.md)
+                .padding(.vertical, Spacing.sm)
+                .background(Color.Wispflow.surface)
+                .cornerRadius(CornerRadius.small)
+                .overlay(
+                    RoundedRectangle(cornerRadius: CornerRadius.small)
+                        .stroke(Color.Wispflow.border, lineWidth: 1)
+                )
+                
+                Spacer()
+                
+                // Word count and last updated info
+                if !dictionaryManager.isEmpty {
+                    HStack(spacing: Spacing.md) {
+                        // Word count badge
+                        Text("\(dictionaryManager.count) \(dictionaryManager.count == 1 ? "word" : "words")")
+                            .font(Font.Wispflow.caption)
+                            .foregroundColor(Color.Wispflow.textSecondary)
+                            .padding(.horizontal, Spacing.sm)
+                            .padding(.vertical, Spacing.xs)
+                            .background(Color.Wispflow.surfaceSecondary)
+                            .cornerRadius(CornerRadius.small)
+                        
+                        // Last updated info
+                        if let lastUpdated = dictionaryManager.lastUpdated {
+                            Text("Updated \(formatRelativeDate(lastUpdated))")
+                                .font(Font.Wispflow.small)
+                                .foregroundColor(Color.Wispflow.textTertiary)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(Spacing.xl)
+    }
+    
+    // MARK: - Empty State
+    
+    private var emptyDictionaryState: some View {
+        VStack(spacing: Spacing.lg) {
+            Spacer()
+            
+            ZStack {
+                Circle()
+                    .fill(Color.Wispflow.accentLight)
+                    .frame(width: 100, height: 100)
+                
+                Image(systemName: "character.book.closed")
+                    .font(.system(size: 44, weight: .light))
+                    .foregroundColor(Color.Wispflow.accent)
+            }
+            
+            VStack(spacing: Spacing.sm) {
+                Text("No custom words yet")
+                    .font(Font.Wispflow.headline)
+                    .foregroundColor(Color.Wispflow.textPrimary)
+                
+                Text("Add words and phrases to improve transcription accuracy.\nCustom words help WispFlow recognize specialized terms,\nnames, and uncommon pronunciations.")
+                    .font(Font.Wispflow.body)
+                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
+            
+            // Feature benefits explanation
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                DictionaryBenefitRow(icon: "textformat.abc", text: "Add technical terms and acronyms")
+                DictionaryBenefitRow(icon: "person.fill", text: "Include names of people and places")
+                DictionaryBenefitRow(icon: "waveform", text: "Add pronunciation hints for accuracy")
+                DictionaryBenefitRow(icon: "square.and.arrow.down", text: "Import existing word lists")
+            }
+            .padding(Spacing.lg)
+            .background(Color.Wispflow.surface)
+            .cornerRadius(CornerRadius.medium)
+            .wispflowShadow(.subtle)
+            
+            Button(action: {
+                showCreateSheet = true
+            }) {
+                HStack(spacing: Spacing.sm) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 16, weight: .medium))
+                    Text("Add First Word")
+                        .fontWeight(.medium)
+                }
+                .font(Font.Wispflow.body)
+                .foregroundColor(.white)
+                .padding(.horizontal, Spacing.lg)
+                .padding(.vertical, Spacing.md)
+                .background(Color.Wispflow.accent)
+                .cornerRadius(CornerRadius.small)
+            }
+            .buttonStyle(InteractiveScaleStyle())
+            .padding(.top, Spacing.md)
+            
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(Spacing.xl)
+    }
+    
+    // MARK: - No Search Results State
+    
+    private var noSearchResultsState: some View {
+        VStack(spacing: Spacing.lg) {
+            Spacer()
+            
+            ZStack {
+                Circle()
+                    .fill(Color.Wispflow.surfaceSecondary)
+                    .frame(width: 80, height: 80)
+                
+                Image(systemName: "doc.text.magnifyingglass")
+                    .font(.system(size: 36, weight: .light))
+                    .foregroundColor(Color.Wispflow.textTertiary)
+            }
+            
+            VStack(spacing: Spacing.sm) {
+                Text("No words found")
+                    .font(Font.Wispflow.headline)
+                    .foregroundColor(Color.Wispflow.textPrimary)
+                
+                Text("No entries match \"\(searchQuery)\".\nTry a different search term.")
+                    .font(Font.Wispflow.body)
+                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
+            
+            Button(action: {
+                withAnimation(WispflowAnimation.quick) {
+                    searchQuery = ""
+                }
+            }) {
+                Text("Clear Search")
+                    .font(Font.Wispflow.body)
+                    .foregroundColor(Color.Wispflow.accent)
+            }
+            .buttonStyle(PlainButtonStyle())
+            
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(Spacing.xl)
+    }
+    
+    // MARK: - Dictionary List
+    
+    private var dictionaryList: some View {
+        ScrollView {
+            LazyVStack(spacing: Spacing.sm) {
+                ForEach(filteredEntries) { entry in
+                    DictionaryEntryRow(
+                        entry: entry,
+                        searchQuery: searchQuery,
+                        onEdit: {
+                            entryBeingEdited = entry
+                        },
+                        onDelete: {
+                            entryToDelete = entry
+                            showDeleteConfirmation = true
+                        }
+                    )
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .scale(scale: 0.98)),
+                        removal: .opacity.combined(with: .scale(scale: 0.98))
+                    ))
+                }
+            }
+            .padding(Spacing.xl)
+        }
+        .animation(WispflowAnimation.smooth, value: filteredEntries.count)
+    }
+    
+    // MARK: - Import/Export Helpers
+    
+    /// Handle file import result
+    private func handleImport(_ result: Result<[URL], Error>) {
+        switch result {
+        case .success(let urls):
+            guard let url = urls.first else { return }
+            
+            do {
+                // Start accessing security-scoped resource
+                _ = url.startAccessingSecurityScopedResource()
+                defer { url.stopAccessingSecurityScopedResource() }
+                
+                let data = try Data(contentsOf: url)
+                
+                // Try JSON first, then text
+                if url.pathExtension.lowercased() == "json" {
+                    let count = dictionaryManager.importFromJSON(data)
+                    importResultMessage = count > 0 ? "Imported \(count) new \(count == 1 ? "word" : "words")." : "No new words to import (all duplicates or invalid)."
+                } else {
+                    // Treat as plain text
+                    if let text = String(data: data, encoding: .utf8) {
+                        let count = dictionaryManager.importFromText(text)
+                        importResultMessage = count > 0 ? "Imported \(count) new \(count == 1 ? "word" : "words")." : "No new words to import (all duplicates or invalid)."
+                    } else {
+                        importResultMessage = "Failed to read file as text."
+                    }
+                }
+                showImportResult = true
+            } catch {
+                importResultMessage = "Failed to import: \(error.localizedDescription)"
+                showImportResult = true
+            }
+            
+        case .failure(let error):
+            importResultMessage = "Failed to select file: \(error.localizedDescription)"
+            showImportResult = true
+        }
+    }
+    
+    /// Export dictionary with save panel
+    private func exportDictionary() {
+        let savePanel = NSSavePanel()
+        savePanel.title = "Export Dictionary"
+        savePanel.nameFieldStringValue = "wispflow-dictionary.txt"
+        savePanel.allowedContentTypes = [.plainText]
+        savePanel.canCreateDirectories = true
+        
+        savePanel.begin { response in
+            if response == .OK, let url = savePanel.url {
+                let content = dictionaryManager.exportAsText()
+                do {
+                    try content.write(to: url, atomically: true, encoding: .utf8)
+                    print("DictionaryManager: [US-636] Exported dictionary to \(url.path)")
+                } catch {
+                    print("DictionaryManager: [US-636] Failed to export: \(error)")
+                }
+            }
+        }
+    }
+    
+    /// Format relative date for display
+    private func formatRelativeDate(_ date: Date) -> String {
+        let calendar = Calendar.current
+        let now = Date()
+        let entryDate = calendar.startOfDay(for: date)
+        let today = calendar.startOfDay(for: now)
+        
+        let daysDiff = calendar.dateComponents([.day], from: entryDate, to: today).day ?? 0
+        
+        switch daysDiff {
+        case 0:
+            let formatter = DateFormatter()
+            formatter.timeStyle = .short
+            return "today at \(formatter.string(from: date))"
+        case 1:
+            return "yesterday"
+        case 2...6:
+            return "\(daysDiff) days ago"
+        default:
+            let formatter = DateFormatter()
+            formatter.dateStyle = .medium
+            return formatter.string(from: date)
+        }
+    }
+}
+
+// MARK: - Dictionary Benefit Row
+
+/// Row showing a benefit of using the custom dictionary
+struct DictionaryBenefitRow: View {
+    let icon: String
+    let text: String
+    
+    var body: some View {
+        HStack(spacing: Spacing.md) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(Color.Wispflow.accent)
+                .frame(width: 20)
+            
+            Text(text)
+                .font(Font.Wispflow.body)
+                .foregroundColor(Color.Wispflow.textSecondary)
+        }
+    }
+}
+
+// MARK: - Dictionary Entry Row Component
+
+/// Individual dictionary entry row with edit and delete actions
+struct DictionaryEntryRow: View {
+    let entry: DictionaryEntry
+    let searchQuery: String
+    let onEdit: () -> Void
+    let onDelete: () -> Void
+    
+    @State private var isHovered = false
+    
+    var body: some View {
+        HStack(spacing: Spacing.md) {
+            // Icon
+            ZStack {
+                RoundedRectangle(cornerRadius: CornerRadius.small)
+                    .fill(Color.Wispflow.accentLight)
+                    .frame(width: 40, height: 40)
+                
+                Text(String(entry.word.prefix(1)).uppercased())
+                    .font(Font.Wispflow.headline)
+                    .foregroundColor(Color.Wispflow.accent)
+            }
+            
+            // Word and hint
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text(highlightedText(entry.word))
+                    .font(Font.Wispflow.body)
+                    .fontWeight(.semibold)
+                    .foregroundColor(Color.Wispflow.textPrimary)
+                
+                HStack(spacing: Spacing.sm) {
+                    // Pronunciation hint badge
+                    if let hint = entry.pronunciationHint, !hint.isEmpty {
+                        HStack(spacing: Spacing.xs) {
+                            Image(systemName: "waveform")
+                                .font(.system(size: 9, weight: .medium))
+                            Text(highlightedText(hint))
+                                .font(Font.Wispflow.small)
+                        }
+                        .foregroundColor(Color.Wispflow.accent)
+                        .padding(.horizontal, Spacing.sm)
+                        .padding(.vertical, 2)
+                        .background(Color.Wispflow.accentLight)
+                        .cornerRadius(CornerRadius.small)
+                    }
+                    
+                    // Updated date
+                    Text("Updated \(entry.updatedRelativeString)")
+                        .font(Font.Wispflow.small)
+                        .foregroundColor(Color.Wispflow.textTertiary)
+                }
+            }
+            
+            Spacer()
+            
+            // Action buttons
+            HStack(spacing: Spacing.xs) {
+                // Edit button
+                Button(action: onEdit) {
+                    Image(systemName: "pencil")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .frame(width: 28, height: 28)
+                        .background(Color.Wispflow.surfaceSecondary)
+                        .cornerRadius(CornerRadius.small)
+                }
+                .buttonStyle(PlainButtonStyle())
+                .help("Edit entry")
+                
+                // Delete button
+                Button(action: onDelete) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(Color.Wispflow.error)
+                        .frame(width: 28, height: 28)
+                        .background(Color.Wispflow.errorLight)
+                        .cornerRadius(CornerRadius.small)
+                }
+                .buttonStyle(PlainButtonStyle())
+                .help("Delete entry")
+            }
+            .opacity(isHovered ? 1 : 0.5)
+        }
+        .padding(Spacing.md)
+        .background(Color.Wispflow.surface)
+        .cornerRadius(CornerRadius.medium)
+        .wispflowShadow(isHovered ? .card : .subtle)
+        .contentShape(Rectangle())
+        .onHover { hovering in
+            withAnimation(WispflowAnimation.quick) {
+                isHovered = hovering
+            }
+        }
+    }
+    
+    /// Highlight search query matches in text
+    private func highlightedText(_ text: String) -> AttributedString {
+        guard !searchQuery.isEmpty else {
+            return AttributedString(text)
+        }
+        
+        var attributedString = AttributedString(text)
+        let lowercasedText = text.lowercased()
+        let lowercasedQuery = searchQuery.lowercased()
+        
+        var searchStartIndex = lowercasedText.startIndex
+        while let range = lowercasedText.range(of: lowercasedQuery, range: searchStartIndex..<lowercasedText.endIndex) {
+            let lowerBound = text.distance(from: text.startIndex, to: range.lowerBound)
+            let upperBound = text.distance(from: text.startIndex, to: range.upperBound)
+            
+            if let attrRange = Range(NSRange(location: lowerBound, length: upperBound - lowerBound), in: attributedString) {
+                attributedString[attrRange].backgroundColor = Color.Wispflow.warningLight
+                attributedString[attrRange].foregroundColor = Color.Wispflow.textPrimary
+            }
+            
+            searchStartIndex = range.upperBound
+        }
+        
+        return attributedString
+    }
+}
+
+// MARK: - Create Dictionary Entry Sheet
+
+/// Sheet for creating a new dictionary entry
+struct CreateDictionaryEntrySheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let onSave: (String, String?) -> Void
+    
+    @State private var word: String = ""
+    @State private var pronunciationHint: String = ""
+    @State private var showHintField = false
+    @State private var wordError: String?
+    
+    @FocusState private var focusedField: Field?
+    
+    enum Field {
+        case word, hint
+    }
+    
+    private var isValid: Bool {
+        !word.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        wordError == nil
+    }
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Text("Add Word")
+                    .font(Font.Wispflow.title)
+                    .foregroundColor(Color.Wispflow.textPrimary)
+                
+                Spacer()
+                
+                Button(action: { dismiss() }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .frame(width: 28, height: 28)
+                        .background(Color.Wispflow.surfaceSecondary)
+                        .cornerRadius(CornerRadius.small)
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+            .padding(Spacing.lg)
+            .background(Color.Wispflow.surface)
+            
+            Divider()
+            
+            ScrollView {
+                VStack(alignment: .leading, spacing: Spacing.lg) {
+                    // Word field
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        Text("Word or Phrase")
+                            .font(Font.Wispflow.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(Color.Wispflow.textSecondary)
+                        
+                        TextField("Enter word or phrase...", text: $word)
+                            .textFieldStyle(.plain)
+                            .font(Font.Wispflow.body)
+                            .foregroundColor(Color.Wispflow.textPrimary)
+                            .padding(Spacing.md)
+                            .background(Color.Wispflow.surfaceSecondary)
+                            .cornerRadius(CornerRadius.small)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: CornerRadius.small)
+                                    .stroke(wordError != nil ? Color.Wispflow.error : Color.Wispflow.border, lineWidth: 1)
+                            )
+                            .focused($focusedField, equals: .word)
+                            .onChange(of: word) { _, newValue in
+                                validateWord(newValue)
+                            }
+                        
+                        if let error = wordError {
+                            Text(error)
+                                .font(Font.Wispflow.small)
+                                .foregroundColor(Color.Wispflow.error)
+                        } else {
+                            Text("Add technical terms, names, or uncommon words")
+                                .font(Font.Wispflow.small)
+                                .foregroundColor(Color.Wispflow.textTertiary)
+                        }
+                    }
+                    
+                    // Optional pronunciation hint field
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        Button(action: {
+                            withAnimation(WispflowAnimation.quick) {
+                                showHintField.toggle()
+                            }
+                        }) {
+                            HStack(spacing: Spacing.sm) {
+                                Image(systemName: showHintField ? "chevron.down" : "chevron.right")
+                                    .font(.system(size: 10, weight: .semibold))
+                                Image(systemName: "waveform")
+                                    .font(.system(size: 14, weight: .medium))
+                                Text("Add Pronunciation Hint (Optional)")
+                                    .font(Font.Wispflow.body)
+                            }
+                            .foregroundColor(Color.Wispflow.textSecondary)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        
+                        if showHintField {
+                            VStack(alignment: .leading, spacing: Spacing.sm) {
+                                TextField("e.g., 'jif' for GIF, 'SEE-kwel' for SQL", text: $pronunciationHint)
+                                    .textFieldStyle(.plain)
+                                    .font(Font.Wispflow.body)
+                                    .foregroundColor(Color.Wispflow.textPrimary)
+                                    .padding(Spacing.md)
+                                    .background(Color.Wispflow.surfaceSecondary)
+                                    .cornerRadius(CornerRadius.small)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: CornerRadius.small)
+                                            .stroke(Color.Wispflow.border, lineWidth: 1)
+                                    )
+                                    .focused($focusedField, equals: .hint)
+                                
+                                Text("Helps the transcription engine recognize how you say this word")
+                                    .font(Font.Wispflow.small)
+                                    .foregroundColor(Color.Wispflow.textTertiary)
+                            }
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                        }
+                    }
+                    
+                    // Examples section
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        Text("Examples")
+                            .font(Font.Wispflow.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(Color.Wispflow.textSecondary)
+                        
+                        VStack(alignment: .leading, spacing: Spacing.xs) {
+                            DictionaryExampleRow(word: "WispFlow", hint: "WISP-flow")
+                            DictionaryExampleRow(word: "GitHub", hint: "git-hub")
+                            DictionaryExampleRow(word: "Kubernetes", hint: "koo-ber-NET-eez")
+                            DictionaryExampleRow(word: "Dr. Smith", hint: nil)
+                        }
+                        .padding(Spacing.md)
+                        .background(Color.Wispflow.surfaceSecondary)
+                        .cornerRadius(CornerRadius.small)
+                    }
+                }
+                .padding(Spacing.lg)
+            }
+            .background(Color.Wispflow.background)
+            
+            Divider()
+            
+            // Footer with action buttons
+            HStack {
+                Button("Cancel") {
+                    dismiss()
+                }
+                .buttonStyle(WispflowButtonStyle(variant: .secondary))
+                
+                Spacer()
+                
+                Button("Add Word") {
+                    let trimmedHint = pronunciationHint.trimmingCharacters(in: .whitespacesAndNewlines)
+                    onSave(
+                        word.trimmingCharacters(in: .whitespacesAndNewlines),
+                        trimmedHint.isEmpty ? nil : trimmedHint
+                    )
+                    dismiss()
+                }
+                .buttonStyle(WispflowButtonStyle(variant: .primary))
+                .disabled(!isValid)
+            }
+            .padding(Spacing.lg)
+            .background(Color.Wispflow.surface)
+        }
+        .frame(width: 450, height: 480)
+        .background(Color.Wispflow.background)
+        .onAppear {
+            focusedField = .word
+        }
+    }
+    
+    private func validateWord(_ value: String) {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            wordError = nil
+        } else {
+            // Check for duplicates using main actor Task
+            Task { @MainActor in
+                if DictionaryManager.shared.wordExists(trimmed) {
+                    wordError = "This word already exists in your dictionary"
+                } else {
+                    wordError = nil
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Edit Dictionary Entry Sheet
+
+/// Sheet for editing an existing dictionary entry
+struct EditDictionaryEntrySheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let entry: DictionaryEntry
+    let onSave: (String, String?) -> Void
+    
+    @State private var word: String = ""
+    @State private var pronunciationHint: String = ""
+    @State private var showHintField = false
+    @State private var wordError: String?
+    
+    @FocusState private var focusedField: Field?
+    
+    enum Field {
+        case word, hint
+    }
+    
+    private var isValid: Bool {
+        !word.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        wordError == nil
+    }
+    
+    private var hasChanges: Bool {
+        let trimmedWord = word.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedHint = pronunciationHint.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        return trimmedWord != entry.word ||
+               trimmedHint != (entry.pronunciationHint ?? "")
+    }
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Text("Edit Word")
+                    .font(Font.Wispflow.title)
+                    .foregroundColor(Color.Wispflow.textPrimary)
+                
+                Spacer()
+                
+                Button(action: { dismiss() }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .frame(width: 28, height: 28)
+                        .background(Color.Wispflow.surfaceSecondary)
+                        .cornerRadius(CornerRadius.small)
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+            .padding(Spacing.lg)
+            .background(Color.Wispflow.surface)
+            
+            Divider()
+            
+            ScrollView {
+                VStack(alignment: .leading, spacing: Spacing.lg) {
+                    // Word field
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        Text("Word or Phrase")
+                            .font(Font.Wispflow.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(Color.Wispflow.textSecondary)
+                        
+                        TextField("Enter word or phrase...", text: $word)
+                            .textFieldStyle(.plain)
+                            .font(Font.Wispflow.body)
+                            .foregroundColor(Color.Wispflow.textPrimary)
+                            .padding(Spacing.md)
+                            .background(Color.Wispflow.surfaceSecondary)
+                            .cornerRadius(CornerRadius.small)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: CornerRadius.small)
+                                    .stroke(wordError != nil ? Color.Wispflow.error : Color.Wispflow.border, lineWidth: 1)
+                            )
+                            .focused($focusedField, equals: .word)
+                            .onChange(of: word) { _, newValue in
+                                validateWord(newValue)
+                            }
+                        
+                        if let error = wordError {
+                            Text(error)
+                                .font(Font.Wispflow.small)
+                                .foregroundColor(Color.Wispflow.error)
+                        }
+                    }
+                    
+                    // Pronunciation hint field
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        Button(action: {
+                            withAnimation(WispflowAnimation.quick) {
+                                showHintField.toggle()
+                            }
+                        }) {
+                            HStack(spacing: Spacing.sm) {
+                                Image(systemName: showHintField ? "chevron.down" : "chevron.right")
+                                    .font(.system(size: 10, weight: .semibold))
+                                Image(systemName: "waveform")
+                                    .font(.system(size: 14, weight: .medium))
+                                Text("Pronunciation Hint")
+                                    .font(Font.Wispflow.body)
+                                
+                                if entry.pronunciationHint != nil && !entry.pronunciationHint!.isEmpty {
+                                    Text("(\(entry.pronunciationHint!))")
+                                        .font(Font.Wispflow.small)
+                                        .foregroundColor(Color.Wispflow.accent)
+                                }
+                            }
+                            .foregroundColor(Color.Wispflow.textSecondary)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        
+                        if showHintField {
+                            VStack(alignment: .leading, spacing: Spacing.sm) {
+                                TextField("e.g., 'jif' for GIF, 'SEE-kwel' for SQL", text: $pronunciationHint)
+                                    .textFieldStyle(.plain)
+                                    .font(Font.Wispflow.body)
+                                    .foregroundColor(Color.Wispflow.textPrimary)
+                                    .padding(Spacing.md)
+                                    .background(Color.Wispflow.surfaceSecondary)
+                                    .cornerRadius(CornerRadius.small)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: CornerRadius.small)
+                                            .stroke(Color.Wispflow.border, lineWidth: 1)
+                                    )
+                                    .focused($focusedField, equals: .hint)
+                                
+                                Text("Leave empty to remove pronunciation hint")
+                                    .font(Font.Wispflow.small)
+                                    .foregroundColor(Color.Wispflow.textTertiary)
+                            }
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                        }
+                    }
+                    
+                    // Metadata
+                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                        Text("Added: \(formatDate(entry.createdAt))")
+                            .font(Font.Wispflow.small)
+                            .foregroundColor(Color.Wispflow.textTertiary)
+                        Text("Last updated: \(formatDate(entry.updatedAt))")
+                            .font(Font.Wispflow.small)
+                            .foregroundColor(Color.Wispflow.textTertiary)
+                    }
+                    .padding(.top, Spacing.md)
+                }
+                .padding(Spacing.lg)
+            }
+            .background(Color.Wispflow.background)
+            
+            Divider()
+            
+            // Footer with action buttons
+            HStack {
+                Button("Cancel") {
+                    dismiss()
+                }
+                .buttonStyle(WispflowButtonStyle(variant: .secondary))
+                
+                Spacer()
+                
+                Button("Save Changes") {
+                    let trimmedHint = pronunciationHint.trimmingCharacters(in: .whitespacesAndNewlines)
+                    onSave(
+                        word.trimmingCharacters(in: .whitespacesAndNewlines),
+                        trimmedHint.isEmpty ? nil : trimmedHint
+                    )
+                    dismiss()
+                }
+                .buttonStyle(WispflowButtonStyle(variant: .primary))
+                .disabled(!isValid || !hasChanges)
+            }
+            .padding(Spacing.lg)
+            .background(Color.Wispflow.surface)
+        }
+        .frame(width: 450, height: 420)
+        .background(Color.Wispflow.background)
+        .onAppear {
+            // Initialize with existing values
+            word = entry.word
+            pronunciationHint = entry.pronunciationHint ?? ""
+            showHintField = entry.pronunciationHint != nil && !entry.pronunciationHint!.isEmpty
+        }
+    }
+    
+    private func validateWord(_ value: String) {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        let currentEntryId = entry.id
+        let currentWord = entry.word
+        if trimmed.isEmpty {
+            wordError = nil
+        } else if trimmed.lowercased() == currentWord.lowercased() {
+            // Same word (case-insensitive), no duplicate
+            wordError = nil
+        } else {
+            // Check for duplicates using main actor Task
+            Task { @MainActor in
+                if DictionaryManager.shared.wordExists(trimmed, excludingEntryId: currentEntryId) {
+                    wordError = "This word already exists in your dictionary"
+                } else {
+                    wordError = nil
+                }
+            }
+        }
+    }
+    
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+}
+
+// MARK: - Dictionary Example Row
+
+/// Example row showing word and hint format
+struct DictionaryExampleRow: View {
+    let word: String
+    let hint: String?
+    
+    var body: some View {
+        HStack(spacing: Spacing.sm) {
+            Text(word)
+                .font(Font.Wispflow.body)
+                .foregroundColor(Color.Wispflow.textPrimary)
+            
+            if let hint = hint {
+                Text("→")
+                    .font(Font.Wispflow.body)
+                    .foregroundColor(Color.Wispflow.textTertiary)
+                
+                Text(hint)
+                    .font(Font.Wispflow.mono)
+                    .foregroundColor(Color.Wispflow.accent)
+            }
+        }
     }
 }
 

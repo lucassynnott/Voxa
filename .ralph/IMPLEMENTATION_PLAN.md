@@ -1571,8 +1571,8 @@ This plan implements a comprehensive overhaul of WispFlow's core systems based o
 
 ---
 
-### [ ] US-636: Custom Dictionary View
-**Status:** open
+### [x] US-636: Custom Dictionary View
+**Status:** complete
 **Priority:** low
 **Estimated effort:** medium
 **Depends on:** US-632
@@ -1580,17 +1580,67 @@ This plan implements a comprehensive overhaul of WispFlow's core systems based o
 **Description:** Manage custom words and phrases for better transcription accuracy.
 
 **Tasks:**
-- [ ] Create data model for dictionary entries (word, pronunciation hint)
-- [ ] Build list view of custom dictionary entries
-- [ ] Add new words with optional pronunciation hint
-- [ ] Implement edit and delete for entries
-- [ ] Add import/export dictionary as text file
-- [ ] Add search functionality for large dictionaries
-- [ ] Show word count and last updated timestamp
+- [x] Create data model for dictionary entries (word, pronunciation hint)
+- [x] Build list view of custom dictionary entries
+- [x] Add new words with optional pronunciation hint
+- [x] Implement edit and delete for entries
+- [x] Add import/export dictionary as text file
+- [x] Add search functionality for large dictionaries
+- [x] Show word count and last updated timestamp
 
 **Acceptance Criteria:**
-- [ ] Dictionary entries listed
-- [ ] Add, edit, delete functional
-- [ ] Import/export works
-- [ ] Search filters dictionary
-- [ ] Empty state explains feature benefits
+- [x] Dictionary entries listed
+- [x] Add, edit, delete functional
+- [x] Import/export works
+- [x] Search filters dictionary
+- [x] Empty state explains feature benefits
+
+**Implementation Notes:**
+- Created `DictionaryManager.swift` singleton for dictionary storage and management:
+  - `DictionaryEntry` data model with id, word, optional pronunciationHint, createdAt, updatedAt
+  - Character count and pronunciation hint presence computed properties
+  - Relative date strings for display (Today, Yesterday, X days ago, etc.)
+  - Full timestamp string for metadata display
+- DictionaryManager provides full CRUD operations:
+  - `createEntry()` - creates new entry, checks for duplicates (case-insensitive)
+  - `updateEntry()` - updates by ID or reference, validates word uniqueness
+  - `deleteEntry()` - deletes by ID or reference
+  - `searchEntries()` - filters by word or pronunciation hint
+  - `wordExists()` - checks if word already exists (with optional exclude ID for editing)
+  - Persists to UserDefaults with JSON encoding
+  - Maximum capacity of 1000 entries
+  - Automatic alphabetical sorting by word
+- Import/Export functionality:
+  - `exportAsText()` - exports as tab-separated text file with comments header
+  - `importFromText()` - imports from tab-separated text, skips duplicates/comments
+  - `exportAsJSON()` - exports as pretty-printed JSON
+  - `importFromJSON()` - imports from JSON, merges avoiding duplicates
+- Comprehensive `DictionaryContentView` in `MainWindow.swift`:
+  - **Header Section:** Title "Custom Dictionary" with Import/Export buttons, Add Word button, search bar, word count badge, last updated timestamp
+  - **Import:** Uses fileImporter with .plainText and .json content types
+  - **Export:** Uses NSSavePanel with default filename "wispflow-dictionary.txt"
+  - **Empty State:** Illustrated prompt explaining feature benefits with four benefit rows (technical terms, names, pronunciation hints, import)
+  - **No Results State:** "No words found" with clear search button
+  - **Dictionary List:** LazyVStack of DictionaryEntryRow components
+- Created `DictionaryEntryRow` component:
+  - First letter of word as icon in accent-colored square
+  - Word displayed with semibold weight
+  - Pronunciation hint badge (waveform icon + hint text) when present
+  - "Updated X" timestamp
+  - Edit and Delete action buttons (visible on hover)
+  - Hover effects with shadow changes
+  - Search query highlighting using AttributedString
+- Created `CreateDictionaryEntrySheet` for adding new words:
+  - Word/Phrase text field with validation for duplicates
+  - Collapsible pronunciation hint field with examples
+  - Examples section showing format (WispFlow → WISP-flow, GitHub → git-hub, etc.)
+  - Cancel and Add Word buttons
+- Created `EditDictionaryEntrySheet` for editing existing entries:
+  - Pre-populated fields with existing values
+  - Collapsible pronunciation hint section (shows current hint)
+  - Validation excludes current entry from duplicate check
+  - Created/Updated metadata display
+  - Cancel and Save Changes buttons (disabled until changes made)
+- Delete confirmation alert prevents accidental deletion
+- All components use existing design system: `Color.Wispflow`, `Font.Wispflow`, `Spacing`, `CornerRadius`, `WispflowAnimation`
+- Verified via `swift build` - typecheck passes
