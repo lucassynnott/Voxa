@@ -11,9 +11,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var llmManager: LLMManager?
     private var textInserter: TextInserter?
     // US-708: settingsWindowController removed - settings now displayed in main window
+    // Onboarding now integrated into main window
     private var debugManager: DebugManager?
     private var toastWindowController: ToastWindowController?
-    private var onboardingWindowController: OnboardingWindowController?
     private var mainWindowController: MainWindowController?
     
     // Store last audio data for retry functionality
@@ -63,7 +63,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Initialize the toast notification system (US-409)
         setupToastSystem()
         
-        print("WispFlow started successfully")
+        print("Voxa started successfully")
         print("Global hotkey: \(hotkeyManager?.hotkeyDisplayString ?? "unknown")")
         
         // NOTE: Don't request microphone permission here - let onboarding handle it
@@ -110,6 +110,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
             
+            // Listen for accessibility permission changes to restart hotkey manager
+            PermissionManager.shared.onAccessibilityStatusChanged = { [weak self] status in
+                if status.isGranted {
+                    print("AppDelegate: Accessibility permission granted - restarting hotkey manager")
+                    self?.hotkeyManager?.start()
+                }
+            }
+            
             // US-517: Show onboarding wizard on first launch
             setupOnboarding()
         }
@@ -125,7 +133,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Hide the recording indicator if visible
         recordingIndicator?.orderOut(nil)
         
-        print("WispFlow shutting down")
+        print("Voxa shutting down")
     }
     
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
@@ -289,18 +297,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     
     private func showSilenceWarning(measuredDbLevel: Float) {
         DispatchQueue.main.async {
-            let alert = NSAlert()
-            alert.messageText = "No Audio Detected"
-            // Use actual threshold from AudioManager and show measured level
-            let threshold = AudioManager.silenceThreshold
-            alert.informativeText = "The recording appears to be silent.\n\n• Measured level: \(String(format: "%.1f", measuredDbLevel))dB\n• Threshold: \(Int(threshold))dB\n\nPlease check that:\n• Your microphone is connected\n• The correct input device is selected in Settings\n• You're speaking into the microphone"
-            alert.alertStyle = .warning
-            alert.addButton(withTitle: "Open Settings")
-            alert.addButton(withTitle: "OK")
-            
-            if alert.runModal() == .alertFirstButtonReturn {
-                self.openSettings()
-            }
+            // Show a toast notification instead of blocking alert
+            ToastManager.shared.showWarning(
+                "No Audio Detected",
+                message: "Check your microphone connection",
+                icon: "mic.slash"
+            )
         }
     }
     
@@ -399,7 +401,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Log initialization
         debugManager?.addLogEntry(
             category: .system,
-            message: "WispFlow initialized",
+            message: "Voxa initialized",
             details: "Audio: \(audioManager != nil ? "OK" : "Missing"), Whisper: \(whisperManager != nil ? "OK" : "Missing")"
         )
     }
@@ -442,7 +444,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func showAccessibilityPermissionPrompt() {
         let alert = NSAlert()
         alert.messageText = "Accessibility Permission Required"
-        alert.informativeText = "WispFlow needs accessibility permission to detect global hotkeys and insert text.\n\nPlease grant permission in System Settings > Privacy & Security > Accessibility, then restart WispFlow."
+        alert.informativeText = "Voxa needs accessibility permission to detect global hotkeys and insert text.\n\nPlease grant permission in System Settings > Privacy & Security > Accessibility, then restart Voxa."
         alert.alertStyle = .warning
         alert.addButton(withTitle: "Open System Settings")
         alert.addButton(withTitle: "Cancel")
@@ -477,6 +479,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         
         // US-632: Initialize main window controller
         mainWindowController = MainWindowController()
+        
+        // Configure with managers for onboarding integration
+        if let audio = audioManager, let hotkey = hotkeyManager {
+            mainWindowController?.configure(audioManager: audio, hotkeyManager: hotkey)
+        }
     }
     
     /// US-632: Open the main application window
@@ -485,36 +492,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         mainWindowController?.showMainWindow(initialNavItem: initialNavItem)
     }
     
-    /// US-517: Set up and show onboarding wizard on first launch
+    /// US-517: Set up onboarding (now integrated into main window)
     @MainActor
     private func setupOnboarding() {
-        // US-520: Pass audioManager to onboarding for audio test step
-        guard let audioMgr = audioManager else {
-            print("AppDelegate: [US-517] Warning - audioManager not available for onboarding")
-            return
+        // Onboarding is now integrated into the main window
+        // Just open the main window - it will show onboarding overlay if first launch
+        let hasCompletedOnboarding = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
+        
+        if !hasCompletedOnboarding {
+            print("AppDelegate: [US-517] First launch - opening main window with onboarding")
+            openMainWindow()
+        } else {
+            print("AppDelegate: [US-517] Onboarding already completed")
+            // Start hotkey manager since onboarding is done
+            hotkeyManager?.start()
         }
-        
-        // US-521: Pass hotkeyManager to onboarding for hotkey introduction step
-        guard let hotkeyMgr = hotkeyManager else {
-            print("AppDelegate: [US-521] Warning - hotkeyManager not available for onboarding")
-            return
-        }
-        
-        onboardingWindowController = OnboardingWindowController(audioManager: audioMgr, hotkeyManager: hotkeyMgr)
-        
-        // Set up completion callback
-        onboardingWindowController?.onComplete = { [weak self] in
-            print("AppDelegate: [US-517] Onboarding completed")
-            // Onboarding is done, app is ready for use
-            // The menu bar icon is already visible
-            
-            // Now that onboarding is complete and user has had a chance to grant permissions,
-            // try to start the hotkey manager (if accessibility was granted)
-            self?.hotkeyManager?.start()
-        }
-        
-        // Show onboarding if this is first launch
-        onboardingWindowController?.showOnboardingIfNeeded()
     }
     
     // MARK: - Recording Control
@@ -965,8 +957,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             print("Text inserted successfully")
             
         case .noAccessibilityPermission:
-            // Alert is already shown by TextInserter
             print("Text insertion failed: No accessibility permission")
+            showAccessibilityPermissionAlert()
             
         case .insertionFailed(let message):
             print("Text insertion failed: \(message)")
@@ -1005,6 +997,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             
             if alert.runModal() == .alertFirstButtonReturn {
                 self.openSettings()
+            }
+        }
+    }
+    
+    private func showAccessibilityPermissionAlert() {
+        DispatchQueue.main.async {
+            let alert = NSAlert()
+            alert.messageText = "Accessibility Permission Required"
+            alert.informativeText = "Voxa needs accessibility permission to insert transcribed text.\n\nPlease grant permission in System Settings > Privacy & Security > Accessibility, then try again."
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "Open System Settings")
+            alert.addButton(withTitle: "Cancel")
+            
+            if alert.runModal() == .alertFirstButtonReturn {
+                PermissionManager.shared.openAccessibilitySettings()
             }
         }
     }

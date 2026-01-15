@@ -1,0 +1,201 @@
+{
+  "version": 1,
+  "project": "Voxa Minimalist Dashboard UI Redesign",
+  "overview": "Complete UI redesign of Voxa to match the new minimalist editorial aesthetic. Features warm Alabaster (#F9F8F6) light mode, deep Charcoal (#121212) dark mode, muted Terracotta (#D97058) accent, Playfair Display headings, and Manrope body text. The home dashboard shows time-based greeting, recent transcriptions, daily insights, and quick tools.",
+  "goals": [
+    "Implement minimalist editorial dashboard design",
+    "Add time-based greeting (Good morning/afternoon/evening)",
+    "Create Recent Transcriptions list with icons and metadata",
+    "Add Daily Insights sidebar (words spoken, time saved)",
+    "Add Quick Tools section (AI Text Cleanup, Import Audio)",
+    "Update sidebar navigation styling to match new design",
+    "Ensure proper light/dark mode support throughout"
+  ],
+  "nonGoals": [
+    "Changing core transcription functionality",
+    "Adding new features beyond UI",
+    "Modifying audio processing logic"
+  ],
+  "successMetrics": [
+    "UI matches provided design screenshots",
+    "Light and dark modes both look polished",
+    "Build passes with swift build"
+  ],
+  "openQuestions": [],
+  "stack": {
+    "framework": "SwiftUI",
+    "hosting": "Local macOS app",
+    "database": "UserDefaults",
+    "auth": "N/A"
+  },
+  "routes": [],
+  "uiNotes": [
+    "Light mode: Warm Alabaster background (#F9F8F6), white surfaces",
+    "Dark mode: Deep Charcoal (#121212), darker sidebar (#0A0A0A), surfaces (#1E1E1E)",
+    "Primary accent: Muted Terracotta (#D97058)",
+    "Typography: Playfair Display (italic for headings), Manrope (body)",
+    "Sidebar: Icon + label navigation, terracotta highlight for active item",
+    "Dashboard: Editorial layout with generous whitespace",
+    "Recent Transcriptions: List with circular icon badges, title, subtitle, timestamp",
+    "Daily Insights: Large numbers with labels (Words Spoken, Time Saved)",
+    "Quick Tools: Bordered buttons with icons"
+  ],
+  "dataModel": [],
+  "importFormat": {
+    "description": "N/A",
+    "example": {}
+  },
+  "rules": [
+    "Use Color.Voxa design tokens (already updated in DesignSystem.swift)",
+    "Playfair Display for display/heading text (italic style)",
+    "Manrope for body/UI text",
+    "Respect system light/dark mode preference"
+  ],
+  "qualityGates": ["swift build"],
+  "stories": [
+    {
+      "id": "US-801",
+      "title": "Home Dashboard Header with Time-Based Greeting",
+      "status": "open",
+      "dependsOn": [],
+      "description": "As a user, I want to see a personalized time-based greeting when I open the app.",
+      "acceptanceCriteria": [
+        "Display 'Good morning.' before 12pm, 'Good afternoon.' 12pm-5pm, 'Good evening.' after 5pm",
+        "Use Playfair Display font (large, ~48-60pt)",
+        "Add subtitle: 'Ready to capture your thoughts? Your last session was X ago.'",
+        "Subtitle uses Manrope font, muted color",
+        "Add 'DASHBOARD' label in header (uppercase, tracking-widest, small)",
+        "Add date and 'System Active' status indicator in top-right",
+        "Example: User opens app at 3pm -> sees 'Good afternoon.'",
+        "Negative case: No previous session -> show 'Ready to capture your thoughts?'"
+      ]
+    },
+    {
+      "id": "US-802",
+      "title": "Start Recording Button",
+      "status": "open",
+      "dependsOn": ["US-801"],
+      "description": "As a user, I want a prominent Start Recording button in the dashboard header.",
+      "acceptanceCriteria": [
+        "Pill-shaped button with terracotta (#D97058) background",
+        "White text: 'Start Recording'",
+        "Microphone icon on left (pulsing animation)",
+        "Keyboard shortcut badge on right (e.g., '⌘ R')",
+        "Subtle shadow (shadow-primary/20)",
+        "Hover state: slight lift (-translate-y-1)",
+        "Button triggers recording when clicked",
+        "Example: User clicks button -> recording starts",
+        "Negative case: Recording already active -> button shows 'Stop Recording'"
+      ]
+    },
+    {
+      "id": "US-803",
+      "title": "Recent Transcriptions List",
+      "status": "open",
+      "dependsOn": [],
+      "description": "As a user, I want to see my recent transcriptions in the dashboard.",
+      "acceptanceCriteria": [
+        "Section header: 'Recent Transcriptions' in Playfair Display italic",
+        "'View All' link on right side of header",
+        "List shows last 3-5 transcriptions",
+        "Each item has: circular icon badge, title, subtitle (cleanup mode + duration), timestamp",
+        "Icon types: description (document), lightbulb (idea), mail (email), etc.",
+        "Hover state: subtle background highlight, title turns terracotta",
+        "Items separated by subtle border line",
+        "Click item -> navigates to History with that item selected",
+        "Example: 'Meeting Notes: Q4 Review' / 'Automated cleanup enabled • 24 mins' / '10:42 AM Today'",
+        "Negative case: No transcriptions -> show 'No transcriptions yet. Start recording to begin.'"
+      ]
+    },
+    {
+      "id": "US-804",
+      "title": "Daily Insights Sidebar",
+      "status": "open",
+      "dependsOn": [],
+      "description": "As a user, I want to see daily statistics about my voice usage.",
+      "acceptanceCriteria": [
+        "Section header: 'Daily Insights' in Playfair Display italic",
+        "Words Spoken: Large number (e.g., '1,240') with percentage change indicator",
+        "Percentage change: green arrow up for increase, red for decrease",
+        "Time Saved: Large number (e.g., '45m') with 'vs typing' label",
+        "Divider line between stats",
+        "Stats calculated from UsageStatsManager",
+        "Example: User transcribed 1,240 words -> shows '1,240' with '↑ 12%'",
+        "Negative case: No data -> show '0' with 'Start recording to track'"
+      ]
+    },
+    {
+      "id": "US-805",
+      "title": "Quick Tools Section",
+      "status": "open",
+      "dependsOn": [],
+      "description": "As a user, I want quick access to common tools from the dashboard.",
+      "acceptanceCriteria": [
+        "Section header: 'Quick Tools' in Playfair Display italic",
+        "Two tool buttons: 'AI Text Cleanup' and 'Import Audio File'",
+        "Buttons have border, icon on right side",
+        "Hover state: border turns terracotta, icon turns terracotta",
+        "AI Text Cleanup: Opens text cleanup functionality",
+        "Import Audio File: Opens file picker for audio import",
+        "Example: User clicks 'AI Text Cleanup' -> cleanup panel opens",
+        "Negative case: Feature not available -> button disabled with tooltip"
+      ]
+    },
+    {
+      "id": "US-806",
+      "title": "Sidebar Navigation Redesign",
+      "status": "open",
+      "dependsOn": [],
+      "description": "As a user, I want the sidebar to match the new minimalist design.",
+      "acceptanceCriteria": [
+        "Sidebar background: white/50 in light mode, #0A0A0A in dark mode",
+        "Voxa logo and name in header",
+        "Navigation items: Home, History, Snippets, Dictionary, Settings",
+        "Icons: home, schedule, folder_copy, book, settings (Material Icons style)",
+        "Active item: terracotta text and background (primary/10)",
+        "Inactive items: muted gray (#888888), hover shows subtle highlight",
+        "Collapse button at bottom with 'Collapse' label",
+        "Collapsed state shows only icons",
+        "Border on right side of sidebar",
+        "Example: User on Home -> Home item has terracotta highlight",
+        "Negative case: Window too narrow -> sidebar auto-collapses"
+      ]
+    },
+    {
+      "id": "US-807",
+      "title": "Dashboard Layout Grid",
+      "status": "open",
+      "dependsOn": ["US-801", "US-803", "US-804", "US-805"],
+      "description": "As a user, I want the dashboard content arranged in a clean grid layout.",
+      "acceptanceCriteria": [
+        "Main content area with generous padding (px-10 lg:px-16)",
+        "Header section with greeting and Start Recording button",
+        "Horizontal divider line below header",
+        "Two-column grid below divider: 8 cols for transcriptions, 4 cols for insights",
+        "Right column has left border separating it from main content",
+        "Daily Insights and Quick Tools stacked vertically in right column",
+        "Responsive: single column on smaller windows",
+        "Max width constraint (max-w-7xl) centered",
+        "Example: Wide window -> two-column layout",
+        "Negative case: Narrow window -> single column, insights below transcriptions"
+      ]
+    },
+    {
+      "id": "US-808",
+      "title": "Typography System Update",
+      "status": "open",
+      "dependsOn": [],
+      "description": "As a developer, I want consistent typography using Playfair Display and Manrope.",
+      "acceptanceCriteria": [
+        "Add Font.Voxa.display for Playfair Display headings",
+        "Add Font.Voxa.displayItalic for italic headings (section titles)",
+        "Update Font.Voxa.body to use Manrope",
+        "Display font sizes: 48-60pt for main greeting, 24pt for section titles",
+        "Body font sizes: 14-16pt for content, 12pt for captions",
+        "Fallback to system fonts if custom fonts unavailable",
+        "Example: Section title 'Recent Transcriptions' uses displayItalic",
+        "Negative case: Font not loaded -> falls back to system serif/sans"
+      ]
+    }
+  ]
+}

@@ -2,12 +2,12 @@
 import PackageDescription
 
 let package = Package(
-    name: "WispFlow",
+    name: "Voxa",
     platforms: [
         .macOS(.v14)  // WhisperKit requires macOS 14.0+
     ],
     products: [
-        .executable(name: "WispFlow", targets: ["WispFlow"])
+        .executable(name: "Voxa", targets: ["Voxa"])
     ],
     dependencies: [
         .package(url: "https://github.com/argmaxinc/WhisperKit.git", from: "0.9.0"),
@@ -15,12 +15,12 @@ let package = Package(
     ],
     targets: [
         .executableTarget(
-            name: "WispFlow",
+            name: "Voxa",
             dependencies: [
                 "WhisperKit",
                 .product(name: "LlamaSwift", package: "llama.swift")
             ],
-            path: "Sources/WispFlow"
+            path: "Sources/Voxa"
         )
         // Note: Tests require full Xcode installation (not just Command Line Tools)
         // Tests can be added when building with Xcode IDE

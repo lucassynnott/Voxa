@@ -330,7 +330,7 @@ final class AudioExporter: NSObject {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
         let timestamp = formatter.string(from: Date())
-        return "WispFlow_Recording_\(timestamp).wav"
+        return "Voxa_Recording_\(timestamp).wav"
     }
     
     // MARK: - US-306: Auto-Save to Documents
@@ -346,7 +346,7 @@ final class AudioExporter: NSObject {
         }
         
         let debugRecordingsDir = documentsDir
-            .appendingPathComponent("WispFlow", isDirectory: true)
+            .appendingPathComponent("Voxa", isDirectory: true)
             .appendingPathComponent("DebugRecordings", isDirectory: true)
         
         do {
@@ -358,7 +358,7 @@ final class AudioExporter: NSObject {
         }
     }
     
-    /// US-306: Export to Documents/WispFlow/DebugRecordings folder automatically
+    /// US-306: Export to Documents/Voxa/DebugRecordings folder automatically
     /// - Parameters:
     ///   - audioData: Raw Float32 audio samples as Data
     ///   - sampleRate: Sample rate of the audio

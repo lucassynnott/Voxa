@@ -42,6 +42,14 @@ final class PermissionManager: ObservableObject {
     /// Shared instance for app-wide permission tracking
     static let shared = PermissionManager()
     
+    // MARK: - UserDefaults Keys for Persistent Permission Tracking
+    
+    private enum PermissionKeys {
+        static let accessibilityWasRequested = "PermissionManager.accessibilityWasRequested"
+        static let accessibilityLastKnownStatus = "PermissionManager.accessibilityLastKnownStatus"
+        static let microphoneLastKnownStatus = "PermissionManager.microphoneLastKnownStatus"
+    }
+    
     // MARK: - Published Properties (trigger UI updates)
     
     /// Current microphone permission status - checked via AVCaptureDevice.authorizationStatus
@@ -60,6 +68,12 @@ final class PermissionManager: ObservableObject {
     
     /// Polling interval in seconds
     private let pollingInterval: TimeInterval = 1.0
+    
+    /// Track if accessibility permission was ever requested (persisted)
+    private var accessibilityWasRequested: Bool {
+        get { UserDefaults.standard.bool(forKey: PermissionKeys.accessibilityWasRequested) }
+        set { UserDefaults.standard.set(newValue, forKey: PermissionKeys.accessibilityWasRequested) }
+    }
     
     // MARK: - Callbacks
     
@@ -115,6 +129,9 @@ final class PermissionManager: ObservableObject {
         
         print("PermissionManager: [US-507] Requesting accessibility permission (showing system dialog)")
         
+        // Mark that we've requested accessibility permission
+        accessibilityWasRequested = true
+        
         // AXIsProcessTrustedWithOptions with kAXTrustedCheckOptionPrompt shows the system dialog
         // This is the correct way to request accessibility permission on macOS
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
@@ -168,18 +185,31 @@ final class PermissionManager: ObservableObject {
     // MARK: - Initialization
     
     init() {
-        // Check initial permission states
+        // Load last known statuses from persistent storage for quick startup
+        // This prevents the UI from briefly showing "not determined" before refreshing
+        if let savedMicStatus = UserDefaults.standard.string(forKey: PermissionKeys.microphoneLastKnownStatus),
+           let status = PermissionStatus(rawValue: savedMicStatus) {
+            microphoneStatus = status
+            print("PermissionManager: Loaded cached microphone status: \(status.rawValue)")
+        }
+        
+        if let savedAccessStatus = UserDefaults.standard.string(forKey: PermissionKeys.accessibilityLastKnownStatus),
+           let status = PermissionStatus(rawValue: savedAccessStatus) {
+            accessibilityStatus = status
+            print("PermissionManager: Loaded cached accessibility status: \(status.rawValue)")
+        }
+        
+        // Now check actual permission states (will update if different from cached)
         refreshMicrophoneStatus()
         refreshAccessibilityStatus()
         
         // Set up app activation observer to re-check permissions when user returns from System Settings
         setupAppActivationObserver()
         
-        // NOTE: Disabled automatic polling to prevent potential main thread blocking
-        // Permissions will be refreshed when app becomes active or manually checked
-        // if !allPermissionsGranted {
-        //     startPolling()
-        // }
+        // Start polling if permissions are not all granted to detect changes in real-time
+        if !allPermissionsGranted {
+            startPolling()
+        }
         
         print("PermissionManager: Initialized - Microphone: \(microphoneStatus.rawValue), Accessibility: \(accessibilityStatus.rawValue)")
     }
@@ -224,6 +254,9 @@ final class PermissionManager: ObservableObject {
             newStatus = .notDetermined
         }
         
+        // Persist the status for quick startup
+        UserDefaults.standard.set(newStatus.rawValue, forKey: PermissionKeys.microphoneLastKnownStatus)
+        
         if newStatus != previousStatus {
             microphoneStatus = newStatus
             print("PermissionManager: Microphone status changed: \(previousStatus.rawValue) -> \(newStatus.rawValue)")
@@ -234,11 +267,27 @@ final class PermissionManager: ObservableObject {
     
     /// Refresh accessibility permission status
     /// Uses AXIsProcessTrusted() as required by US-506
+    /// Note: AXIsProcessTrusted() only returns a boolean, so we use persistent storage
+    /// to distinguish between "never requested" and "denied"
     func refreshAccessibilityStatus() {
         let previousStatus = accessibilityStatus
         let isTrusted = AXIsProcessTrusted()
         
-        let newStatus: PermissionStatus = isTrusted ? .authorized : .denied
+        let newStatus: PermissionStatus
+        if isTrusted {
+            newStatus = .authorized
+            // If granted, mark as requested (user may have granted via System Preferences directly)
+            if !accessibilityWasRequested {
+                accessibilityWasRequested = true
+            }
+        } else {
+            // If not trusted and we've previously requested, it's denied
+            // If never requested, it's not determined
+            newStatus = accessibilityWasRequested ? .denied : .notDetermined
+        }
+        
+        // Persist the status for quick startup
+        UserDefaults.standard.set(newStatus.rawValue, forKey: PermissionKeys.accessibilityLastKnownStatus)
         
         if newStatus != previousStatus {
             accessibilityStatus = newStatus

@@ -34,7 +34,7 @@ final class ErrorLogger {
     private let logFileURL: URL
     private let dateFormatter: DateFormatter
     private let fileManager = FileManager.default
-    private let writeQueue = DispatchQueue(label: "com.wispflow.errorlogger", qos: .utility)
+    private let writeQueue = DispatchQueue(label: "com.voxa.errorlogger", qos: .utility)
     
     // MARK: - Initialization
     
@@ -181,7 +181,7 @@ final class ErrorLogger {
             }
         } else {
             // Create new file with header
-            let header = "# WispFlow Error Log\n# Format: [timestamp] [severity] [category] message\n\n"
+            let header = "# Voxa Error Log\n# Format: [timestamp] [severity] [category] message\n\n"
             let initialData = (header + entry).data(using: .utf8)
             fileManager.createFile(atPath: logFileURL.path, contents: initialData)
         }

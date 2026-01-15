@@ -54,99 +54,150 @@ extension NSColor {
     }
 }
 
-// MARK: - Wispflow Color Palette
+// MARK: - Voxa Color Palette
 // ╔══════════════════════════════════════════════════════════════════════════════╗
-// ║ WispFlow Design System - Color Tokens                                        ║
+// ║ Voxa Design System - Minimalist Color Tokens                                 ║
 // ║                                                                              ║
 // ║ Design Philosophy:                                                           ║
-// ║ - Warm, approachable palette that feels premium and memorable                ║
-// ║ - Primary coral/terracotta accent is bold and unexpected (not generic blue)  ║
-// ║ - Soft, warm backgrounds (ivory/cream) instead of harsh white or dark        ║
-// ║ - High contrast for accessibility while maintaining visual warmth            ║
+// ║ - Editorial, minimalist aesthetic with warm undertones                       ║
+// ║ - Primary muted terracotta (#D97058) - sophisticated, not generic            ║
+// ║ - Light mode: Warm Alabaster (#F9F8F6) background                            ║
+// ║ - Dark mode: Deep Charcoal (#121212) background                              ║
+// ║ - Typography: Playfair Display (display), Manrope (body)                     ║
 // ║                                                                              ║
 // ║ Color Token Guide:                                                           ║
-// ║ - primary: Main brand color, use for primary CTAs and key UI elements        ║
-// ║ - accent: Same as primary, semantic alias for interactive elements           ║
-// ║ - accentContrast: High-contrast version for text on primary backgrounds      ║
-// ║ - background: App-wide background, warm ivory (#FEFCF8)                      ║
-// ║ - surface: Card/panel backgrounds, soft white                                ║
-// ║ - textPrimary: Main text, warm charcoal for readability                      ║
-// ║ - textSecondary: Supporting text, muted warm gray                            ║
-// ║ - success/warning/error: Semantic colors for feedback states                 ║
+// ║ - primary: Muted Terracotta for CTAs and accents                             ║
+// ║ - background: Adapts to light (#F9F8F6) / dark (#121212) mode                ║
+// ║ - surface: White in light, dark surface (#1E1E1E) in dark mode               ║
+// ║ - sidebar: Slightly darker in dark mode (#0A0A0A)                            ║
 // ╚══════════════════════════════════════════════════════════════════════════════╝
 
 extension Color {
-    /// Wispflow design system colors
+    /// Voxa design system colors
     /// 
     /// Usage:
     /// ```swift
     /// Text("Hello")
-    ///     .foregroundColor(Color.Wispflow.primary)
-    ///     .background(Color.Wispflow.background)
+    ///     .foregroundColor(Color.Voxa.primary)
+    ///     .background(Color.Voxa.background)
     /// ```
-    struct Wispflow {
+    struct Voxa {
         // MARK: - Brand Colors
         
-        /// Primary brand color - warm coral/terracotta (#E07A5F)
+        /// Primary brand color - muted terracotta (#D97058)
         /// Use for: primary buttons, key interactive elements, brand accents
-        /// Fallback: System accent color if hex initialization fails
         static var primary: Color {
-            let customColor = Color(hex: "E07A5F")
-            // Verify the color was created correctly (hex parsing succeeded)
-            // If we get a black color from invalid hex, fall back to system accent
-            return customColor.description.isEmpty ? Color.accentColor : customColor
+            Color(hex: "D97058")
         }
         
         /// Alias for primary - use for interactive element consistency
-        /// Warm coral/terracotta (#E07A5F) - distinctive, not generic blue
         static var accent: Color { primary }
         
-        /// High-contrast accent - darker coral for text on light backgrounds (#C4563F)
-        /// Use for: accent text that needs to meet WCAG AA contrast requirements
+        /// High-contrast accent - darker terracotta for text on light backgrounds (#C4563F)
         static let accentContrast = Color(hex: "C4563F")
         
-        // MARK: - Background Colors
+        // MARK: - Background Colors (Light/Dark Adaptive)
         
-        /// Warm ivory/cream background (#FEFCF8) - not harsh white
-        /// Use for: main app background, provides warmth and reduces eye strain
+        /// Warm Alabaster background for light mode (#F9F8F6)
+        static let backgroundLight = Color(hex: "F9F8F6")
+        
+        /// Deep Charcoal background for dark mode (#121212)
+        static let backgroundDark = Color(hex: "121212")
+        
+        /// Adaptive background - use this for automatic light/dark support
         static var background: Color {
-            let customColor = Color(hex: "FEFCF8")
-            return customColor.description.isEmpty ? Color(NSColor.windowBackgroundColor) : customColor
+            Color(NSColor(name: nil, dynamicProvider: { appearance in
+                if appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
+                    return NSColor(hex: "121212")
+                } else {
+                    return NSColor(hex: "F9F8F6")
+                }
+            }))
         }
         
-        /// Soft white surface (#FFFFFF)
-        /// Use for: cards, panels, elevated content
-        static let surface = Color.white
+        /// Light mode surface (white)
+        static let surfaceLight = Color.white
         
-        /// Subtle warm gray for section backgrounds (#F5F3F0)
-        /// Use for: alternating rows, subtle sections
-        static let surfaceSecondary = Color(hex: "F5F3F0")
+        /// Dark mode surface (#1E1E1E)
+        static let surfaceDark = Color(hex: "1E1E1E")
         
-        // MARK: - Text Colors
+        /// Adaptive surface for cards/panels
+        static var surface: Color {
+            Color(NSColor(name: nil, dynamicProvider: { appearance in
+                if appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
+                    return NSColor(hex: "1E1E1E")
+                } else {
+                    return NSColor.white
+                }
+            }))
+        }
         
-        /// Warm charcoal text (#2D3436) - not pure black
-        /// Use for: primary text, headings, important content
+        /// Sidebar background - darker in dark mode (#0A0A0A)
+        static var sidebarBackground: Color {
+            Color(NSColor(name: nil, dynamicProvider: { appearance in
+                if appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
+                    return NSColor(hex: "0A0A0A")
+                } else {
+                    return NSColor.white.withAlphaComponent(0.5)
+                }
+            }))
+        }
+        
+        /// Subtle warm gray for section backgrounds (#F5F3F0 light / #1E1E1E dark)
+        static var surfaceSecondary: Color {
+            Color(NSColor(name: nil, dynamicProvider: { appearance in
+                if appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
+                    return NSColor(hex: "1E1E1E")
+                } else {
+                    return NSColor(hex: "F5F3F0")
+                }
+            }))
+        }
+        
+        // MARK: - Text Colors (Light/Dark Adaptive)
+        
+        /// Primary text - #2D2D2D light / #E0E0E0 dark
         static var textPrimary: Color {
-            let customColor = Color(hex: "2D3436")
-            return customColor.description.isEmpty ? Color(NSColor.labelColor) : customColor
+            Color(NSColor(name: nil, dynamicProvider: { appearance in
+                if appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
+                    return NSColor(hex: "E0E0E0")
+                } else {
+                    return NSColor(hex: "2D2D2D")
+                }
+            }))
         }
         
-        /// Warm gray secondary text (#636E72)
-        /// Use for: supporting text, captions, less important content
+        /// Secondary/subtle text - #888888 both modes
         static var textSecondary: Color {
-            let customColor = Color(hex: "636E72")
-            return customColor.description.isEmpty ? Color(NSColor.secondaryLabelColor) : customColor
+            Color(hex: "888888")
         }
         
         /// Disabled/placeholder text (#A0A0A0)
-        /// Use for: disabled states, placeholder text
         static let textTertiary = Color(hex: "A0A0A0")
         
-        // MARK: - Border & Divider Colors
+        // MARK: - Border & Divider Colors (Light/Dark Adaptive)
         
-        /// Very subtle warm gray border (#E8E4DF)
-        /// Use for: card borders, dividers, subtle separators
-        static let border = Color(hex: "E8E4DF")
+        /// Subtle border - #E5E5E5 light / #333333 dark
+        static var border: Color {
+            Color(NSColor(name: nil, dynamicProvider: { appearance in
+                if appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
+                    return NSColor(hex: "333333")
+                } else {
+                    return NSColor(hex: "E5E5E5")
+                }
+            }))
+        }
+        
+        /// Very subtle line - #E5E5E5 light / #27272A dark
+        static var line: Color {
+            Color(NSColor(name: nil, dynamicProvider: { appearance in
+                if appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
+                    return NSColor(hex: "27272A")
+                } else {
+                    return NSColor(hex: "E5E5E5")
+                }
+            }))
+        }
         
         /// Stronger border for focus states (#D0CCC7)
         /// Use for: focused input borders, selected state outlines
@@ -198,18 +249,18 @@ extension Color {
     }
 }
 
-// MARK: - NSColor Wispflow Equivalents (for AppKit components)
+// MARK: - NSColor Voxa Equivalents (for AppKit components)
 // ╔══════════════════════════════════════════════════════════════════════════════╗
-// ║ WispFlow Design System - NSColor Tokens (AppKit)                             ║
+// ║ Voxa Design System - NSColor Tokens (AppKit)                             ║
 // ║                                                                              ║
-// ║ These colors mirror the SwiftUI Color.Wispflow palette for AppKit usage.     ║
+// ║ These colors mirror the SwiftUI Color.Voxa palette for AppKit usage.     ║
 // ║ Use these when working with NSView, NSWindow, or other AppKit components.    ║
 // ║ Each color falls back to system equivalents if custom colors fail to load.   ║
 // ╚══════════════════════════════════════════════════════════════════════════════╝
 
 extension NSColor {
-    /// Wispflow design system colors for AppKit
-    struct Wispflow {
+    /// Voxa design system colors for AppKit
+    struct Voxa {
         // MARK: - Brand Colors
         
         /// Primary brand color - warm coral/terracotta (#E07A5F)
@@ -288,9 +339,9 @@ extension NSColor {
     }
 }
 
-// MARK: - Wispflow Typography
+// MARK: - Voxa Typography
 // ╔══════════════════════════════════════════════════════════════════════════════╗
-// ║ WispFlow Design System - Typography Tokens                                   ║
+// ║ Voxa Design System - Typography Tokens                                   ║
 // ║                                                                              ║
 // ║ Typography Philosophy:                                                       ║
 // ║ - Display fonts use SF Rounded for a friendly, approachable feel            ║
@@ -314,14 +365,41 @@ extension NSColor {
 // ╚══════════════════════════════════════════════════════════════════════════════╝
 
 extension Font {
-    /// Wispflow design system fonts
+    /// Voxa design system fonts
     /// 
     /// Usage:
     /// ```swift
     /// Text("Hello World")
-    ///     .font(Font.Wispflow.headline)
+    ///     .font(Font.Voxa.headline)
     /// ```
-    struct Wispflow {
+    struct Voxa {
+        // MARK: - Editorial Display Fonts (Serif) - US-801, US-808
+        // These fonts use serif design for an editorial, elegant appearance
+        // Inspired by Playfair Display - using system serif as fallback
+        
+        /// Display greeting font (52pt, regular, serif) - for time-based greetings
+        /// Use for: Hero greeting text like "Good morning.", "Good afternoon."
+        /// Design: Elegant serif similar to Playfair Display (~48-60pt)
+        static var displayGreeting: Font {
+            Font.system(size: 52, weight: .regular, design: .serif)
+        }
+        
+        /// Display greeting italic (48pt, regular, serif, italic) - for italic greetings
+        /// Use for: Italic section headers, editorial emphasis
+        static var displayGreetingItalic: Font {
+            Font.system(size: 48, weight: .regular, design: .serif).italic()
+        }
+        
+        /// Section header italic (18pt, regular, serif, italic) - for section headers
+        /// Use for: "Recent Transcriptions", "Daily Insights" section titles
+        static var sectionHeaderItalic: Font {
+            Font.system(size: 18, weight: .regular, design: .serif).italic()
+        }
+        
+        /// Small uppercase label font (11pt, medium) - for labels like "DASHBOARD"
+        /// Use for: Section labels with uppercase tracking-widest styling
+        static let labelUppercase = Font.system(size: 11, weight: .medium)
+        
         // MARK: - Display Fonts (SF Rounded)
         // These fonts use SF Rounded design for a distinctive, friendly appearance
         
@@ -369,11 +447,11 @@ extension Font {
     }
 }
 
-// MARK: - NSFont Wispflow Equivalents (for AppKit components)
+// MARK: - NSFont Voxa Equivalents (for AppKit components)
 // ╔══════════════════════════════════════════════════════════════════════════════╗
-// ║ WispFlow Design System - NSFont Tokens (AppKit)                              ║
+// ║ Voxa Design System - NSFont Tokens (AppKit)                              ║
 // ║                                                                              ║
-// ║ These fonts mirror the SwiftUI Font.Wispflow typography for AppKit usage.    ║
+// ║ These fonts mirror the SwiftUI Font.Voxa typography for AppKit usage.    ║
 // ║ Use these when working with NSTextField, NSTextView, or other AppKit text.   ║
 // ║                                                                              ║
 // ║ Note: NSFont doesn't have a direct .rounded design option like SwiftUI Font. ║
@@ -381,8 +459,8 @@ extension Font {
 // ╚══════════════════════════════════════════════════════════════════════════════╝
 
 extension NSFont {
-    /// Wispflow design system fonts for AppKit
-    struct Wispflow {
+    /// Voxa design system fonts for AppKit
+    struct Voxa {
         // MARK: - Display Fonts
         
         /// Large title (28pt, bold) - for main headers
@@ -420,7 +498,7 @@ extension NSFont {
 
 // MARK: - Spacing Constants
 // ╔══════════════════════════════════════════════════════════════════════════════╗
-// ║ WispFlow Design System - Spacing Tokens                                      ║
+// ║ Voxa Design System - Spacing Tokens                                      ║
 // ║                                                                              ║
 // ║ Spacing Philosophy:                                                          ║
 // ║ - 4pt base unit creates consistent visual rhythm                             ║
@@ -436,7 +514,7 @@ extension NSFont {
 // ║ - xxl (32pt): Page margins, hero sections                                    ║
 // ╚══════════════════════════════════════════════════════════════════════════════╝
 
-/// Wispflow spacing constants for consistent layout
+/// Voxa spacing constants for consistent layout
 /// 
 /// Usage:
 /// ```swift
@@ -483,7 +561,7 @@ enum Spacing {
 
 // MARK: - Corner Radius Constants
 // ╔══════════════════════════════════════════════════════════════════════════════╗
-// ║ WispFlow Design System - Corner Radius Tokens                                ║
+// ║ Voxa Design System - Corner Radius Tokens                                ║
 // ║                                                                              ║
 // ║ Corner Radius Philosophy: Soft & Organic                                     ║
 // ║ - Rounded corners create a friendly, approachable aesthetic                  ║
@@ -504,7 +582,7 @@ enum Spacing {
 // ║ - full: Fully rounded (circles, capsules)                                    ║
 // ╚══════════════════════════════════════════════════════════════════════════════╝
 
-/// Wispflow corner radius constants
+/// Voxa corner radius constants
 /// 
 /// Usage:
 /// ```swift
@@ -542,7 +620,7 @@ enum CornerRadius {
 
 // MARK: - Shadow Styles
 
-/// Wispflow shadow styles
+/// Voxa shadow styles
 enum ShadowStyle {
     /// Card shadow - soft, warm-toned for elevated content
     case card
@@ -598,8 +676,8 @@ enum ShadowStyle {
 // MARK: - Shadow View Modifier
 
 extension View {
-    /// Apply a Wispflow shadow style to a view
-    func wispflowShadow(_ style: ShadowStyle) -> some View {
+    /// Apply a Voxa shadow style to a view
+    func voxaShadow(_ style: ShadowStyle) -> some View {
         self.shadow(
             color: style.color,
             radius: style.radius,
@@ -609,10 +687,10 @@ extension View {
     }
 }
 
-// MARK: - Wispflow Button Style
+// MARK: - Voxa Button Style
 
-/// Custom button style for Wispflow with press animation
-struct WispflowButtonStyle: ButtonStyle {
+/// Custom button style for Voxa with press animation
+struct VoxaButtonStyle: ButtonStyle {
     /// Button variant
     enum Variant {
         case primary    // Coral background, white text
@@ -629,7 +707,7 @@ struct WispflowButtonStyle: ButtonStyle {
     }
     
     func makeBody(configuration: Configuration) -> some View {
-        WispflowButtonContent(
+        VoxaButtonContent(
             configuration: configuration,
             variant: variant,
             isFullWidth: isFullWidth
@@ -637,31 +715,31 @@ struct WispflowButtonStyle: ButtonStyle {
     }
     
     // Convenience static methods for easy access
-    static var primary: WispflowButtonStyle {
-        WispflowButtonStyle(variant: .primary)
+    static var primary: VoxaButtonStyle {
+        VoxaButtonStyle(variant: .primary)
     }
     
-    static var secondary: WispflowButtonStyle {
-        WispflowButtonStyle(variant: .secondary)
+    static var secondary: VoxaButtonStyle {
+        VoxaButtonStyle(variant: .secondary)
     }
     
-    static var ghost: WispflowButtonStyle {
-        WispflowButtonStyle(variant: .ghost)
+    static var ghost: VoxaButtonStyle {
+        VoxaButtonStyle(variant: .ghost)
     }
 }
 
 /// Internal view for button content with proper @State management
 /// US-525: Added contentShape for reliable hit testing within ScrollViews
-private struct WispflowButtonContent: View {
+private struct VoxaButtonContent: View {
     let configuration: ButtonStyleConfiguration
-    let variant: WispflowButtonStyle.Variant
+    let variant: VoxaButtonStyle.Variant
     let isFullWidth: Bool
     
     @State private var isHovering = false
     
     var body: some View {
         configuration.label
-            .font(Font.Wispflow.body)
+            .font(Font.Voxa.body)
             .fontWeight(.medium)
             .foregroundColor(textColor(isPressed: configuration.isPressed))
             .padding(.horizontal, Spacing.lg)
@@ -683,25 +761,25 @@ private struct WispflowButtonContent: View {
         switch variant {
         case .primary:
             if isPressed {
-                return Color.Wispflow.accent.opacity(0.8)
+                return Color.Voxa.accent.opacity(0.8)
             } else if isHovering {
-                return Color.Wispflow.accent.opacity(0.9)
+                return Color.Voxa.accent.opacity(0.9)
             }
-            return Color.Wispflow.accent
+            return Color.Voxa.accent
             
         case .secondary:
             if isPressed {
-                return Color.Wispflow.border.opacity(0.8)
+                return Color.Voxa.border.opacity(0.8)
             } else if isHovering {
-                return Color.Wispflow.border
+                return Color.Voxa.border
             }
-            return Color.Wispflow.border.opacity(0.5)
+            return Color.Voxa.border.opacity(0.5)
             
         case .ghost:
             if isPressed {
-                return Color.Wispflow.accent.opacity(0.15)
+                return Color.Voxa.accent.opacity(0.15)
             } else if isHovering {
-                return Color.Wispflow.accent.opacity(0.08)
+                return Color.Voxa.accent.opacity(0.08)
             }
             return Color.clear
         }
@@ -712,16 +790,16 @@ private struct WispflowButtonContent: View {
         case .primary:
             return .white
         case .secondary, .ghost:
-            return Color.Wispflow.accent
+            return Color.Voxa.accent
         }
     }
 }
 
-// MARK: - Wispflow Card Style (View Modifier)
+// MARK: - Voxa Card Style (View Modifier)
 
-/// Custom card style modifier for Wispflow with soft shadow and rounded corners
+/// Custom card style modifier for Voxa with soft shadow and rounded corners
 /// US-525: Added contentShape for reliable hit testing within ScrollViews
-struct WispflowCardStyle: ViewModifier {
+struct VoxaCardStyle: ViewModifier {
     let padding: CGFloat
     let shadow: ShadowStyle
     
@@ -733,25 +811,25 @@ struct WispflowCardStyle: ViewModifier {
     func body(content: Content) -> some View {
         content
             .padding(padding)
-            .background(Color.Wispflow.surface)
+            .background(Color.Voxa.surface)
             .cornerRadius(CornerRadius.medium)
             .contentShape(Rectangle()) // US-525: Ensure entire card area is tappable
-            .wispflowShadow(shadow)
+            .voxaShadow(shadow)
     }
 }
 
 extension View {
-    /// Apply Wispflow card styling to a view
-    func wispflowCard(padding: CGFloat = Spacing.lg, shadow: ShadowStyle = .card) -> some View {
-        self.modifier(WispflowCardStyle(padding: padding, shadow: shadow))
+    /// Apply Voxa card styling to a view
+    func voxaCard(padding: CGFloat = Spacing.lg, shadow: ShadowStyle = .card) -> some View {
+        self.modifier(VoxaCardStyle(padding: padding, shadow: shadow))
     }
 }
 
-// MARK: - Wispflow Toggle Style
+// MARK: - Voxa Toggle Style
 
 /// Custom toggle style with coral accent color
 /// US-525: Enhanced hit area for reliable toggle interactions in ScrollViews
-struct WispflowToggleStyle: ToggleStyle {
+struct VoxaToggleStyle: ToggleStyle {
     func makeBody(configuration: Configuration) -> some View {
         HStack {
             configuration.label
@@ -762,7 +840,7 @@ struct WispflowToggleStyle: ToggleStyle {
             // US-525: Wrapped in a larger hit area for easier tapping
             ZStack {
                 Capsule()
-                    .fill(configuration.isOn ? Color.Wispflow.accent : Color.Wispflow.border)
+                    .fill(configuration.isOn ? Color.Voxa.accent : Color.Voxa.border)
                     .frame(width: 44, height: 24)
                     .animation(.easeInOut(duration: 0.2), value: configuration.isOn)
                 
@@ -783,32 +861,32 @@ struct WispflowToggleStyle: ToggleStyle {
     }
 }
 
-// MARK: - Wispflow Text Field Style
+// MARK: - Voxa Text Field Style
 
 /// Custom text field style with warm styling and focus glow
-struct WispflowTextFieldStyle: TextFieldStyle {
+struct VoxaTextFieldStyle: TextFieldStyle {
     @FocusState private var isFocused: Bool
     
     func _body(configuration: TextField<Self._Label>) -> some View {
         configuration
             .textFieldStyle(.plain)
-            .font(Font.Wispflow.body)
-            .foregroundColor(Color.Wispflow.textPrimary)
+            .font(Font.Voxa.body)
+            .foregroundColor(Color.Voxa.textPrimary)
             .padding(.horizontal, Spacing.md)
             .padding(.vertical, Spacing.sm)
-            .background(Color.Wispflow.surface)
+            .background(Color.Voxa.surface)
             .cornerRadius(CornerRadius.small)
             .overlay(
                 RoundedRectangle(cornerRadius: CornerRadius.small)
-                    .stroke(Color.Wispflow.border, lineWidth: 1)
+                    .stroke(Color.Voxa.border, lineWidth: 1)
             )
     }
 }
 
 // MARK: - Animation Constants
 
-/// Wispflow animation presets
-enum WispflowAnimation {
+/// Voxa animation presets
+enum VoxaAnimation {
     /// Quick micro-interaction (0.1s)
     static let quick = Animation.easeOut(duration: 0.1)
     
@@ -835,7 +913,7 @@ struct AnimatedCheckmark: View {
     @State private var isAnimating = false
     var size: CGFloat = 60
     var strokeWidth: CGFloat = 4
-    var color: Color = Color.Wispflow.success
+    var color: Color = Color.Voxa.success
     var onComplete: (() -> Void)? = nil
     
     var body: some View {
@@ -889,7 +967,7 @@ struct LoadingSpinner: View {
     @State private var isAnimating = false
     var size: CGFloat = 24
     var lineWidth: CGFloat = 3
-    var color: Color = Color.Wispflow.accent
+    var color: Color = Color.Voxa.accent
     
     var body: some View {
         Circle()
@@ -914,7 +992,7 @@ struct LoadingSpinner: View {
 struct PulsingDot: View {
     @State private var isPulsing = false
     var size: CGFloat = 10
-    var color: Color = Color.Wispflow.accent
+    var color: Color = Color.Voxa.accent
     
     var body: some View {
         Circle()
@@ -952,7 +1030,7 @@ struct InteractiveScaleStyle: ButtonStyle {
 /// View modifier that adds hover highlighting effect
 struct HoverHighlight: ViewModifier {
     @State private var isHovering = false
-    var hoverColor: Color = Color.Wispflow.accentLight
+    var hoverColor: Color = Color.Voxa.accentLight
     var cornerRadius: CGFloat = CornerRadius.small
     
     func body(content: Content) -> some View {
@@ -971,7 +1049,7 @@ struct HoverHighlight: ViewModifier {
 
 extension View {
     /// Apply hover highlighting effect
-    func hoverHighlight(color: Color = Color.Wispflow.accentLight, cornerRadius: CGFloat = CornerRadius.small) -> some View {
+    func hoverHighlight(color: Color = Color.Voxa.accentLight, cornerRadius: CGFloat = CornerRadius.small) -> some View {
         self.modifier(HoverHighlight(hoverColor: color, cornerRadius: cornerRadius))
     }
 }
@@ -1010,9 +1088,9 @@ struct SuccessFlashOverlay: View {
                 AnimatedCheckmark(size: 50)
                 
                 Text(message)
-                    .font(Font.Wispflow.body)
+                    .font(Font.Voxa.body)
                     .fontWeight(.medium)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .foregroundColor(Color.Voxa.textPrimary)
             }
             .padding(Spacing.xl)
             .background(
@@ -1021,13 +1099,13 @@ struct SuccessFlashOverlay: View {
             )
             .background(
                 RoundedRectangle(cornerRadius: CornerRadius.large)
-                    .fill(Color.Wispflow.background.opacity(0.8))
+                    .fill(Color.Voxa.background.opacity(0.8))
             )
-            .wispflowShadow(.floating)
+            .voxaShadow(.floating)
             .transition(.scale.combined(with: .opacity))
             .onAppear {
                 DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
-                    withAnimation(WispflowAnimation.smooth) {
+                    withAnimation(VoxaAnimation.smooth) {
                         isShowing = false
                     }
                 }

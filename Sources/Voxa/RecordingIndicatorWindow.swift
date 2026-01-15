@@ -101,14 +101,14 @@ final class RecordingIndicatorWindow: NSPanel {
         // Apply warm ivory tint overlay for warmth
         let warmOverlay = NSView()
         warmOverlay.wantsLayer = true
-        warmOverlay.layer?.backgroundColor = NSColor.Wispflow.background.withAlphaComponent(0.3).cgColor
+        warmOverlay.layer?.backgroundColor = NSColor.Voxa.background.withAlphaComponent(0.3).cgColor
         warmOverlay.translatesAutoresizingMaskIntoConstraints = false
         
         // Add drop shadow layer for floating effect
         let shadowView = NSView()
         shadowView.wantsLayer = true
         shadowView.layer?.cornerRadius = Constants.cornerRadius
-        shadowView.layer?.shadowColor = NSColor.Wispflow.textPrimary.withAlphaComponent(0.2).cgColor
+        shadowView.layer?.shadowColor = NSColor.Voxa.textPrimary.withAlphaComponent(0.2).cgColor
         shadowView.layer?.shadowOpacity = 1.0
         shadowView.layer?.shadowOffset = CGSize(width: 0, height: -4)
         shadowView.layer?.shadowRadius = 16
@@ -129,7 +129,7 @@ final class RecordingIndicatorWindow: NSPanel {
         // Recording dot (warm coral pulsing circle)
         recordingDot.wantsLayer = true
         recordingDot.layer?.cornerRadius = Constants.dotSize / 2
-        recordingDot.layer?.backgroundColor = NSColor.Wispflow.accent.cgColor
+        recordingDot.layer?.backgroundColor = NSColor.Voxa.accent.cgColor
         recordingDot.translatesAutoresizingMaskIntoConstraints = false
         containerView.addSubview(recordingDot)
         
@@ -139,8 +139,8 @@ final class RecordingIndicatorWindow: NSPanel {
         
         // Status label with elegant typography
         statusLabel.stringValue = "Recording"
-        statusLabel.font = NSFont.Wispflow.caption
-        statusLabel.textColor = NSColor.Wispflow.textSecondary
+        statusLabel.font = NSFont.Voxa.caption
+        statusLabel.textColor = NSColor.Voxa.textSecondary
         statusLabel.backgroundColor = .clear
         statusLabel.isBordered = false
         statusLabel.isEditable = false
@@ -151,7 +151,7 @@ final class RecordingIndicatorWindow: NSPanel {
         // Duration label with elegant typography
         durationLabel.stringValue = "0:00"
         durationLabel.font = NSFont.systemFont(ofSize: 14, weight: .semibold)
-        durationLabel.textColor = NSColor.Wispflow.textPrimary
+        durationLabel.textColor = NSColor.Voxa.textPrimary
         durationLabel.backgroundColor = .clear
         durationLabel.isBordered = false
         durationLabel.isEditable = false
@@ -446,8 +446,8 @@ final class LiveWaveformView: NSView {
         layer?.masksToBounds = true
         
         // Configure wave layer
-        waveLayer.fillColor = NSColor.Wispflow.accent.withAlphaComponent(0.4).cgColor
-        waveLayer.strokeColor = NSColor.Wispflow.accent.cgColor
+        waveLayer.fillColor = NSColor.Voxa.accent.withAlphaComponent(0.4).cgColor
+        waveLayer.strokeColor = NSColor.Voxa.accent.cgColor
         waveLayer.lineWidth = 2.0
         waveLayer.lineCap = .round
         waveLayer.lineJoin = .round
@@ -556,13 +556,13 @@ final class LiveWaveformView: NSView {
         // Update wave color based on level
         let color: NSColor
         if clampedLevel < Constants.silenceThreshold {
-            color = NSColor.Wispflow.textSecondary.withAlphaComponent(0.3)
+            color = NSColor.Voxa.textSecondary.withAlphaComponent(0.3)
         } else if clampedLevel < -20 {
-            color = NSColor.Wispflow.success
+            color = NSColor.Voxa.success
         } else if clampedLevel < -6 {
-            color = NSColor.Wispflow.accent
+            color = NSColor.Voxa.accent
         } else {
-            color = NSColor.Wispflow.accent
+            color = NSColor.Voxa.accent
         }
         
         CATransaction.begin()
@@ -609,10 +609,10 @@ final class HoverGlowButton: NSButton {
         let xImage = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: "Cancel recording")
         image = xImage
         imagePosition = .imageOnly
-        contentTintColor = NSColor.Wispflow.textSecondary
+        contentTintColor = NSColor.Voxa.textSecondary
         
         // Configure glow layer
-        glowLayer.backgroundColor = NSColor.Wispflow.accent.withAlphaComponent(0.0).cgColor
+        glowLayer.backgroundColor = NSColor.Voxa.accent.withAlphaComponent(0.0).cgColor
         glowLayer.cornerRadius = 11
         layer?.insertSublayer(glowLayer, at: 0)
         
@@ -658,15 +658,15 @@ final class HoverGlowButton: NSButton {
             context.allowsImplicitAnimation = true
             
             if hover {
-                contentTintColor = NSColor.Wispflow.accent
-                glowLayer.backgroundColor = NSColor.Wispflow.accent.withAlphaComponent(0.2).cgColor
-                glowLayer.shadowColor = NSColor.Wispflow.accent.cgColor
+                contentTintColor = NSColor.Voxa.accent
+                glowLayer.backgroundColor = NSColor.Voxa.accent.withAlphaComponent(0.2).cgColor
+                glowLayer.shadowColor = NSColor.Voxa.accent.cgColor
                 glowLayer.shadowOpacity = 0.5
                 glowLayer.shadowRadius = 8
                 glowLayer.shadowOffset = .zero
             } else {
-                contentTintColor = NSColor.Wispflow.textSecondary
-                glowLayer.backgroundColor = NSColor.Wispflow.accent.withAlphaComponent(0.0).cgColor
+                contentTintColor = NSColor.Voxa.textSecondary
+                glowLayer.backgroundColor = NSColor.Voxa.accent.withAlphaComponent(0.0).cgColor
                 glowLayer.shadowOpacity = 0
             }
         }

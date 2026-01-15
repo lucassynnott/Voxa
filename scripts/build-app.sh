@@ -1,11 +1,11 @@
 #!/bin/bash
-# Build WispFlow as a macOS app bundle
+# Build Voxa as a macOS app bundle
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 BUILD_DIR="${ROOT_DIR}/.build"
-APP_NAME="WispFlow"
+APP_NAME="Voxa"
 APP_BUNDLE="${BUILD_DIR}/${APP_NAME}.app"
 
 # Parse arguments
@@ -14,7 +14,7 @@ if [ "${1:-}" = "--release" ] || [ "${1:-}" = "-r" ]; then
     BUILD_CONFIG="release"
 fi
 
-echo "Building WispFlow ($BUILD_CONFIG)..."
+echo "Building Voxa ($BUILD_CONFIG)..."
 
 # Build with Swift
 cd "$ROOT_DIR"

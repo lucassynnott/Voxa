@@ -179,7 +179,7 @@ final class LLMManager: ObservableObject {
     /// LLM models directory
     private var modelsDirectory: URL {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let modelsDir = appSupport.appendingPathComponent("WispFlow/LLMModels", isDirectory: true)
+        let modelsDir = appSupport.appendingPathComponent("Voxa/LLMModels", isDirectory: true)
         try? FileManager.default.createDirectory(at: modelsDir, withIntermediateDirectories: true)
         return modelsDir
     }

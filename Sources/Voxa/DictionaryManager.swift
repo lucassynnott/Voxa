@@ -318,7 +318,7 @@ final class DictionaryManager: ObservableObject {
     /// - Returns: Text content for export
     func exportAsText() -> String {
         var lines: [String] = []
-        lines.append("# WispFlow Custom Dictionary")
+        lines.append("# Voxa Custom Dictionary")
         lines.append("# Format: word<tab>pronunciation_hint (hint is optional)")
         lines.append("# Exported: \(ISO8601DateFormatter().string(from: Date()))")
         lines.append("")

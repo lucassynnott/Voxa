@@ -388,7 +388,7 @@ final class DebugLogWindowController: NSObject {
         let hostingController = NSHostingController(rootView: debugView)
         
         let window = NSWindow(contentViewController: hostingController)
-        window.title = "WispFlow Debug Log"
+        window.title = "Voxa Debug Log"
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
         window.setContentSize(NSSize(width: 600, height: 500))
         window.center()

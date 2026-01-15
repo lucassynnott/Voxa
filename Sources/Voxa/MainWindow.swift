@@ -91,48 +91,80 @@ struct MainWindowView: View {
     /// US-708: Initial navigation item (can be set when opening window)
     var initialNavigationItem: NavigationItem? = nil
     
+    /// Whether onboarding should be shown (first launch)
+    @State private var showOnboarding: Bool = !UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
+    
+    /// Audio manager for onboarding (injected via environment or created)
+    @EnvironmentObject private var audioManager: AudioManager
+    
+    /// Hotkey manager for onboarding
+    @EnvironmentObject private var hotkeyManager: HotkeyManager
+    
     var body: some View {
-        GeometryReader { geometry in
-            HStack(spacing: 0) {
-                // MARK: - Sidebar
-                sidebarView
-                    .frame(width: isSidebarCollapsed ? sidebarCollapsedWidth : sidebarExpandedWidth)
-                
-                // MARK: - Subtle Separator
-                Rectangle()
-                    .fill(Color.Wispflow.border.opacity(0.5))
-                    .frame(width: 1)
-                    .wispflowShadow(.subtle)
-                
-                // MARK: - Main Content Area
-                contentView
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-            .onChange(of: geometry.size.width) { _, newWidth in
-                windowWidth = newWidth
-                // Auto-collapse sidebar when window too small
-                withAnimation(WispflowAnimation.smooth) {
-                    isSidebarCollapsed = newWidth < collapseThreshold
+        ZStack {
+            // Main app content
+            GeometryReader { geometry in
+                HStack(spacing: 0) {
+                    // MARK: - Sidebar
+                    sidebarView
+                        .frame(width: isSidebarCollapsed ? sidebarCollapsedWidth : sidebarExpandedWidth)
+                    
+                    // MARK: - Subtle Separator
+                    Rectangle()
+                        .fill(Color.Voxa.border.opacity(0.5))
+                        .frame(width: 1)
+                        .voxaShadow(.subtle)
+                    
+                    // MARK: - Main Content Area
+                    contentView
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-            }
-            .onAppear {
-                windowWidth = geometry.size.width
-                isSidebarCollapsed = geometry.size.width < collapseThreshold
-                // US-708: Navigate to initial item if specified
-                if let initialItem = initialNavigationItem {
-                    withAnimation(WispflowAnimation.smooth) {
-                        selectedItem = initialItem
+                .onChange(of: geometry.size.width) { _, newWidth in
+                    windowWidth = newWidth
+                    // Auto-collapse sidebar when window too small
+                    withAnimation(VoxaAnimation.smooth) {
+                        isSidebarCollapsed = newWidth < collapseThreshold
+                    }
+                }
+                .onAppear {
+                    windowWidth = geometry.size.width
+                    isSidebarCollapsed = geometry.size.width < collapseThreshold
+                    // US-708: Navigate to initial item if specified
+                    if let initialItem = initialNavigationItem {
+                        withAnimation(VoxaAnimation.smooth) {
+                            selectedItem = initialItem
+                        }
+                    }
+                }
+                // US-708: Listen for navigation requests from openSettings notification
+                .onReceive(NotificationCenter.default.publisher(for: .openSettings)) { _ in
+                    withAnimation(VoxaAnimation.smooth) {
+                        selectedItem = .settings
                     }
                 }
             }
-            // US-708: Listen for navigation requests from openSettings notification
-            .onReceive(NotificationCenter.default.publisher(for: .openSettings)) { _ in
-                withAnimation(WispflowAnimation.smooth) {
-                    selectedItem = .settings
-                }
+            .blur(radius: showOnboarding ? 3 : 0)
+            .disabled(showOnboarding)
+            
+            // Onboarding overlay (shown on first launch only)
+            if showOnboarding {
+                OnboardingContainerView(
+                    onboardingManager: OnboardingManager.shared,
+                    audioManager: audioManager,
+                    hotkeyManager: hotkeyManager,
+                    onComplete: {
+                        withAnimation(VoxaAnimation.smooth) {
+                            showOnboarding = false
+                        }
+                        UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
+                        // Start hotkey manager after onboarding
+                        hotkeyManager.start()
+                    }
+                )
+                .transition(.opacity)
             }
         }
-        .background(Color.Wispflow.background)
+        .background(Color.Voxa.background)
     }
     
     // MARK: - Sidebar View
@@ -155,7 +187,7 @@ struct MainWindowView: View {
                         isCollapsed: isSidebarCollapsed,
                         animationNamespace: animationNamespace,
                         onSelect: {
-                            withAnimation(WispflowAnimation.smooth) {
+                            withAnimation(VoxaAnimation.smooth) {
                                 selectedItem = item
                             }
                         }
@@ -172,7 +204,7 @@ struct MainWindowView: View {
                 .padding(.bottom, Spacing.lg)
         }
         .frame(maxHeight: .infinity)
-        .background(Color.Wispflow.surface)
+        .background(Color.Voxa.surface)
     }
     
     // MARK: - Sidebar Header
@@ -185,7 +217,7 @@ struct MainWindowView: View {
                 RoundedRectangle(cornerRadius: CornerRadius.small)
                     .fill(
                         LinearGradient(
-                            colors: [Color.Wispflow.accent.opacity(0.9), Color.Wispflow.accent],
+                            colors: [Color.Voxa.accent.opacity(0.9), Color.Voxa.accent],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -199,13 +231,13 @@ struct MainWindowView: View {
             
             if !isSidebarCollapsed {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("WispFlow")
-                        .font(Font.Wispflow.headline)
-                        .foregroundColor(Color.Wispflow.textPrimary)
+                    Text("Voxa")
+                        .font(Font.Voxa.headline)
+                        .foregroundColor(Color.Voxa.textPrimary)
                     
                     Text("Voice to Text")
-                        .font(Font.Wispflow.small)
-                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .font(Font.Voxa.small)
+                        .foregroundColor(Color.Voxa.textSecondary)
                 }
                 .transition(.opacity.combined(with: .move(edge: .leading)))
             }
@@ -213,7 +245,7 @@ struct MainWindowView: View {
             Spacer()
         }
         .padding(Spacing.lg)
-        .animation(WispflowAnimation.smooth, value: isSidebarCollapsed)
+        .animation(VoxaAnimation.smooth, value: isSidebarCollapsed)
     }
     
     // MARK: - Collapse Toggle Button
@@ -221,25 +253,25 @@ struct MainWindowView: View {
     /// Button to manually toggle sidebar collapse state
     private var collapseToggleButton: some View {
         Button(action: {
-            withAnimation(WispflowAnimation.smooth) {
+            withAnimation(VoxaAnimation.smooth) {
                 isSidebarCollapsed.toggle()
             }
         }) {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: isSidebarCollapsed ? "sidebar.right" : "sidebar.left")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .foregroundColor(Color.Voxa.textSecondary)
                 
                 if !isSidebarCollapsed {
                     Text("Collapse")
-                        .font(Font.Wispflow.caption)
-                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .font(Font.Voxa.caption)
+                        .foregroundColor(Color.Voxa.textSecondary)
                         .transition(.opacity)
                 }
             }
             .padding(Spacing.sm)
             .frame(maxWidth: isSidebarCollapsed ? 44 : .infinity, alignment: isSidebarCollapsed ? .center : .leading)
-            .background(Color.Wispflow.border.opacity(0.3))
+            .background(Color.Voxa.border.opacity(0.3))
             .cornerRadius(CornerRadius.small)
         }
         .buttonStyle(PlainButtonStyle())
@@ -265,7 +297,7 @@ struct MainWindowView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .animation(WispflowAnimation.tabTransition, value: selectedItem)
+        .animation(VoxaAnimation.tabTransition, value: selectedItem)
     }
 }
 
@@ -287,15 +319,15 @@ struct NavigationItemRow: View {
                 // Icon
                 Image(systemName: isSelected ? item.iconName : item.iconNameInactive)
                     .font(.system(size: 18, weight: isSelected ? .semibold : .regular))
-                    .foregroundColor(isSelected ? Color.Wispflow.accent : Color.Wispflow.textSecondary)
+                    .foregroundColor(isSelected ? Color.Voxa.accent : Color.Voxa.textSecondary)
                     .frame(width: 24, height: 24)
                 
                 // Label (hidden when collapsed)
                 if !isCollapsed {
                     Text(item.displayName)
-                        .font(Font.Wispflow.body)
+                        .font(Font.Voxa.body)
                         .fontWeight(isSelected ? .semibold : .regular)
-                        .foregroundColor(isSelected ? Color.Wispflow.textPrimary : Color.Wispflow.textSecondary)
+                        .foregroundColor(isSelected ? Color.Voxa.textPrimary : Color.Voxa.textSecondary)
                         .transition(.opacity.combined(with: .move(edge: .leading)))
                 }
                 
@@ -311,14 +343,14 @@ struct NavigationItemRow: View {
                     // Selected indicator - left accent bar
                     if isSelected {
                         RoundedRectangle(cornerRadius: CornerRadius.small)
-                            .fill(Color.Wispflow.accentLight)
+                            .fill(Color.Voxa.accentLight)
                             .matchedGeometryEffect(id: "selectedBackground", in: animationNamespace)
                     }
                     
                     // Hover highlight
                     if isHovering && !isSelected {
                         RoundedRectangle(cornerRadius: CornerRadius.small)
-                            .fill(Color.Wispflow.border.opacity(0.4))
+                            .fill(Color.Voxa.border.opacity(0.4))
                     }
                 }
             )
@@ -327,7 +359,7 @@ struct NavigationItemRow: View {
                 HStack {
                     if isSelected {
                         RoundedRectangle(cornerRadius: 2)
-                            .fill(Color.Wispflow.accent)
+                            .fill(Color.Voxa.accent)
                             .frame(width: 3)
                             .transition(.opacity)
                     }
@@ -339,7 +371,7 @@ struct NavigationItemRow: View {
         }
         .buttonStyle(PlainButtonStyle())
         .onHover { hovering in
-            withAnimation(WispflowAnimation.quick) {
+            withAnimation(VoxaAnimation.quick) {
                 isHovering = hovering
             }
         }
@@ -382,50 +414,130 @@ struct HomeContentView: View {
             .padding(Spacing.xl)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.Wispflow.background)
+        .background(Color.Voxa.background)
     }
     
-    // MARK: - Welcome Section
+    // MARK: - Welcome Section (US-801: Home Dashboard Header)
     
     private var welcomeSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
-            HStack(spacing: Spacing.md) {
-                // Greeting based on time of day
-                Text(greetingMessage)
-                    .font(Font.Wispflow.largeTitle)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+        VStack(alignment: .leading, spacing: Spacing.lg) {
+            // MARK: - Top Header Row
+            // US-801: DASHBOARD label (uppercase, tracking-widest) + Date and System Active status
+            HStack(alignment: .center) {
+                // DASHBOARD label
+                Text("DASHBOARD")
+                    .font(Font.Voxa.small)
+                    .fontWeight(.semibold)
+                    .tracking(4) // tracking-widest equivalent
+                    .foregroundColor(Color.Voxa.textSecondary)
                 
                 Spacer()
                 
-                // Current date
-                Text(currentDateString)
-                    .font(Font.Wispflow.caption)
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                // Date and System Active status
+                HStack(spacing: Spacing.md) {
+                    // Current date
+                    Text(currentDateString)
+                        .font(Font.Voxa.caption)
+                        .foregroundColor(Color.Voxa.textSecondary)
+                    
+                    // System Active status indicator
+                    HStack(spacing: Spacing.xs) {
+                        Circle()
+                            .fill(Color.Voxa.success)
+                            .frame(width: 8, height: 8)
+                        
+                        Text("System Active")
+                            .font(Font.Voxa.small)
+                            .foregroundColor(Color.Voxa.textSecondary)
+                    }
+                    .padding(.horizontal, Spacing.sm)
+                    .padding(.vertical, Spacing.xs)
+                    .background(Color.Voxa.success.opacity(0.1))
+                    .cornerRadius(CornerRadius.small)
+                }
             }
             
-            Text("Ready to capture your thoughts")
-                .font(Font.Wispflow.body)
-                .foregroundColor(Color.Wispflow.textSecondary)
+            // MARK: - Main Greeting
+            // US-801: Time-based greeting with Playfair Display style font (~48-60pt)
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                Text(greetingMessage)
+                    .font(Font.Voxa.displayGreeting)
+                    .foregroundColor(Color.Voxa.textPrimary)
+                
+                // Subtitle with last session info
+                Text(lastSessionSubtitle)
+                    .font(Font.Voxa.body)
+                    .foregroundColor(Color.Voxa.textSecondary)
+            }
         }
     }
     
-    /// Time-based greeting message
+    // MARK: - Time-Based Greeting Logic (US-801)
+    // Morning: before 12pm, Afternoon: 12pm-5pm, Evening: after 5pm
+    
+    /// Time-based greeting message with period (US-801)
+    /// Morning: before 12pm, Afternoon: 12pm-5pm, Evening: after 5pm
     private var greetingMessage: String {
         let hour = Calendar.current.component(.hour, from: Date())
         if hour < 12 {
-            return "Good morning"
+            return "Good morning."
         } else if hour < 17 {
-            return "Good afternoon"
+            return "Good afternoon."
         } else {
-            return "Good evening"
+            return "Good evening."
         }
     }
     
-    /// Current date string
+    /// Current date string formatted as "Thursday, January 15"
     private var currentDateString: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEEE, MMMM d"
         return formatter.string(from: Date())
+    }
+    
+    /// Subtitle showing last session info (US-801)
+    /// Format: "Ready to capture your thoughts? Your last session was X ago."
+    /// Negative case: No previous session -> "Ready to capture your thoughts?"
+    private var lastSessionSubtitle: String {
+        if let lastEntry = statsManager.recentEntries.first {
+            let timeAgo = relativeTimeString(from: lastEntry.timestamp)
+            return "Ready to capture your thoughts? Your last session was \(timeAgo)."
+        } else {
+            return "Ready to capture your thoughts?"
+        }
+    }
+    
+    /// Convert a date to a relative time string (e.g., "2 hours ago", "yesterday")
+    private func relativeTimeString(from date: Date) -> String {
+        let now = Date()
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.minute, .hour, .day], from: date, to: now)
+        
+        if let days = components.day, days > 0 {
+            if days == 1 {
+                return "yesterday"
+            } else if days < 7 {
+                return "\(days) days ago"
+            } else {
+                let formatter = DateFormatter()
+                formatter.dateFormat = "MMM d"
+                return "on \(formatter.string(from: date))"
+            }
+        } else if let hours = components.hour, hours > 0 {
+            if hours == 1 {
+                return "1 hour ago"
+            } else {
+                return "\(hours) hours ago"
+            }
+        } else if let minutes = components.minute, minutes > 0 {
+            if minutes == 1 {
+                return "1 minute ago"
+            } else {
+                return "\(minutes) minutes ago"
+            }
+        } else {
+            return "just now"
+        }
     }
     
     // MARK: - Stats Section
@@ -433,8 +545,8 @@ struct HomeContentView: View {
     private var statsSection: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             Text("Your Activity")
-                .font(Font.Wispflow.headline)
-                .foregroundColor(Color.Wispflow.textPrimary)
+                .font(Font.Voxa.headline)
+                .foregroundColor(Color.Voxa.textPrimary)
             
             HStack(spacing: Spacing.lg) {
                 // Streak Days
@@ -450,7 +562,7 @@ struct HomeContentView: View {
                     icon: "text.word.spacing",
                     value: formatNumber(statsManager.totalWordsTranscribed),
                     label: "Words",
-                    iconColor: Color.Wispflow.accent
+                    iconColor: Color.Voxa.accent
                 )
                 
                 // Average WPM
@@ -458,7 +570,7 @@ struct HomeContentView: View {
                     icon: "speedometer",
                     value: String(format: "%.0f", statsManager.averageWPM),
                     label: "Avg WPM",
-                    iconColor: Color.Wispflow.info
+                    iconColor: Color.Voxa.info
                 )
                 
                 // Total Transcriptions
@@ -466,7 +578,7 @@ struct HomeContentView: View {
                     icon: "waveform",
                     value: "\(statsManager.totalTranscriptions)",
                     label: "Recordings",
-                    iconColor: Color.Wispflow.success
+                    iconColor: Color.Voxa.success
                 )
             }
         }
@@ -476,29 +588,29 @@ struct HomeContentView: View {
     private var emptyStatsSection: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             Text("Get Started")
-                .font(Font.Wispflow.headline)
-                .foregroundColor(Color.Wispflow.textPrimary)
+                .font(Font.Voxa.headline)
+                .foregroundColor(Color.Voxa.textPrimary)
             
             HStack(spacing: Spacing.lg) {
                 Image(systemName: "waveform.badge.plus")
                     .font(.system(size: 36, weight: .light))
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
                 
                 VStack(alignment: .leading, spacing: Spacing.xs) {
                     Text("Record your first transcription")
-                        .font(Font.Wispflow.body)
+                        .font(Font.Voxa.body)
                         .fontWeight(.medium)
-                        .foregroundColor(Color.Wispflow.textPrimary)
+                        .foregroundColor(Color.Voxa.textPrimary)
                     
                     Text("Press ⌘⇧Space anywhere to start recording")
-                        .font(Font.Wispflow.caption)
-                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .font(Font.Voxa.caption)
+                        .foregroundColor(Color.Voxa.textSecondary)
                 }
                 
                 Spacer()
             }
             .padding(Spacing.lg)
-            .background(Color.Wispflow.accentLight)
+            .background(Color.Voxa.accentLight)
             .cornerRadius(CornerRadius.medium)
         }
     }
@@ -512,7 +624,7 @@ struct HomeContentView: View {
                 RoundedRectangle(cornerRadius: CornerRadius.small)
                     .fill(
                         LinearGradient(
-                            colors: [Color.Wispflow.accent.opacity(0.8), Color.Wispflow.accent],
+                            colors: [Color.Voxa.accent.opacity(0.8), Color.Voxa.accent],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -526,12 +638,12 @@ struct HomeContentView: View {
             
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 Text("AI-Powered Text Cleanup")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
                 
                 Text("Enable intelligent formatting and punctuation in Settings → Text Cleanup")
-                    .font(Font.Wispflow.caption)
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .font(Font.Voxa.caption)
+                    .foregroundColor(Color.Voxa.textSecondary)
             }
             
             Spacer()
@@ -540,20 +652,20 @@ struct HomeContentView: View {
                 NotificationCenter.default.post(name: .openSettings, object: nil)
             }) {
                 Text("Settings")
-                    .font(Font.Wispflow.caption)
+                    .font(Font.Voxa.caption)
                     .fontWeight(.medium)
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
                     .padding(.horizontal, Spacing.md)
                     .padding(.vertical, Spacing.sm)
-                    .background(Color.Wispflow.accentLight)
+                    .background(Color.Voxa.accentLight)
                     .cornerRadius(CornerRadius.small)
             }
             .buttonStyle(InteractiveScaleStyle())
         }
         .padding(Spacing.lg)
-        .background(Color.Wispflow.surface)
+        .background(Color.Voxa.surface)
         .cornerRadius(CornerRadius.medium)
-        .wispflowShadow(.subtle)
+        .voxaShadow(.subtle)
     }
     
     // MARK: - Quick Actions Section
@@ -561,8 +673,8 @@ struct HomeContentView: View {
     private var quickActionsSection: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             Text("Quick Actions")
-                .font(Font.Wispflow.headline)
-                .foregroundColor(Color.Wispflow.textPrimary)
+                .font(Font.Voxa.headline)
+                .foregroundColor(Color.Voxa.textPrimary)
             
             HStack(spacing: Spacing.lg) {
                 ForEach(QuickAction.allCases) { action in
@@ -570,7 +682,7 @@ struct HomeContentView: View {
                         action: action,
                         isHovered: hoveredQuickAction == action,
                         onHover: { isHovering in
-                            withAnimation(WispflowAnimation.quick) {
+                            withAnimation(VoxaAnimation.quick) {
                                 hoveredQuickAction = isHovering ? action : nil
                             }
                         }
@@ -586,15 +698,15 @@ struct HomeContentView: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack {
                 Text("Recent Activity")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
                 
                 Spacer()
                 
                 if !statsManager.recentEntries.isEmpty {
                     Text("\(statsManager.recentEntries.count) entries")
-                        .font(Font.Wispflow.caption)
-                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .font(Font.Voxa.caption)
+                        .foregroundColor(Color.Voxa.textSecondary)
                 }
             }
             
@@ -615,20 +727,20 @@ struct HomeContentView: View {
             VStack(spacing: Spacing.md) {
                 Image(systemName: "clock.badge.questionmark")
                     .font(.system(size: 36, weight: .light))
-                    .foregroundColor(Color.Wispflow.textTertiary)
+                    .foregroundColor(Color.Voxa.textTertiary)
                 
                 Text("No transcriptions yet")
-                    .font(Font.Wispflow.body)
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .font(Font.Voxa.body)
+                    .foregroundColor(Color.Voxa.textSecondary)
                 
                 Text("Your recent activity will appear here")
-                    .font(Font.Wispflow.caption)
-                    .foregroundColor(Color.Wispflow.textTertiary)
+                    .font(Font.Voxa.caption)
+                    .foregroundColor(Color.Voxa.textTertiary)
             }
             .padding(.vertical, Spacing.xxl)
             Spacer()
         }
-        .background(Color.Wispflow.surfaceSecondary.opacity(0.5))
+        .background(Color.Voxa.surfaceSecondary.opacity(0.5))
         .cornerRadius(CornerRadius.medium)
     }
     
@@ -649,9 +761,9 @@ struct HomeContentView: View {
             }
         }
         .padding(Spacing.md)
-        .background(Color.Wispflow.surface)
+        .background(Color.Voxa.surface)
         .cornerRadius(CornerRadius.medium)
-        .wispflowShadow(.subtle)
+        .voxaShadow(.subtle)
     }
     
     /// Group entries by date
@@ -688,9 +800,9 @@ struct HomeContentView: View {
         }
         
         return Text(label)
-            .font(Font.Wispflow.caption)
+            .font(Font.Voxa.caption)
             .fontWeight(.semibold)
-            .foregroundColor(Color.Wispflow.textSecondary)
+            .foregroundColor(Color.Voxa.textSecondary)
             .padding(.vertical, Spacing.sm)
             .padding(.horizontal, Spacing.xs)
     }
@@ -732,19 +844,19 @@ struct StatCard: View {
             
             // Value
             Text(value)
-                .font(Font.Wispflow.title)
-                .foregroundColor(Color.Wispflow.textPrimary)
+                .font(Font.Voxa.title)
+                .foregroundColor(Color.Voxa.textPrimary)
             
             // Label
             Text(label)
-                .font(Font.Wispflow.caption)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.caption)
+                .foregroundColor(Color.Voxa.textSecondary)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, Spacing.lg)
-        .background(Color.Wispflow.surface)
+        .background(Color.Voxa.surface)
         .cornerRadius(CornerRadius.medium)
-        .wispflowShadow(.subtle)
+        .voxaShadow(.subtle)
     }
 }
 
@@ -781,7 +893,7 @@ enum QuickAction: String, CaseIterable, Identifiable {
         case .openSnippets:
             return "Save and reuse text snippets"
         case .openSettings:
-            return "Configure WispFlow preferences"
+            return "Configure Voxa preferences"
         }
     }
     
@@ -801,13 +913,13 @@ enum QuickAction: String, CaseIterable, Identifiable {
     var iconColor: Color {
         switch self {
         case .newRecording:
-            return Color.Wispflow.accent
+            return Color.Voxa.accent
         case .viewHistory:
-            return Color.Wispflow.info
+            return Color.Voxa.info
         case .openSnippets:
-            return Color.Wispflow.success
+            return Color.Voxa.success
         case .openSettings:
-            return Color.Wispflow.textSecondary
+            return Color.Voxa.textSecondary
         }
     }
 }
@@ -836,24 +948,24 @@ struct QuickActionCard: View {
                 
                 // Label
                 Text(action.title)
-                    .font(Font.Wispflow.body)
+                    .font(Font.Voxa.body)
                     .fontWeight(.medium)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .foregroundColor(Color.Voxa.textPrimary)
                 
                 // Description
                 Text(action.description)
-                    .font(Font.Wispflow.small)
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .font(Font.Voxa.small)
+                    .foregroundColor(Color.Voxa.textSecondary)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, Spacing.lg)
             .padding(.horizontal, Spacing.md)
-            .background(Color.Wispflow.surface)
+            .background(Color.Voxa.surface)
             .cornerRadius(CornerRadius.medium)
             // Hover lift effect: shadow and slight scale
-            .wispflowShadow(isHovered ? .card : .subtle)
+            .voxaShadow(isHovered ? .card : .subtle)
             .scaleEffect(isHovered ? 1.02 : 1.0)
             .offset(y: isHovered ? -2 : 0)
         }
@@ -861,7 +973,7 @@ struct QuickActionCard: View {
         .onHover { hovering in
             onHover(hovering)
         }
-        .animation(WispflowAnimation.quick, value: isHovered)
+        .animation(VoxaAnimation.quick, value: isHovered)
     }
     
     private func performAction() {
@@ -896,11 +1008,11 @@ struct ActivityTimelineEntry: View {
                 // Timeline dot and line
                 VStack(spacing: 0) {
                     Circle()
-                        .fill(Color.Wispflow.accent)
+                        .fill(Color.Voxa.accent)
                         .frame(width: 8, height: 8)
                     
                     Rectangle()
-                        .fill(Color.Wispflow.border)
+                        .fill(Color.Voxa.border)
                         .frame(width: 1)
                         .frame(maxHeight: .infinity)
                 }
@@ -911,30 +1023,30 @@ struct ActivityTimelineEntry: View {
                     HStack {
                         // Timestamp
                         Text(entry.timeString)
-                            .font(Font.Wispflow.caption)
+                            .font(Font.Voxa.caption)
                             .fontWeight(.medium)
-                            .foregroundColor(Color.Wispflow.textSecondary)
+                            .foregroundColor(Color.Voxa.textSecondary)
                         
                         // Word count badge
                         Text("\(entry.wordCount) words")
-                            .font(Font.Wispflow.small)
-                            .foregroundColor(Color.Wispflow.textTertiary)
+                            .font(Font.Voxa.small)
+                            .foregroundColor(Color.Voxa.textTertiary)
                             .padding(.horizontal, Spacing.sm)
                             .padding(.vertical, 2)
-                            .background(Color.Wispflow.surfaceSecondary)
+                            .background(Color.Voxa.surfaceSecondary)
                             .cornerRadius(CornerRadius.small)
                         
                         Spacer()
                         
                         // Expand/collapse button
                         Button(action: { 
-                            withAnimation(WispflowAnimation.quick) {
+                            withAnimation(VoxaAnimation.quick) {
                                 isExpanded.toggle() 
                             }
                         }) {
                             Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                                 .font(.system(size: 10, weight: .medium))
-                                .foregroundColor(Color.Wispflow.textTertiary)
+                                .foregroundColor(Color.Voxa.textTertiary)
                         }
                         .buttonStyle(PlainButtonStyle())
                         .opacity(isHovered || isExpanded ? 1 : 0)
@@ -942,8 +1054,8 @@ struct ActivityTimelineEntry: View {
                     
                     // Text preview
                     Text(entry.textPreview)
-                        .font(Font.Wispflow.body)
-                        .foregroundColor(Color.Wispflow.textPrimary)
+                        .font(Font.Voxa.body)
+                        .foregroundColor(Color.Voxa.textPrimary)
                         .lineLimit(isExpanded ? nil : 2)
                         .fixedSize(horizontal: false, vertical: true)
                     
@@ -953,19 +1065,19 @@ struct ActivityTimelineEntry: View {
                             Label(String(format: "%.0f WPM", entry.wordsPerMinute), systemImage: "speedometer")
                             Label(String(format: "%.1fs", entry.durationSeconds), systemImage: "clock")
                         }
-                        .font(Font.Wispflow.small)
-                        .foregroundColor(Color.Wispflow.textTertiary)
+                        .font(Font.Voxa.small)
+                        .foregroundColor(Color.Voxa.textTertiary)
                         .padding(.top, Spacing.xs)
                     }
                 }
                 .padding(.vertical, Spacing.sm)
             }
             .padding(.horizontal, Spacing.sm)
-            .background(isHovered ? Color.Wispflow.surfaceSecondary.opacity(0.5) : Color.clear)
+            .background(isHovered ? Color.Voxa.surfaceSecondary.opacity(0.5) : Color.clear)
             .cornerRadius(CornerRadius.small)
             .contentShape(Rectangle())
             .onHover { hovering in
-                withAnimation(WispflowAnimation.quick) {
+                withAnimation(VoxaAnimation.quick) {
                     isHovered = hovering
                 }
             }
@@ -1010,7 +1122,7 @@ struct HistoryContentView: View {
             historyHeader
             
             Divider()
-                .background(Color.Wispflow.border)
+                .background(Color.Voxa.border)
             
             // MARK: - Content
             if statsManager.recentEntries.isEmpty {
@@ -1025,10 +1137,10 @@ struct HistoryContentView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.Wispflow.background)
+        .background(Color.Voxa.background)
         .alert("Delete Transcription?", isPresented: $showDeleteConfirmation, presenting: entryToDelete) { entry in
             Button("Delete", role: .destructive) {
-                withAnimation(WispflowAnimation.smooth) {
+                withAnimation(VoxaAnimation.smooth) {
                     statsManager.removeEntry(entry)
                 }
                 entryToDelete = nil
@@ -1047,19 +1159,19 @@ struct HistoryContentView: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack {
                 Text("Transcription History")
-                    .font(Font.Wispflow.largeTitle)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.largeTitle)
+                    .foregroundColor(Color.Voxa.textPrimary)
                 
                 Spacer()
                 
                 // Entry count badge
                 if !statsManager.recentEntries.isEmpty {
                     Text("\(statsManager.recentEntries.count) \(statsManager.recentEntries.count == 1 ? "entry" : "entries")")
-                        .font(Font.Wispflow.caption)
-                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .font(Font.Voxa.caption)
+                        .foregroundColor(Color.Voxa.textSecondary)
                         .padding(.horizontal, Spacing.sm)
                         .padding(.vertical, Spacing.xs)
-                        .background(Color.Wispflow.surfaceSecondary)
+                        .background(Color.Voxa.surfaceSecondary)
                         .cornerRadius(CornerRadius.small)
                 }
             }
@@ -1068,33 +1180,33 @@ struct HistoryContentView: View {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(Color.Wispflow.textTertiary)
+                    .foregroundColor(Color.Voxa.textTertiary)
                 
                 TextField("Search transcriptions...", text: $searchQuery)
                     .textFieldStyle(.plain)
-                    .font(Font.Wispflow.body)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.body)
+                    .foregroundColor(Color.Voxa.textPrimary)
                 
                 if !searchQuery.isEmpty {
                     Button(action: {
-                        withAnimation(WispflowAnimation.quick) {
+                        withAnimation(VoxaAnimation.quick) {
                             searchQuery = ""
                         }
                     }) {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 14))
-                            .foregroundColor(Color.Wispflow.textTertiary)
+                            .foregroundColor(Color.Voxa.textTertiary)
                     }
                     .buttonStyle(PlainButtonStyle())
                 }
             }
             .padding(.horizontal, Spacing.md)
             .padding(.vertical, Spacing.sm)
-            .background(Color.Wispflow.surface)
+            .background(Color.Voxa.surface)
             .cornerRadius(CornerRadius.small)
             .overlay(
                 RoundedRectangle(cornerRadius: CornerRadius.small)
-                    .stroke(Color.Wispflow.border, lineWidth: 1)
+                    .stroke(Color.Voxa.border, lineWidth: 1)
             )
         }
         .padding(Spacing.xl)
@@ -1108,22 +1220,22 @@ struct HistoryContentView: View {
             
             ZStack {
                 Circle()
-                    .fill(Color.Wispflow.accentLight)
+                    .fill(Color.Voxa.accentLight)
                     .frame(width: 80, height: 80)
                 
                 Image(systemName: "clock.badge.questionmark")
                     .font(.system(size: 36, weight: .light))
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
             }
             
             VStack(spacing: Spacing.sm) {
                 Text("No transcription history")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
                 
                 Text("Your transcriptions will appear here after you record them.\nPress ⌘⇧Space to start recording.")
-                    .font(Font.Wispflow.body)
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .font(Font.Voxa.body)
+                    .foregroundColor(Color.Voxa.textSecondary)
                     .multilineTextAlignment(.center)
             }
             
@@ -1141,33 +1253,33 @@ struct HistoryContentView: View {
             
             ZStack {
                 Circle()
-                    .fill(Color.Wispflow.surfaceSecondary)
+                    .fill(Color.Voxa.surfaceSecondary)
                     .frame(width: 80, height: 80)
                 
                 Image(systemName: "doc.text.magnifyingglass")
                     .font(.system(size: 36, weight: .light))
-                    .foregroundColor(Color.Wispflow.textTertiary)
+                    .foregroundColor(Color.Voxa.textTertiary)
             }
             
             VStack(spacing: Spacing.sm) {
                 Text("No results found")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
                 
                 Text("No transcriptions match \"\(searchQuery)\".\nTry a different search term.")
-                    .font(Font.Wispflow.body)
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .font(Font.Voxa.body)
+                    .foregroundColor(Color.Voxa.textSecondary)
                     .multilineTextAlignment(.center)
             }
             
             Button(action: {
-                withAnimation(WispflowAnimation.quick) {
+                withAnimation(VoxaAnimation.quick) {
                     searchQuery = ""
                 }
             }) {
                 Text("Clear Search")
-                    .font(Font.Wispflow.body)
-                    .foregroundColor(Color.Wispflow.accent)
+                    .font(Font.Voxa.body)
+                    .foregroundColor(Color.Voxa.accent)
             }
             .buttonStyle(PlainButtonStyle())
             
@@ -1191,7 +1303,7 @@ struct HistoryContentView: View {
             }
             .padding(Spacing.xl)
         }
-        .animation(WispflowAnimation.smooth, value: filteredEntries.count)
+        .animation(VoxaAnimation.smooth, value: filteredEntries.count)
     }
     
     // MARK: - Date Category Section
@@ -1201,14 +1313,14 @@ struct HistoryContentView: View {
             // Category header
             HStack {
                 Text(category.displayName)
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textSecondary)
                 
                 Spacer()
                 
                 Text("\(entries.count)")
-                    .font(Font.Wispflow.caption)
-                    .foregroundColor(Color.Wispflow.textTertiary)
+                    .font(Font.Voxa.caption)
+                    .foregroundColor(Color.Voxa.textTertiary)
             }
             
             // Entries
@@ -1262,25 +1374,25 @@ struct HistoryEntryCard: View {
                 // Time and metadata
                 VStack(alignment: .leading, spacing: Spacing.xs) {
                     Text(entry.timeString)
-                        .font(Font.Wispflow.caption)
+                        .font(Font.Voxa.caption)
                         .fontWeight(.semibold)
-                        .foregroundColor(Color.Wispflow.textPrimary)
+                        .foregroundColor(Color.Voxa.textPrimary)
                     
                     HStack(spacing: Spacing.sm) {
                         // Word count badge
                         Label("\(entry.wordCount) words", systemImage: "text.word.spacing")
-                            .font(Font.Wispflow.small)
-                            .foregroundColor(Color.Wispflow.textTertiary)
+                            .font(Font.Voxa.small)
+                            .foregroundColor(Color.Voxa.textTertiary)
                         
                         // Duration badge
                         Label(String(format: "%.1fs", entry.durationSeconds), systemImage: "clock")
-                            .font(Font.Wispflow.small)
-                            .foregroundColor(Color.Wispflow.textTertiary)
+                            .font(Font.Voxa.small)
+                            .foregroundColor(Color.Voxa.textTertiary)
                         
                         // WPM badge
                         Label(String(format: "%.0f WPM", entry.wordsPerMinute), systemImage: "speedometer")
-                            .font(Font.Wispflow.small)
-                            .foregroundColor(Color.Wispflow.textTertiary)
+                            .font(Font.Voxa.small)
+                            .foregroundColor(Color.Voxa.textTertiary)
                     }
                 }
                 
@@ -1292,9 +1404,9 @@ struct HistoryEntryCard: View {
                     Button(action: onCopy) {
                         Image(systemName: "doc.on.doc")
                             .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(Color.Wispflow.textSecondary)
+                            .foregroundColor(Color.Voxa.textSecondary)
                             .frame(width: 28, height: 28)
-                            .background(Color.Wispflow.surfaceSecondary)
+                            .background(Color.Voxa.surfaceSecondary)
                             .cornerRadius(CornerRadius.small)
                     }
                     .buttonStyle(PlainButtonStyle())
@@ -1304,9 +1416,9 @@ struct HistoryEntryCard: View {
                     Button(action: onDelete) {
                         Image(systemName: "trash")
                             .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(Color.Wispflow.error)
+                            .foregroundColor(Color.Voxa.error)
                             .frame(width: 28, height: 28)
-                            .background(Color.Wispflow.errorLight)
+                            .background(Color.Voxa.errorLight)
                             .cornerRadius(CornerRadius.small)
                     }
                     .buttonStyle(PlainButtonStyle())
@@ -1314,15 +1426,15 @@ struct HistoryEntryCard: View {
                     
                     // Expand/collapse button
                     Button(action: {
-                        withAnimation(WispflowAnimation.quick) {
+                        withAnimation(VoxaAnimation.quick) {
                             isExpanded.toggle()
                         }
                     }) {
                         Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(Color.Wispflow.textTertiary)
+                            .foregroundColor(Color.Voxa.textTertiary)
                             .frame(width: 28, height: 28)
-                            .background(Color.Wispflow.surfaceSecondary)
+                            .background(Color.Voxa.surfaceSecondary)
                             .cornerRadius(CornerRadius.small)
                     }
                     .buttonStyle(PlainButtonStyle())
@@ -1336,39 +1448,39 @@ struct HistoryEntryCard: View {
                 if isExpanded {
                     // Full text when expanded
                     Text(highlightedText(entry.fullText))
-                        .font(Font.Wispflow.body)
-                        .foregroundColor(Color.Wispflow.textPrimary)
+                        .font(Font.Voxa.body)
+                        .foregroundColor(Color.Voxa.textPrimary)
                         .textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
                 } else {
                     // Preview text when collapsed
                     Text(highlightedText(entry.textPreview))
-                        .font(Font.Wispflow.body)
-                        .foregroundColor(Color.Wispflow.textPrimary)
+                        .font(Font.Voxa.body)
+                        .foregroundColor(Color.Voxa.textPrimary)
                         .lineLimit(2)
                     
                     // Show "more" indicator if text is longer than preview
                     if entry.fullText.count > entry.textPreview.count {
                         Text("Click to see full text...")
-                            .font(Font.Wispflow.small)
-                            .foregroundColor(Color.Wispflow.accent)
+                            .font(Font.Voxa.small)
+                            .foregroundColor(Color.Voxa.accent)
                     }
                 }
             }
         }
         .padding(Spacing.lg)
-        .background(Color.Wispflow.surface)
+        .background(Color.Voxa.surface)
         .cornerRadius(CornerRadius.medium)
-        .wispflowShadow(isHovered ? .card : .subtle)
+        .voxaShadow(isHovered ? .card : .subtle)
         .scaleEffect(isHovered ? 1.005 : 1.0)
         .contentShape(Rectangle())
         .onTapGesture {
-            withAnimation(WispflowAnimation.quick) {
+            withAnimation(VoxaAnimation.quick) {
                 isExpanded.toggle()
             }
         }
         .onHover { hovering in
-            withAnimation(WispflowAnimation.quick) {
+            withAnimation(VoxaAnimation.quick) {
                 isHovered = hovering
             }
         }
@@ -1393,8 +1505,8 @@ struct HistoryEntryCard: View {
             let upperBound = text.distance(from: text.startIndex, to: range.upperBound)
             
             if let attrRange = Range(NSRange(location: lowerBound, length: upperBound - lowerBound), in: attributedString) {
-                attributedString[attrRange].backgroundColor = Color.Wispflow.warningLight
-                attributedString[attrRange].foregroundColor = Color.Wispflow.textPrimary
+                attributedString[attrRange].backgroundColor = Color.Voxa.warningLight
+                attributedString[attrRange].foregroundColor = Color.Voxa.textPrimary
             }
             
             searchStartIndex = range.upperBound
@@ -1440,7 +1552,7 @@ struct SnippetsContentView: View {
             snippetsHeader
             
             Divider()
-                .background(Color.Wispflow.border)
+                .background(Color.Voxa.border)
             
             // MARK: - Content
             if snippetsManager.isEmpty {
@@ -1455,7 +1567,7 @@ struct SnippetsContentView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.Wispflow.background)
+        .background(Color.Voxa.background)
         .sheet(isPresented: $showCreateSheet) {
             CreateSnippetSheet(onSave: { title, content, shortcut in
                 snippetsManager.createSnippet(title: title, content: content, shortcut: shortcut)
@@ -1471,7 +1583,7 @@ struct SnippetsContentView: View {
         }
         .alert("Delete Snippet?", isPresented: $showDeleteConfirmation, presenting: snippetToDelete) { snippet in
             Button("Delete", role: .destructive) {
-                withAnimation(WispflowAnimation.smooth) {
+                withAnimation(VoxaAnimation.smooth) {
                     snippetsManager.deleteSnippet(snippet)
                 }
                 snippetToDelete = nil
@@ -1490,45 +1602,45 @@ struct SnippetsContentView: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack {
                 Text("Snippets Library")
-                    .font(Font.Wispflow.largeTitle)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.largeTitle)
+                    .foregroundColor(Color.Voxa.textPrimary)
                 
                 Spacer()
                 
                 // View toggle (grid/list)
                 HStack(spacing: Spacing.xs) {
                     Button(action: {
-                        withAnimation(WispflowAnimation.quick) {
+                        withAnimation(VoxaAnimation.quick) {
                             isGridView = true
                         }
                     }) {
                         Image(systemName: "square.grid.2x2")
                             .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(isGridView ? Color.Wispflow.accent : Color.Wispflow.textTertiary)
+                            .foregroundColor(isGridView ? Color.Voxa.accent : Color.Voxa.textTertiary)
                             .frame(width: 28, height: 28)
-                            .background(isGridView ? Color.Wispflow.accentLight : Color.clear)
+                            .background(isGridView ? Color.Voxa.accentLight : Color.clear)
                             .cornerRadius(CornerRadius.small)
                     }
                     .buttonStyle(PlainButtonStyle())
                     .help("Grid view")
                     
                     Button(action: {
-                        withAnimation(WispflowAnimation.quick) {
+                        withAnimation(VoxaAnimation.quick) {
                             isGridView = false
                         }
                     }) {
                         Image(systemName: "list.bullet")
                             .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(!isGridView ? Color.Wispflow.accent : Color.Wispflow.textTertiary)
+                            .foregroundColor(!isGridView ? Color.Voxa.accent : Color.Voxa.textTertiary)
                             .frame(width: 28, height: 28)
-                            .background(!isGridView ? Color.Wispflow.accentLight : Color.clear)
+                            .background(!isGridView ? Color.Voxa.accentLight : Color.clear)
                             .cornerRadius(CornerRadius.small)
                     }
                     .buttonStyle(PlainButtonStyle())
                     .help("List view")
                 }
                 .padding(2)
-                .background(Color.Wispflow.surfaceSecondary)
+                .background(Color.Voxa.surfaceSecondary)
                 .cornerRadius(CornerRadius.small)
                 
                 // Create new snippet button
@@ -1539,13 +1651,13 @@ struct SnippetsContentView: View {
                         Image(systemName: "plus")
                             .font(.system(size: 14, weight: .semibold))
                         Text("New Snippet")
-                            .font(Font.Wispflow.body)
+                            .font(Font.Voxa.body)
                             .fontWeight(.medium)
                     }
                     .foregroundColor(.white)
                     .padding(.horizontal, Spacing.md)
                     .padding(.vertical, Spacing.sm)
-                    .background(Color.Wispflow.accent)
+                    .background(Color.Voxa.accent)
                     .cornerRadius(CornerRadius.small)
                 }
                 .buttonStyle(InteractiveScaleStyle())
@@ -1559,33 +1671,33 @@ struct SnippetsContentView: View {
                 HStack(spacing: Spacing.sm) {
                     Image(systemName: "magnifyingglass")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(Color.Wispflow.textTertiary)
+                        .foregroundColor(Color.Voxa.textTertiary)
                     
                     TextField("Search snippets...", text: $searchQuery)
                         .textFieldStyle(.plain)
-                        .font(Font.Wispflow.body)
-                        .foregroundColor(Color.Wispflow.textPrimary)
+                        .font(Font.Voxa.body)
+                        .foregroundColor(Color.Voxa.textPrimary)
                     
                     if !searchQuery.isEmpty {
                         Button(action: {
-                            withAnimation(WispflowAnimation.quick) {
+                            withAnimation(VoxaAnimation.quick) {
                                 searchQuery = ""
                             }
                         }) {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.system(size: 14))
-                                .foregroundColor(Color.Wispflow.textTertiary)
+                                .foregroundColor(Color.Voxa.textTertiary)
                         }
                         .buttonStyle(PlainButtonStyle())
                     }
                 }
                 .padding(.horizontal, Spacing.md)
                 .padding(.vertical, Spacing.sm)
-                .background(Color.Wispflow.surface)
+                .background(Color.Voxa.surface)
                 .cornerRadius(CornerRadius.small)
                 .overlay(
                     RoundedRectangle(cornerRadius: CornerRadius.small)
-                        .stroke(Color.Wispflow.border, lineWidth: 1)
+                        .stroke(Color.Voxa.border, lineWidth: 1)
                 )
                 
                 Spacer()
@@ -1593,11 +1705,11 @@ struct SnippetsContentView: View {
                 // Snippet count badge
                 if !snippetsManager.isEmpty {
                     Text("\(snippetsManager.count) \(snippetsManager.count == 1 ? "snippet" : "snippets")")
-                        .font(Font.Wispflow.caption)
-                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .font(Font.Voxa.caption)
+                        .foregroundColor(Color.Voxa.textSecondary)
                         .padding(.horizontal, Spacing.sm)
                         .padding(.vertical, Spacing.xs)
-                        .background(Color.Wispflow.surfaceSecondary)
+                        .background(Color.Voxa.surfaceSecondary)
                         .cornerRadius(CornerRadius.small)
                 }
             }
@@ -1613,22 +1725,22 @@ struct SnippetsContentView: View {
             
             ZStack {
                 Circle()
-                    .fill(Color.Wispflow.accentLight)
+                    .fill(Color.Voxa.accentLight)
                     .frame(width: 100, height: 100)
                 
                 Image(systemName: "doc.on.clipboard")
                     .font(.system(size: 44, weight: .light))
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
             }
             
             VStack(spacing: Spacing.sm) {
                 Text("No snippets yet")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
                 
                 Text("Create your first snippet to save frequently used text.\nYou can assign keyboard shortcuts for quick access.")
-                    .font(Font.Wispflow.body)
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .font(Font.Voxa.body)
+                    .foregroundColor(Color.Voxa.textSecondary)
                     .multilineTextAlignment(.center)
             }
             
@@ -1641,11 +1753,11 @@ struct SnippetsContentView: View {
                     Text("Create First Snippet")
                         .fontWeight(.medium)
                 }
-                .font(Font.Wispflow.body)
+                .font(Font.Voxa.body)
                 .foregroundColor(.white)
                 .padding(.horizontal, Spacing.lg)
                 .padding(.vertical, Spacing.md)
-                .background(Color.Wispflow.accent)
+                .background(Color.Voxa.accent)
                 .cornerRadius(CornerRadius.small)
             }
             .buttonStyle(InteractiveScaleStyle())
@@ -1665,33 +1777,33 @@ struct SnippetsContentView: View {
             
             ZStack {
                 Circle()
-                    .fill(Color.Wispflow.surfaceSecondary)
+                    .fill(Color.Voxa.surfaceSecondary)
                     .frame(width: 80, height: 80)
                 
                 Image(systemName: "doc.text.magnifyingglass")
                     .font(.system(size: 36, weight: .light))
-                    .foregroundColor(Color.Wispflow.textTertiary)
+                    .foregroundColor(Color.Voxa.textTertiary)
             }
             
             VStack(spacing: Spacing.sm) {
                 Text("No snippets found")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
                 
                 Text("No snippets match \"\(searchQuery)\".\nTry a different search term.")
-                    .font(Font.Wispflow.body)
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .font(Font.Voxa.body)
+                    .foregroundColor(Color.Voxa.textSecondary)
                     .multilineTextAlignment(.center)
             }
             
             Button(action: {
-                withAnimation(WispflowAnimation.quick) {
+                withAnimation(VoxaAnimation.quick) {
                     searchQuery = ""
                 }
             }) {
                 Text("Clear Search")
-                    .font(Font.Wispflow.body)
-                    .foregroundColor(Color.Wispflow.accent)
+                    .font(Font.Voxa.body)
+                    .foregroundColor(Color.Voxa.accent)
             }
             .buttonStyle(PlainButtonStyle())
             
@@ -1711,7 +1823,7 @@ struct SnippetsContentView: View {
                 snippetsList
             }
         }
-        .animation(WispflowAnimation.smooth, value: filteredSnippets.count)
+        .animation(VoxaAnimation.smooth, value: filteredSnippets.count)
     }
     
     // MARK: - Grid View
@@ -1794,8 +1906,8 @@ struct SnippetCard: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: Spacing.xs) {
                     Text(highlightedText(snippet.title))
-                        .font(Font.Wispflow.headline)
-                        .foregroundColor(Color.Wispflow.textPrimary)
+                        .font(Font.Voxa.headline)
+                        .foregroundColor(Color.Voxa.textPrimary)
                         .lineLimit(1)
                     
                     // Shortcut badge if assigned
@@ -1804,12 +1916,12 @@ struct SnippetCard: View {
                             Image(systemName: "keyboard")
                                 .font(.system(size: 10, weight: .medium))
                             Text(shortcut)
-                                .font(Font.Wispflow.monoSmall)
+                                .font(Font.Voxa.monoSmall)
                         }
-                        .foregroundColor(Color.Wispflow.accent)
+                        .foregroundColor(Color.Voxa.accent)
                         .padding(.horizontal, Spacing.sm)
                         .padding(.vertical, 2)
-                        .background(Color.Wispflow.accentLight)
+                        .background(Color.Voxa.accentLight)
                         .cornerRadius(CornerRadius.small)
                     }
                 }
@@ -1822,9 +1934,9 @@ struct SnippetCard: View {
                     Button(action: onCopy) {
                         Image(systemName: "doc.on.doc")
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(Color.Wispflow.textSecondary)
+                            .foregroundColor(Color.Voxa.textSecondary)
                             .frame(width: 26, height: 26)
-                            .background(Color.Wispflow.surfaceSecondary)
+                            .background(Color.Voxa.surfaceSecondary)
                             .cornerRadius(CornerRadius.small)
                     }
                     .buttonStyle(PlainButtonStyle())
@@ -1834,9 +1946,9 @@ struct SnippetCard: View {
                     Button(action: onEdit) {
                         Image(systemName: "pencil")
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(Color.Wispflow.textSecondary)
+                            .foregroundColor(Color.Voxa.textSecondary)
                             .frame(width: 26, height: 26)
-                            .background(Color.Wispflow.surfaceSecondary)
+                            .background(Color.Voxa.surfaceSecondary)
                             .cornerRadius(CornerRadius.small)
                     }
                     .buttonStyle(PlainButtonStyle())
@@ -1846,9 +1958,9 @@ struct SnippetCard: View {
                     Button(action: onDelete) {
                         Image(systemName: "trash")
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(Color.Wispflow.error)
+                            .foregroundColor(Color.Voxa.error)
                             .frame(width: 26, height: 26)
-                            .background(Color.Wispflow.errorLight)
+                            .background(Color.Voxa.errorLight)
                             .cornerRadius(CornerRadius.small)
                     }
                     .buttonStyle(PlainButtonStyle())
@@ -1861,27 +1973,27 @@ struct SnippetCard: View {
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 if isExpanded {
                     Text(highlightedText(snippet.content))
-                        .font(Font.Wispflow.body)
-                        .foregroundColor(Color.Wispflow.textPrimary)
+                        .font(Font.Voxa.body)
+                        .foregroundColor(Color.Voxa.textPrimary)
                         .textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
                 } else {
                     Text(highlightedText(snippet.contentPreview))
-                        .font(Font.Wispflow.body)
-                        .foregroundColor(Color.Wispflow.textPrimary)
+                        .font(Font.Voxa.body)
+                        .foregroundColor(Color.Voxa.textPrimary)
                         .lineLimit(3)
                 }
                 
                 // Show more/less toggle
                 if snippet.content.count > 100 {
                     Button(action: {
-                        withAnimation(WispflowAnimation.quick) {
+                        withAnimation(VoxaAnimation.quick) {
                             isExpanded.toggle()
                         }
                     }) {
                         Text(isExpanded ? "Show less" : "Show more")
-                            .font(Font.Wispflow.small)
-                            .foregroundColor(Color.Wispflow.accent)
+                            .font(Font.Voxa.small)
+                            .foregroundColor(Color.Voxa.accent)
                     }
                     .buttonStyle(PlainButtonStyle())
                 }
@@ -1891,25 +2003,25 @@ struct SnippetCard: View {
             HStack {
                 // Word/character count
                 Text("\(snippet.wordCount) words • \(snippet.characterCount) chars")
-                    .font(Font.Wispflow.small)
-                    .foregroundColor(Color.Wispflow.textTertiary)
+                    .font(Font.Voxa.small)
+                    .foregroundColor(Color.Voxa.textTertiary)
                 
                 Spacer()
                 
                 // Last updated
                 Text("Updated \(snippet.updatedRelativeString)")
-                    .font(Font.Wispflow.small)
-                    .foregroundColor(Color.Wispflow.textTertiary)
+                    .font(Font.Voxa.small)
+                    .foregroundColor(Color.Voxa.textTertiary)
             }
         }
         .padding(Spacing.lg)
-        .background(Color.Wispflow.surface)
+        .background(Color.Voxa.surface)
         .cornerRadius(CornerRadius.medium)
-        .wispflowShadow(isHovered ? .card : .subtle)
+        .voxaShadow(isHovered ? .card : .subtle)
         .scaleEffect(isHovered ? 1.01 : 1.0)
         .contentShape(Rectangle())
         .onHover { hovering in
-            withAnimation(WispflowAnimation.quick) {
+            withAnimation(VoxaAnimation.quick) {
                 isHovered = hovering
             }
         }
@@ -1931,8 +2043,8 @@ struct SnippetCard: View {
             let upperBound = text.distance(from: text.startIndex, to: range.upperBound)
             
             if let attrRange = Range(NSRange(location: lowerBound, length: upperBound - lowerBound), in: attributedString) {
-                attributedString[attrRange].backgroundColor = Color.Wispflow.warningLight
-                attributedString[attrRange].foregroundColor = Color.Wispflow.textPrimary
+                attributedString[attrRange].backgroundColor = Color.Voxa.warningLight
+                attributedString[attrRange].foregroundColor = Color.Voxa.textPrimary
             }
             
             searchStartIndex = range.upperBound
@@ -1962,20 +2074,20 @@ struct SnippetListRow: View {
                 // Icon
                 ZStack {
                     RoundedRectangle(cornerRadius: CornerRadius.small)
-                        .fill(Color.Wispflow.accentLight)
+                        .fill(Color.Voxa.accentLight)
                         .frame(width: 40, height: 40)
                     
                     Image(systemName: "doc.text")
                         .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(Color.Wispflow.accent)
+                        .foregroundColor(Color.Voxa.accent)
                 }
                 
                 // Title and shortcut
                 VStack(alignment: .leading, spacing: Spacing.xs) {
                     Text(highlightedText(snippet.title))
-                        .font(Font.Wispflow.body)
+                        .font(Font.Voxa.body)
                         .fontWeight(.semibold)
-                        .foregroundColor(Color.Wispflow.textPrimary)
+                        .foregroundColor(Color.Voxa.textPrimary)
                         .lineLimit(1)
                     
                     HStack(spacing: Spacing.sm) {
@@ -1985,24 +2097,24 @@ struct SnippetListRow: View {
                                 Image(systemName: "keyboard")
                                     .font(.system(size: 9, weight: .medium))
                                 Text(shortcut)
-                                    .font(Font.Wispflow.monoSmall)
+                                    .font(Font.Voxa.monoSmall)
                             }
-                            .foregroundColor(Color.Wispflow.accent)
+                            .foregroundColor(Color.Voxa.accent)
                             .padding(.horizontal, Spacing.sm)
                             .padding(.vertical, 2)
-                            .background(Color.Wispflow.accentLight)
+                            .background(Color.Voxa.accentLight)
                             .cornerRadius(CornerRadius.small)
                         }
                         
                         // Word count
                         Text("\(snippet.wordCount) words")
-                            .font(Font.Wispflow.small)
-                            .foregroundColor(Color.Wispflow.textTertiary)
+                            .font(Font.Voxa.small)
+                            .foregroundColor(Color.Voxa.textTertiary)
                         
                         // Updated date
                         Text("• \(snippet.updatedRelativeString)")
-                            .font(Font.Wispflow.small)
-                            .foregroundColor(Color.Wispflow.textTertiary)
+                            .font(Font.Voxa.small)
+                            .foregroundColor(Color.Voxa.textTertiary)
                     }
                 }
                 
@@ -2014,9 +2126,9 @@ struct SnippetListRow: View {
                     Button(action: onCopy) {
                         Image(systemName: "doc.on.doc")
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(Color.Wispflow.textSecondary)
+                            .foregroundColor(Color.Voxa.textSecondary)
                             .frame(width: 28, height: 28)
-                            .background(Color.Wispflow.surfaceSecondary)
+                            .background(Color.Voxa.surfaceSecondary)
                             .cornerRadius(CornerRadius.small)
                     }
                     .buttonStyle(PlainButtonStyle())
@@ -2026,9 +2138,9 @@ struct SnippetListRow: View {
                     Button(action: onEdit) {
                         Image(systemName: "pencil")
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(Color.Wispflow.textSecondary)
+                            .foregroundColor(Color.Voxa.textSecondary)
                             .frame(width: 28, height: 28)
-                            .background(Color.Wispflow.surfaceSecondary)
+                            .background(Color.Voxa.surfaceSecondary)
                             .cornerRadius(CornerRadius.small)
                     }
                     .buttonStyle(PlainButtonStyle())
@@ -2038,9 +2150,9 @@ struct SnippetListRow: View {
                     Button(action: onDelete) {
                         Image(systemName: "trash")
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(Color.Wispflow.error)
+                            .foregroundColor(Color.Voxa.error)
                             .frame(width: 28, height: 28)
-                            .background(Color.Wispflow.errorLight)
+                            .background(Color.Voxa.errorLight)
                             .cornerRadius(CornerRadius.small)
                     }
                     .buttonStyle(PlainButtonStyle())
@@ -2048,15 +2160,15 @@ struct SnippetListRow: View {
                     
                     // Expand/collapse button
                     Button(action: {
-                        withAnimation(WispflowAnimation.quick) {
+                        withAnimation(VoxaAnimation.quick) {
                             isExpanded.toggle()
                         }
                     }) {
                         Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                             .font(.system(size: 10, weight: .semibold))
-                            .foregroundColor(Color.Wispflow.textTertiary)
+                            .foregroundColor(Color.Voxa.textTertiary)
                             .frame(width: 28, height: 28)
-                            .background(Color.Wispflow.surfaceSecondary)
+                            .background(Color.Voxa.surfaceSecondary)
                             .cornerRadius(CornerRadius.small)
                     }
                     .buttonStyle(PlainButtonStyle())
@@ -2068,8 +2180,8 @@ struct SnippetListRow: View {
             // Expanded content preview
             if isExpanded {
                 Text(highlightedText(snippet.content))
-                    .font(Font.Wispflow.body)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.body)
+                    .foregroundColor(Color.Voxa.textPrimary)
                     .textSelection(.enabled)
                     .padding(.leading, 40 + Spacing.md) // Align with title
                     .padding(.top, Spacing.sm)
@@ -2077,17 +2189,17 @@ struct SnippetListRow: View {
             }
         }
         .padding(Spacing.md)
-        .background(Color.Wispflow.surface)
+        .background(Color.Voxa.surface)
         .cornerRadius(CornerRadius.medium)
-        .wispflowShadow(isHovered ? .card : .subtle)
+        .voxaShadow(isHovered ? .card : .subtle)
         .contentShape(Rectangle())
         .onTapGesture {
-            withAnimation(WispflowAnimation.quick) {
+            withAnimation(VoxaAnimation.quick) {
                 isExpanded.toggle()
             }
         }
         .onHover { hovering in
-            withAnimation(WispflowAnimation.quick) {
+            withAnimation(VoxaAnimation.quick) {
                 isHovered = hovering
             }
         }
@@ -2109,8 +2221,8 @@ struct SnippetListRow: View {
             let upperBound = text.distance(from: text.startIndex, to: range.upperBound)
             
             if let attrRange = Range(NSRange(location: lowerBound, length: upperBound - lowerBound), in: attributedString) {
-                attributedString[attrRange].backgroundColor = Color.Wispflow.warningLight
-                attributedString[attrRange].foregroundColor = Color.Wispflow.textPrimary
+                attributedString[attrRange].backgroundColor = Color.Voxa.warningLight
+                attributedString[attrRange].foregroundColor = Color.Voxa.textPrimary
             }
             
             searchStartIndex = range.upperBound
@@ -2150,23 +2262,23 @@ struct CreateSnippetSheet: View {
             // Header
             HStack {
                 Text("New Snippet")
-                    .font(Font.Wispflow.title)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.title)
+                    .foregroundColor(Color.Voxa.textPrimary)
                 
                 Spacer()
                 
                 Button(action: { dismiss() }) {
                     Image(systemName: "xmark")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .foregroundColor(Color.Voxa.textSecondary)
                         .frame(width: 28, height: 28)
-                        .background(Color.Wispflow.surfaceSecondary)
+                        .background(Color.Voxa.surfaceSecondary)
                         .cornerRadius(CornerRadius.small)
                 }
                 .buttonStyle(PlainButtonStyle())
             }
             .padding(Spacing.lg)
-            .background(Color.Wispflow.surface)
+            .background(Color.Voxa.surface)
             
             Divider()
             
@@ -2175,20 +2287,20 @@ struct CreateSnippetSheet: View {
                     // Title field
                     VStack(alignment: .leading, spacing: Spacing.sm) {
                         Text("Title")
-                            .font(Font.Wispflow.caption)
+                            .font(Font.Voxa.caption)
                             .fontWeight(.medium)
-                            .foregroundColor(Color.Wispflow.textSecondary)
+                            .foregroundColor(Color.Voxa.textSecondary)
                         
                         TextField("Enter snippet title...", text: $title)
                             .textFieldStyle(.plain)
-                            .font(Font.Wispflow.body)
-                            .foregroundColor(Color.Wispflow.textPrimary)
+                            .font(Font.Voxa.body)
+                            .foregroundColor(Color.Voxa.textPrimary)
                             .padding(Spacing.md)
-                            .background(Color.Wispflow.surfaceSecondary)
+                            .background(Color.Voxa.surfaceSecondary)
                             .cornerRadius(CornerRadius.small)
                             .overlay(
                                 RoundedRectangle(cornerRadius: CornerRadius.small)
-                                    .stroke(Color.Wispflow.border, lineWidth: 1)
+                                    .stroke(Color.Voxa.border, lineWidth: 1)
                             )
                             .focused($focusedField, equals: .title)
                     }
@@ -2196,33 +2308,33 @@ struct CreateSnippetSheet: View {
                     // Content field
                     VStack(alignment: .leading, spacing: Spacing.sm) {
                         Text("Content")
-                            .font(Font.Wispflow.caption)
+                            .font(Font.Voxa.caption)
                             .fontWeight(.medium)
-                            .foregroundColor(Color.Wispflow.textSecondary)
+                            .foregroundColor(Color.Voxa.textSecondary)
                         
                         TextEditor(text: $content)
-                            .font(Font.Wispflow.body)
-                            .foregroundColor(Color.Wispflow.textPrimary)
+                            .font(Font.Voxa.body)
+                            .foregroundColor(Color.Voxa.textPrimary)
                             .scrollContentBackground(.hidden)
                             .padding(Spacing.sm)
                             .frame(minHeight: 150, maxHeight: 300)
-                            .background(Color.Wispflow.surfaceSecondary)
+                            .background(Color.Voxa.surfaceSecondary)
                             .cornerRadius(CornerRadius.small)
                             .overlay(
                                 RoundedRectangle(cornerRadius: CornerRadius.small)
-                                    .stroke(Color.Wispflow.border, lineWidth: 1)
+                                    .stroke(Color.Voxa.border, lineWidth: 1)
                             )
                             .focused($focusedField, equals: .content)
                         
                         Text("Tip: You can paste formatted text or multiple paragraphs")
-                            .font(Font.Wispflow.small)
-                            .foregroundColor(Color.Wispflow.textTertiary)
+                            .font(Font.Voxa.small)
+                            .foregroundColor(Color.Voxa.textTertiary)
                     }
                     
                     // Optional shortcut field
                     VStack(alignment: .leading, spacing: Spacing.sm) {
                         Button(action: {
-                            withAnimation(WispflowAnimation.quick) {
+                            withAnimation(VoxaAnimation.quick) {
                                 showShortcutField.toggle()
                             }
                         }) {
@@ -2232,9 +2344,9 @@ struct CreateSnippetSheet: View {
                                 Image(systemName: "keyboard")
                                     .font(.system(size: 14, weight: .medium))
                                 Text("Add Keyboard Shortcut (Optional)")
-                                    .font(Font.Wispflow.body)
+                                    .font(Font.Voxa.body)
                             }
-                            .foregroundColor(Color.Wispflow.textSecondary)
+                            .foregroundColor(Color.Voxa.textSecondary)
                         }
                         .buttonStyle(PlainButtonStyle())
                         
@@ -2242,14 +2354,14 @@ struct CreateSnippetSheet: View {
                             VStack(alignment: .leading, spacing: Spacing.sm) {
                                 TextField("e.g., !sig, //email, @reply", text: $shortcut)
                                     .textFieldStyle(.plain)
-                                    .font(Font.Wispflow.mono)
-                                    .foregroundColor(Color.Wispflow.textPrimary)
+                                    .font(Font.Voxa.mono)
+                                    .foregroundColor(Color.Voxa.textPrimary)
                                     .padding(Spacing.md)
-                                    .background(Color.Wispflow.surfaceSecondary)
+                                    .background(Color.Voxa.surfaceSecondary)
                                     .cornerRadius(CornerRadius.small)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: CornerRadius.small)
-                                            .stroke(shortcutError != nil ? Color.Wispflow.error : Color.Wispflow.border, lineWidth: 1)
+                                            .stroke(shortcutError != nil ? Color.Voxa.error : Color.Voxa.border, lineWidth: 1)
                                     )
                                     .focused($focusedField, equals: .shortcut)
                                     .onChange(of: shortcut) { _, newValue in
@@ -2258,12 +2370,12 @@ struct CreateSnippetSheet: View {
                                 
                                 if let error = shortcutError {
                                     Text(error)
-                                        .font(Font.Wispflow.small)
-                                        .foregroundColor(Color.Wispflow.error)
+                                        .font(Font.Voxa.small)
+                                        .foregroundColor(Color.Voxa.error)
                                 } else {
                                     Text("Type this shortcut text to quickly insert the snippet")
-                                        .font(Font.Wispflow.small)
-                                        .foregroundColor(Color.Wispflow.textTertiary)
+                                        .font(Font.Voxa.small)
+                                        .foregroundColor(Color.Voxa.textTertiary)
                                 }
                             }
                             .transition(.opacity.combined(with: .move(edge: .top)))
@@ -2272,7 +2384,7 @@ struct CreateSnippetSheet: View {
                 }
                 .padding(Spacing.lg)
             }
-            .background(Color.Wispflow.background)
+            .background(Color.Voxa.background)
             
             Divider()
             
@@ -2281,7 +2393,7 @@ struct CreateSnippetSheet: View {
                 Button("Cancel") {
                     dismiss()
                 }
-                .buttonStyle(WispflowButtonStyle(variant: .secondary))
+                .buttonStyle(VoxaButtonStyle(variant: .secondary))
                 
                 Spacer()
                 
@@ -2294,14 +2406,14 @@ struct CreateSnippetSheet: View {
                     )
                     dismiss()
                 }
-                .buttonStyle(WispflowButtonStyle(variant: .primary))
+                .buttonStyle(VoxaButtonStyle(variant: .primary))
                 .disabled(!isValid)
             }
             .padding(Spacing.lg)
-            .background(Color.Wispflow.surface)
+            .background(Color.Voxa.surface)
         }
         .frame(width: 500, height: 550)
-        .background(Color.Wispflow.background)
+        .background(Color.Voxa.background)
         .onAppear {
             focusedField = .title
         }
@@ -2360,23 +2472,23 @@ struct EditSnippetSheet: View {
             // Header
             HStack {
                 Text("Edit Snippet")
-                    .font(Font.Wispflow.title)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.title)
+                    .foregroundColor(Color.Voxa.textPrimary)
                 
                 Spacer()
                 
                 Button(action: { dismiss() }) {
                     Image(systemName: "xmark")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .foregroundColor(Color.Voxa.textSecondary)
                         .frame(width: 28, height: 28)
-                        .background(Color.Wispflow.surfaceSecondary)
+                        .background(Color.Voxa.surfaceSecondary)
                         .cornerRadius(CornerRadius.small)
                 }
                 .buttonStyle(PlainButtonStyle())
             }
             .padding(Spacing.lg)
-            .background(Color.Wispflow.surface)
+            .background(Color.Voxa.surface)
             
             Divider()
             
@@ -2385,20 +2497,20 @@ struct EditSnippetSheet: View {
                     // Title field
                     VStack(alignment: .leading, spacing: Spacing.sm) {
                         Text("Title")
-                            .font(Font.Wispflow.caption)
+                            .font(Font.Voxa.caption)
                             .fontWeight(.medium)
-                            .foregroundColor(Color.Wispflow.textSecondary)
+                            .foregroundColor(Color.Voxa.textSecondary)
                         
                         TextField("Enter snippet title...", text: $title)
                             .textFieldStyle(.plain)
-                            .font(Font.Wispflow.body)
-                            .foregroundColor(Color.Wispflow.textPrimary)
+                            .font(Font.Voxa.body)
+                            .foregroundColor(Color.Voxa.textPrimary)
                             .padding(Spacing.md)
-                            .background(Color.Wispflow.surfaceSecondary)
+                            .background(Color.Voxa.surfaceSecondary)
                             .cornerRadius(CornerRadius.small)
                             .overlay(
                                 RoundedRectangle(cornerRadius: CornerRadius.small)
-                                    .stroke(Color.Wispflow.border, lineWidth: 1)
+                                    .stroke(Color.Voxa.border, lineWidth: 1)
                             )
                             .focused($focusedField, equals: .title)
                     }
@@ -2406,21 +2518,21 @@ struct EditSnippetSheet: View {
                     // Content field
                     VStack(alignment: .leading, spacing: Spacing.sm) {
                         Text("Content")
-                            .font(Font.Wispflow.caption)
+                            .font(Font.Voxa.caption)
                             .fontWeight(.medium)
-                            .foregroundColor(Color.Wispflow.textSecondary)
+                            .foregroundColor(Color.Voxa.textSecondary)
                         
                         TextEditor(text: $content)
-                            .font(Font.Wispflow.body)
-                            .foregroundColor(Color.Wispflow.textPrimary)
+                            .font(Font.Voxa.body)
+                            .foregroundColor(Color.Voxa.textPrimary)
                             .scrollContentBackground(.hidden)
                             .padding(Spacing.sm)
                             .frame(minHeight: 150, maxHeight: 300)
-                            .background(Color.Wispflow.surfaceSecondary)
+                            .background(Color.Voxa.surfaceSecondary)
                             .cornerRadius(CornerRadius.small)
                             .overlay(
                                 RoundedRectangle(cornerRadius: CornerRadius.small)
-                                    .stroke(Color.Wispflow.border, lineWidth: 1)
+                                    .stroke(Color.Voxa.border, lineWidth: 1)
                             )
                             .focused($focusedField, equals: .content)
                     }
@@ -2428,7 +2540,7 @@ struct EditSnippetSheet: View {
                     // Shortcut field
                     VStack(alignment: .leading, spacing: Spacing.sm) {
                         Button(action: {
-                            withAnimation(WispflowAnimation.quick) {
+                            withAnimation(VoxaAnimation.quick) {
                                 showShortcutField.toggle()
                             }
                         }) {
@@ -2438,15 +2550,15 @@ struct EditSnippetSheet: View {
                                 Image(systemName: "keyboard")
                                     .font(.system(size: 14, weight: .medium))
                                 Text("Keyboard Shortcut")
-                                    .font(Font.Wispflow.body)
+                                    .font(Font.Voxa.body)
                                 
                                 if snippet.shortcut != nil && !snippet.shortcut!.isEmpty {
                                     Text("(\(snippet.shortcut!))")
-                                        .font(Font.Wispflow.mono)
-                                        .foregroundColor(Color.Wispflow.accent)
+                                        .font(Font.Voxa.mono)
+                                        .foregroundColor(Color.Voxa.accent)
                                 }
                             }
-                            .foregroundColor(Color.Wispflow.textSecondary)
+                            .foregroundColor(Color.Voxa.textSecondary)
                         }
                         .buttonStyle(PlainButtonStyle())
                         
@@ -2454,14 +2566,14 @@ struct EditSnippetSheet: View {
                             VStack(alignment: .leading, spacing: Spacing.sm) {
                                 TextField("e.g., !sig, //email, @reply", text: $shortcut)
                                     .textFieldStyle(.plain)
-                                    .font(Font.Wispflow.mono)
-                                    .foregroundColor(Color.Wispflow.textPrimary)
+                                    .font(Font.Voxa.mono)
+                                    .foregroundColor(Color.Voxa.textPrimary)
                                     .padding(Spacing.md)
-                                    .background(Color.Wispflow.surfaceSecondary)
+                                    .background(Color.Voxa.surfaceSecondary)
                                     .cornerRadius(CornerRadius.small)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: CornerRadius.small)
-                                            .stroke(shortcutError != nil ? Color.Wispflow.error : Color.Wispflow.border, lineWidth: 1)
+                                            .stroke(shortcutError != nil ? Color.Voxa.error : Color.Voxa.border, lineWidth: 1)
                                     )
                                     .focused($focusedField, equals: .shortcut)
                                     .onChange(of: shortcut) { _, newValue in
@@ -2470,12 +2582,12 @@ struct EditSnippetSheet: View {
                                 
                                 if let error = shortcutError {
                                     Text(error)
-                                        .font(Font.Wispflow.small)
-                                        .foregroundColor(Color.Wispflow.error)
+                                        .font(Font.Voxa.small)
+                                        .foregroundColor(Color.Voxa.error)
                                 } else {
                                     Text("Leave empty to remove shortcut")
-                                        .font(Font.Wispflow.small)
-                                        .foregroundColor(Color.Wispflow.textTertiary)
+                                        .font(Font.Voxa.small)
+                                        .foregroundColor(Color.Voxa.textTertiary)
                                 }
                             }
                             .transition(.opacity.combined(with: .move(edge: .top)))
@@ -2485,17 +2597,17 @@ struct EditSnippetSheet: View {
                     // Metadata
                     VStack(alignment: .leading, spacing: Spacing.xs) {
                         Text("Created: \(formatDate(snippet.createdAt))")
-                            .font(Font.Wispflow.small)
-                            .foregroundColor(Color.Wispflow.textTertiary)
+                            .font(Font.Voxa.small)
+                            .foregroundColor(Color.Voxa.textTertiary)
                         Text("Last updated: \(formatDate(snippet.updatedAt))")
-                            .font(Font.Wispflow.small)
-                            .foregroundColor(Color.Wispflow.textTertiary)
+                            .font(Font.Voxa.small)
+                            .foregroundColor(Color.Voxa.textTertiary)
                     }
                     .padding(.top, Spacing.md)
                 }
                 .padding(Spacing.lg)
             }
-            .background(Color.Wispflow.background)
+            .background(Color.Voxa.background)
             
             Divider()
             
@@ -2504,7 +2616,7 @@ struct EditSnippetSheet: View {
                 Button("Cancel") {
                     dismiss()
                 }
-                .buttonStyle(WispflowButtonStyle(variant: .secondary))
+                .buttonStyle(VoxaButtonStyle(variant: .secondary))
                 
                 Spacer()
                 
@@ -2517,14 +2629,14 @@ struct EditSnippetSheet: View {
                     )
                     dismiss()
                 }
-                .buttonStyle(WispflowButtonStyle(variant: .primary))
+                .buttonStyle(VoxaButtonStyle(variant: .primary))
                 .disabled(!isValid || !hasChanges)
             }
             .padding(Spacing.lg)
-            .background(Color.Wispflow.surface)
+            .background(Color.Voxa.surface)
         }
         .frame(width: 500, height: 580)
-        .background(Color.Wispflow.background)
+        .background(Color.Voxa.background)
         .onAppear {
             // Initialize with existing values
             title = snippet.title
@@ -2598,7 +2710,7 @@ struct DictionaryContentView: View {
             dictionaryHeader
             
             Divider()
-                .background(Color.Wispflow.border)
+                .background(Color.Voxa.border)
             
             // MARK: - Content
             if dictionaryManager.isEmpty {
@@ -2613,7 +2725,7 @@ struct DictionaryContentView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.Wispflow.background)
+        .background(Color.Voxa.background)
         .sheet(isPresented: $showCreateSheet) {
             CreateDictionaryEntrySheet(onSave: { word, hint in
                 dictionaryManager.createEntry(word: word, pronunciationHint: hint)
@@ -2629,7 +2741,7 @@ struct DictionaryContentView: View {
         }
         .alert("Delete Entry?", isPresented: $showDeleteConfirmation, presenting: entryToDelete) { entry in
             Button("Delete", role: .destructive) {
-                withAnimation(WispflowAnimation.smooth) {
+                withAnimation(VoxaAnimation.smooth) {
                     dictionaryManager.deleteEntry(entry)
                 }
                 entryToDelete = nil
@@ -2660,8 +2772,8 @@ struct DictionaryContentView: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack {
                 Text("Custom Dictionary")
-                    .font(Font.Wispflow.largeTitle)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.largeTitle)
+                    .foregroundColor(Color.Voxa.textPrimary)
                 
                 Spacer()
                 
@@ -2675,12 +2787,12 @@ struct DictionaryContentView: View {
                             Image(systemName: "square.and.arrow.down")
                                 .font(.system(size: 12, weight: .medium))
                             Text("Import")
-                                .font(Font.Wispflow.caption)
+                                .font(Font.Voxa.caption)
                         }
-                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .foregroundColor(Color.Voxa.textSecondary)
                         .padding(.horizontal, Spacing.md)
                         .padding(.vertical, Spacing.sm)
-                        .background(Color.Wispflow.surfaceSecondary)
+                        .background(Color.Voxa.surfaceSecondary)
                         .cornerRadius(CornerRadius.small)
                     }
                     .buttonStyle(PlainButtonStyle())
@@ -2694,12 +2806,12 @@ struct DictionaryContentView: View {
                             Image(systemName: "square.and.arrow.up")
                                 .font(.system(size: 12, weight: .medium))
                             Text("Export")
-                                .font(Font.Wispflow.caption)
+                                .font(Font.Voxa.caption)
                         }
-                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .foregroundColor(Color.Voxa.textSecondary)
                         .padding(.horizontal, Spacing.md)
                         .padding(.vertical, Spacing.sm)
-                        .background(Color.Wispflow.surfaceSecondary)
+                        .background(Color.Voxa.surfaceSecondary)
                         .cornerRadius(CornerRadius.small)
                     }
                     .buttonStyle(PlainButtonStyle())
@@ -2716,13 +2828,13 @@ struct DictionaryContentView: View {
                         Image(systemName: "plus")
                             .font(.system(size: 14, weight: .semibold))
                         Text("Add Word")
-                            .font(Font.Wispflow.body)
+                            .font(Font.Voxa.body)
                             .fontWeight(.medium)
                     }
                     .foregroundColor(.white)
                     .padding(.horizontal, Spacing.md)
                     .padding(.vertical, Spacing.sm)
-                    .background(Color.Wispflow.accent)
+                    .background(Color.Voxa.accent)
                     .cornerRadius(CornerRadius.small)
                 }
                 .buttonStyle(InteractiveScaleStyle())
@@ -2736,33 +2848,33 @@ struct DictionaryContentView: View {
                 HStack(spacing: Spacing.sm) {
                     Image(systemName: "magnifyingglass")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(Color.Wispflow.textTertiary)
+                        .foregroundColor(Color.Voxa.textTertiary)
                     
                     TextField("Search dictionary...", text: $searchQuery)
                         .textFieldStyle(.plain)
-                        .font(Font.Wispflow.body)
-                        .foregroundColor(Color.Wispflow.textPrimary)
+                        .font(Font.Voxa.body)
+                        .foregroundColor(Color.Voxa.textPrimary)
                     
                     if !searchQuery.isEmpty {
                         Button(action: {
-                            withAnimation(WispflowAnimation.quick) {
+                            withAnimation(VoxaAnimation.quick) {
                                 searchQuery = ""
                             }
                         }) {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.system(size: 14))
-                                .foregroundColor(Color.Wispflow.textTertiary)
+                                .foregroundColor(Color.Voxa.textTertiary)
                         }
                         .buttonStyle(PlainButtonStyle())
                     }
                 }
                 .padding(.horizontal, Spacing.md)
                 .padding(.vertical, Spacing.sm)
-                .background(Color.Wispflow.surface)
+                .background(Color.Voxa.surface)
                 .cornerRadius(CornerRadius.small)
                 .overlay(
                     RoundedRectangle(cornerRadius: CornerRadius.small)
-                        .stroke(Color.Wispflow.border, lineWidth: 1)
+                        .stroke(Color.Voxa.border, lineWidth: 1)
                 )
                 
                 Spacer()
@@ -2772,18 +2884,18 @@ struct DictionaryContentView: View {
                     HStack(spacing: Spacing.md) {
                         // Word count badge
                         Text("\(dictionaryManager.count) \(dictionaryManager.count == 1 ? "word" : "words")")
-                            .font(Font.Wispflow.caption)
-                            .foregroundColor(Color.Wispflow.textSecondary)
+                            .font(Font.Voxa.caption)
+                            .foregroundColor(Color.Voxa.textSecondary)
                             .padding(.horizontal, Spacing.sm)
                             .padding(.vertical, Spacing.xs)
-                            .background(Color.Wispflow.surfaceSecondary)
+                            .background(Color.Voxa.surfaceSecondary)
                             .cornerRadius(CornerRadius.small)
                         
                         // Last updated info
                         if let lastUpdated = dictionaryManager.lastUpdated {
                             Text("Updated \(formatRelativeDate(lastUpdated))")
-                                .font(Font.Wispflow.small)
-                                .foregroundColor(Color.Wispflow.textTertiary)
+                                .font(Font.Voxa.small)
+                                .foregroundColor(Color.Voxa.textTertiary)
                         }
                     }
                 }
@@ -2800,22 +2912,22 @@ struct DictionaryContentView: View {
             
             ZStack {
                 Circle()
-                    .fill(Color.Wispflow.accentLight)
+                    .fill(Color.Voxa.accentLight)
                     .frame(width: 100, height: 100)
                 
                 Image(systemName: "character.book.closed")
                     .font(.system(size: 44, weight: .light))
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
             }
             
             VStack(spacing: Spacing.sm) {
                 Text("No custom words yet")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
                 
-                Text("Add words and phrases to improve transcription accuracy.\nCustom words help WispFlow recognize specialized terms,\nnames, and uncommon pronunciations.")
-                    .font(Font.Wispflow.body)
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                Text("Add words and phrases to improve transcription accuracy.\nCustom words help Voxa recognize specialized terms,\nnames, and uncommon pronunciations.")
+                    .font(Font.Voxa.body)
+                    .foregroundColor(Color.Voxa.textSecondary)
                     .multilineTextAlignment(.center)
             }
             
@@ -2827,9 +2939,9 @@ struct DictionaryContentView: View {
                 DictionaryBenefitRow(icon: "square.and.arrow.down", text: "Import existing word lists")
             }
             .padding(Spacing.lg)
-            .background(Color.Wispflow.surface)
+            .background(Color.Voxa.surface)
             .cornerRadius(CornerRadius.medium)
-            .wispflowShadow(.subtle)
+            .voxaShadow(.subtle)
             
             Button(action: {
                 showCreateSheet = true
@@ -2840,11 +2952,11 @@ struct DictionaryContentView: View {
                     Text("Add First Word")
                         .fontWeight(.medium)
                 }
-                .font(Font.Wispflow.body)
+                .font(Font.Voxa.body)
                 .foregroundColor(.white)
                 .padding(.horizontal, Spacing.lg)
                 .padding(.vertical, Spacing.md)
-                .background(Color.Wispflow.accent)
+                .background(Color.Voxa.accent)
                 .cornerRadius(CornerRadius.small)
             }
             .buttonStyle(InteractiveScaleStyle())
@@ -2864,33 +2976,33 @@ struct DictionaryContentView: View {
             
             ZStack {
                 Circle()
-                    .fill(Color.Wispflow.surfaceSecondary)
+                    .fill(Color.Voxa.surfaceSecondary)
                     .frame(width: 80, height: 80)
                 
                 Image(systemName: "doc.text.magnifyingglass")
                     .font(.system(size: 36, weight: .light))
-                    .foregroundColor(Color.Wispflow.textTertiary)
+                    .foregroundColor(Color.Voxa.textTertiary)
             }
             
             VStack(spacing: Spacing.sm) {
                 Text("No words found")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
                 
                 Text("No entries match \"\(searchQuery)\".\nTry a different search term.")
-                    .font(Font.Wispflow.body)
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .font(Font.Voxa.body)
+                    .foregroundColor(Color.Voxa.textSecondary)
                     .multilineTextAlignment(.center)
             }
             
             Button(action: {
-                withAnimation(WispflowAnimation.quick) {
+                withAnimation(VoxaAnimation.quick) {
                     searchQuery = ""
                 }
             }) {
                 Text("Clear Search")
-                    .font(Font.Wispflow.body)
-                    .foregroundColor(Color.Wispflow.accent)
+                    .font(Font.Voxa.body)
+                    .foregroundColor(Color.Voxa.accent)
             }
             .buttonStyle(PlainButtonStyle())
             
@@ -2925,7 +3037,7 @@ struct DictionaryContentView: View {
             }
             .padding(Spacing.xl)
         }
-        .animation(WispflowAnimation.smooth, value: filteredEntries.count)
+        .animation(VoxaAnimation.smooth, value: filteredEntries.count)
     }
     
     // MARK: - Import/Export Helpers
@@ -2972,7 +3084,7 @@ struct DictionaryContentView: View {
     private func exportDictionary() {
         let savePanel = NSSavePanel()
         savePanel.title = "Export Dictionary"
-        savePanel.nameFieldStringValue = "wispflow-dictionary.txt"
+        savePanel.nameFieldStringValue = "voxa-dictionary.txt"
         savePanel.allowedContentTypes = [.plainText]
         savePanel.canCreateDirectories = true
         
@@ -3026,12 +3138,12 @@ struct DictionaryBenefitRow: View {
         HStack(spacing: Spacing.md) {
             Image(systemName: icon)
                 .font(.system(size: 14, weight: .medium))
-                .foregroundColor(Color.Wispflow.accent)
+                .foregroundColor(Color.Voxa.accent)
                 .frame(width: 20)
             
             Text(text)
-                .font(Font.Wispflow.body)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.body)
+                .foregroundColor(Color.Voxa.textSecondary)
         }
     }
 }
@@ -3052,20 +3164,20 @@ struct DictionaryEntryRow: View {
             // Icon
             ZStack {
                 RoundedRectangle(cornerRadius: CornerRadius.small)
-                    .fill(Color.Wispflow.accentLight)
+                    .fill(Color.Voxa.accentLight)
                     .frame(width: 40, height: 40)
                 
                 Text(String(entry.word.prefix(1)).uppercased())
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.accent)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.accent)
             }
             
             // Word and hint
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 Text(highlightedText(entry.word))
-                    .font(Font.Wispflow.body)
+                    .font(Font.Voxa.body)
                     .fontWeight(.semibold)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .foregroundColor(Color.Voxa.textPrimary)
                 
                 HStack(spacing: Spacing.sm) {
                     // Pronunciation hint badge
@@ -3074,19 +3186,19 @@ struct DictionaryEntryRow: View {
                             Image(systemName: "waveform")
                                 .font(.system(size: 9, weight: .medium))
                             Text(highlightedText(hint))
-                                .font(Font.Wispflow.small)
+                                .font(Font.Voxa.small)
                         }
-                        .foregroundColor(Color.Wispflow.accent)
+                        .foregroundColor(Color.Voxa.accent)
                         .padding(.horizontal, Spacing.sm)
                         .padding(.vertical, 2)
-                        .background(Color.Wispflow.accentLight)
+                        .background(Color.Voxa.accentLight)
                         .cornerRadius(CornerRadius.small)
                     }
                     
                     // Updated date
                     Text("Updated \(entry.updatedRelativeString)")
-                        .font(Font.Wispflow.small)
-                        .foregroundColor(Color.Wispflow.textTertiary)
+                        .font(Font.Voxa.small)
+                        .foregroundColor(Color.Voxa.textTertiary)
                 }
             }
             
@@ -3098,9 +3210,9 @@ struct DictionaryEntryRow: View {
                 Button(action: onEdit) {
                     Image(systemName: "pencil")
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .foregroundColor(Color.Voxa.textSecondary)
                         .frame(width: 28, height: 28)
-                        .background(Color.Wispflow.surfaceSecondary)
+                        .background(Color.Voxa.surfaceSecondary)
                         .cornerRadius(CornerRadius.small)
                 }
                 .buttonStyle(PlainButtonStyle())
@@ -3110,9 +3222,9 @@ struct DictionaryEntryRow: View {
                 Button(action: onDelete) {
                     Image(systemName: "trash")
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(Color.Wispflow.error)
+                        .foregroundColor(Color.Voxa.error)
                         .frame(width: 28, height: 28)
-                        .background(Color.Wispflow.errorLight)
+                        .background(Color.Voxa.errorLight)
                         .cornerRadius(CornerRadius.small)
                 }
                 .buttonStyle(PlainButtonStyle())
@@ -3121,12 +3233,12 @@ struct DictionaryEntryRow: View {
             .opacity(isHovered ? 1 : 0.5)
         }
         .padding(Spacing.md)
-        .background(Color.Wispflow.surface)
+        .background(Color.Voxa.surface)
         .cornerRadius(CornerRadius.medium)
-        .wispflowShadow(isHovered ? .card : .subtle)
+        .voxaShadow(isHovered ? .card : .subtle)
         .contentShape(Rectangle())
         .onHover { hovering in
-            withAnimation(WispflowAnimation.quick) {
+            withAnimation(VoxaAnimation.quick) {
                 isHovered = hovering
             }
         }
@@ -3148,8 +3260,8 @@ struct DictionaryEntryRow: View {
             let upperBound = text.distance(from: text.startIndex, to: range.upperBound)
             
             if let attrRange = Range(NSRange(location: lowerBound, length: upperBound - lowerBound), in: attributedString) {
-                attributedString[attrRange].backgroundColor = Color.Wispflow.warningLight
-                attributedString[attrRange].foregroundColor = Color.Wispflow.textPrimary
+                attributedString[attrRange].backgroundColor = Color.Voxa.warningLight
+                attributedString[attrRange].foregroundColor = Color.Voxa.textPrimary
             }
             
             searchStartIndex = range.upperBound
@@ -3187,23 +3299,23 @@ struct CreateDictionaryEntrySheet: View {
             // Header
             HStack {
                 Text("Add Word")
-                    .font(Font.Wispflow.title)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.title)
+                    .foregroundColor(Color.Voxa.textPrimary)
                 
                 Spacer()
                 
                 Button(action: { dismiss() }) {
                     Image(systemName: "xmark")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .foregroundColor(Color.Voxa.textSecondary)
                         .frame(width: 28, height: 28)
-                        .background(Color.Wispflow.surfaceSecondary)
+                        .background(Color.Voxa.surfaceSecondary)
                         .cornerRadius(CornerRadius.small)
                 }
                 .buttonStyle(PlainButtonStyle())
             }
             .padding(Spacing.lg)
-            .background(Color.Wispflow.surface)
+            .background(Color.Voxa.surface)
             
             Divider()
             
@@ -3212,20 +3324,20 @@ struct CreateDictionaryEntrySheet: View {
                     // Word field
                     VStack(alignment: .leading, spacing: Spacing.sm) {
                         Text("Word or Phrase")
-                            .font(Font.Wispflow.caption)
+                            .font(Font.Voxa.caption)
                             .fontWeight(.medium)
-                            .foregroundColor(Color.Wispflow.textSecondary)
+                            .foregroundColor(Color.Voxa.textSecondary)
                         
                         TextField("Enter word or phrase...", text: $word)
                             .textFieldStyle(.plain)
-                            .font(Font.Wispflow.body)
-                            .foregroundColor(Color.Wispflow.textPrimary)
+                            .font(Font.Voxa.body)
+                            .foregroundColor(Color.Voxa.textPrimary)
                             .padding(Spacing.md)
-                            .background(Color.Wispflow.surfaceSecondary)
+                            .background(Color.Voxa.surfaceSecondary)
                             .cornerRadius(CornerRadius.small)
                             .overlay(
                                 RoundedRectangle(cornerRadius: CornerRadius.small)
-                                    .stroke(wordError != nil ? Color.Wispflow.error : Color.Wispflow.border, lineWidth: 1)
+                                    .stroke(wordError != nil ? Color.Voxa.error : Color.Voxa.border, lineWidth: 1)
                             )
                             .focused($focusedField, equals: .word)
                             .onChange(of: word) { _, newValue in
@@ -3234,19 +3346,19 @@ struct CreateDictionaryEntrySheet: View {
                         
                         if let error = wordError {
                             Text(error)
-                                .font(Font.Wispflow.small)
-                                .foregroundColor(Color.Wispflow.error)
+                                .font(Font.Voxa.small)
+                                .foregroundColor(Color.Voxa.error)
                         } else {
                             Text("Add technical terms, names, or uncommon words")
-                                .font(Font.Wispflow.small)
-                                .foregroundColor(Color.Wispflow.textTertiary)
+                                .font(Font.Voxa.small)
+                                .foregroundColor(Color.Voxa.textTertiary)
                         }
                     }
                     
                     // Optional pronunciation hint field
                     VStack(alignment: .leading, spacing: Spacing.sm) {
                         Button(action: {
-                            withAnimation(WispflowAnimation.quick) {
+                            withAnimation(VoxaAnimation.quick) {
                                 showHintField.toggle()
                             }
                         }) {
@@ -3256,9 +3368,9 @@ struct CreateDictionaryEntrySheet: View {
                                 Image(systemName: "waveform")
                                     .font(.system(size: 14, weight: .medium))
                                 Text("Add Pronunciation Hint (Optional)")
-                                    .font(Font.Wispflow.body)
+                                    .font(Font.Voxa.body)
                             }
-                            .foregroundColor(Color.Wispflow.textSecondary)
+                            .foregroundColor(Color.Voxa.textSecondary)
                         }
                         .buttonStyle(PlainButtonStyle())
                         
@@ -3266,20 +3378,20 @@ struct CreateDictionaryEntrySheet: View {
                             VStack(alignment: .leading, spacing: Spacing.sm) {
                                 TextField("e.g., 'jif' for GIF, 'SEE-kwel' for SQL", text: $pronunciationHint)
                                     .textFieldStyle(.plain)
-                                    .font(Font.Wispflow.body)
-                                    .foregroundColor(Color.Wispflow.textPrimary)
+                                    .font(Font.Voxa.body)
+                                    .foregroundColor(Color.Voxa.textPrimary)
                                     .padding(Spacing.md)
-                                    .background(Color.Wispflow.surfaceSecondary)
+                                    .background(Color.Voxa.surfaceSecondary)
                                     .cornerRadius(CornerRadius.small)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: CornerRadius.small)
-                                            .stroke(Color.Wispflow.border, lineWidth: 1)
+                                            .stroke(Color.Voxa.border, lineWidth: 1)
                                     )
                                     .focused($focusedField, equals: .hint)
                                 
                                 Text("Helps the transcription engine recognize how you say this word")
-                                    .font(Font.Wispflow.small)
-                                    .foregroundColor(Color.Wispflow.textTertiary)
+                                    .font(Font.Voxa.small)
+                                    .foregroundColor(Color.Voxa.textTertiary)
                             }
                             .transition(.opacity.combined(with: .move(edge: .top)))
                         }
@@ -3288,24 +3400,24 @@ struct CreateDictionaryEntrySheet: View {
                     // Examples section
                     VStack(alignment: .leading, spacing: Spacing.sm) {
                         Text("Examples")
-                            .font(Font.Wispflow.caption)
+                            .font(Font.Voxa.caption)
                             .fontWeight(.medium)
-                            .foregroundColor(Color.Wispflow.textSecondary)
+                            .foregroundColor(Color.Voxa.textSecondary)
                         
                         VStack(alignment: .leading, spacing: Spacing.xs) {
-                            DictionaryExampleRow(word: "WispFlow", hint: "WISP-flow")
+                            DictionaryExampleRow(word: "Voxa", hint: "WISP-flow")
                             DictionaryExampleRow(word: "GitHub", hint: "git-hub")
                             DictionaryExampleRow(word: "Kubernetes", hint: "koo-ber-NET-eez")
                             DictionaryExampleRow(word: "Dr. Smith", hint: nil)
                         }
                         .padding(Spacing.md)
-                        .background(Color.Wispflow.surfaceSecondary)
+                        .background(Color.Voxa.surfaceSecondary)
                         .cornerRadius(CornerRadius.small)
                     }
                 }
                 .padding(Spacing.lg)
             }
-            .background(Color.Wispflow.background)
+            .background(Color.Voxa.background)
             
             Divider()
             
@@ -3314,7 +3426,7 @@ struct CreateDictionaryEntrySheet: View {
                 Button("Cancel") {
                     dismiss()
                 }
-                .buttonStyle(WispflowButtonStyle(variant: .secondary))
+                .buttonStyle(VoxaButtonStyle(variant: .secondary))
                 
                 Spacer()
                 
@@ -3326,14 +3438,14 @@ struct CreateDictionaryEntrySheet: View {
                     )
                     dismiss()
                 }
-                .buttonStyle(WispflowButtonStyle(variant: .primary))
+                .buttonStyle(VoxaButtonStyle(variant: .primary))
                 .disabled(!isValid)
             }
             .padding(Spacing.lg)
-            .background(Color.Wispflow.surface)
+            .background(Color.Voxa.surface)
         }
         .frame(width: 450, height: 480)
-        .background(Color.Wispflow.background)
+        .background(Color.Voxa.background)
         .onAppear {
             focusedField = .word
         }
@@ -3393,23 +3505,23 @@ struct EditDictionaryEntrySheet: View {
             // Header
             HStack {
                 Text("Edit Word")
-                    .font(Font.Wispflow.title)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.title)
+                    .foregroundColor(Color.Voxa.textPrimary)
                 
                 Spacer()
                 
                 Button(action: { dismiss() }) {
                     Image(systemName: "xmark")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .foregroundColor(Color.Voxa.textSecondary)
                         .frame(width: 28, height: 28)
-                        .background(Color.Wispflow.surfaceSecondary)
+                        .background(Color.Voxa.surfaceSecondary)
                         .cornerRadius(CornerRadius.small)
                 }
                 .buttonStyle(PlainButtonStyle())
             }
             .padding(Spacing.lg)
-            .background(Color.Wispflow.surface)
+            .background(Color.Voxa.surface)
             
             Divider()
             
@@ -3418,20 +3530,20 @@ struct EditDictionaryEntrySheet: View {
                     // Word field
                     VStack(alignment: .leading, spacing: Spacing.sm) {
                         Text("Word or Phrase")
-                            .font(Font.Wispflow.caption)
+                            .font(Font.Voxa.caption)
                             .fontWeight(.medium)
-                            .foregroundColor(Color.Wispflow.textSecondary)
+                            .foregroundColor(Color.Voxa.textSecondary)
                         
                         TextField("Enter word or phrase...", text: $word)
                             .textFieldStyle(.plain)
-                            .font(Font.Wispflow.body)
-                            .foregroundColor(Color.Wispflow.textPrimary)
+                            .font(Font.Voxa.body)
+                            .foregroundColor(Color.Voxa.textPrimary)
                             .padding(Spacing.md)
-                            .background(Color.Wispflow.surfaceSecondary)
+                            .background(Color.Voxa.surfaceSecondary)
                             .cornerRadius(CornerRadius.small)
                             .overlay(
                                 RoundedRectangle(cornerRadius: CornerRadius.small)
-                                    .stroke(wordError != nil ? Color.Wispflow.error : Color.Wispflow.border, lineWidth: 1)
+                                    .stroke(wordError != nil ? Color.Voxa.error : Color.Voxa.border, lineWidth: 1)
                             )
                             .focused($focusedField, equals: .word)
                             .onChange(of: word) { _, newValue in
@@ -3440,15 +3552,15 @@ struct EditDictionaryEntrySheet: View {
                         
                         if let error = wordError {
                             Text(error)
-                                .font(Font.Wispflow.small)
-                                .foregroundColor(Color.Wispflow.error)
+                                .font(Font.Voxa.small)
+                                .foregroundColor(Color.Voxa.error)
                         }
                     }
                     
                     // Pronunciation hint field
                     VStack(alignment: .leading, spacing: Spacing.sm) {
                         Button(action: {
-                            withAnimation(WispflowAnimation.quick) {
+                            withAnimation(VoxaAnimation.quick) {
                                 showHintField.toggle()
                             }
                         }) {
@@ -3458,15 +3570,15 @@ struct EditDictionaryEntrySheet: View {
                                 Image(systemName: "waveform")
                                     .font(.system(size: 14, weight: .medium))
                                 Text("Pronunciation Hint")
-                                    .font(Font.Wispflow.body)
+                                    .font(Font.Voxa.body)
                                 
                                 if entry.pronunciationHint != nil && !entry.pronunciationHint!.isEmpty {
                                     Text("(\(entry.pronunciationHint!))")
-                                        .font(Font.Wispflow.small)
-                                        .foregroundColor(Color.Wispflow.accent)
+                                        .font(Font.Voxa.small)
+                                        .foregroundColor(Color.Voxa.accent)
                                 }
                             }
-                            .foregroundColor(Color.Wispflow.textSecondary)
+                            .foregroundColor(Color.Voxa.textSecondary)
                         }
                         .buttonStyle(PlainButtonStyle())
                         
@@ -3474,20 +3586,20 @@ struct EditDictionaryEntrySheet: View {
                             VStack(alignment: .leading, spacing: Spacing.sm) {
                                 TextField("e.g., 'jif' for GIF, 'SEE-kwel' for SQL", text: $pronunciationHint)
                                     .textFieldStyle(.plain)
-                                    .font(Font.Wispflow.body)
-                                    .foregroundColor(Color.Wispflow.textPrimary)
+                                    .font(Font.Voxa.body)
+                                    .foregroundColor(Color.Voxa.textPrimary)
                                     .padding(Spacing.md)
-                                    .background(Color.Wispflow.surfaceSecondary)
+                                    .background(Color.Voxa.surfaceSecondary)
                                     .cornerRadius(CornerRadius.small)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: CornerRadius.small)
-                                            .stroke(Color.Wispflow.border, lineWidth: 1)
+                                            .stroke(Color.Voxa.border, lineWidth: 1)
                                     )
                                     .focused($focusedField, equals: .hint)
                                 
                                 Text("Leave empty to remove pronunciation hint")
-                                    .font(Font.Wispflow.small)
-                                    .foregroundColor(Color.Wispflow.textTertiary)
+                                    .font(Font.Voxa.small)
+                                    .foregroundColor(Color.Voxa.textTertiary)
                             }
                             .transition(.opacity.combined(with: .move(edge: .top)))
                         }
@@ -3496,17 +3608,17 @@ struct EditDictionaryEntrySheet: View {
                     // Metadata
                     VStack(alignment: .leading, spacing: Spacing.xs) {
                         Text("Added: \(formatDate(entry.createdAt))")
-                            .font(Font.Wispflow.small)
-                            .foregroundColor(Color.Wispflow.textTertiary)
+                            .font(Font.Voxa.small)
+                            .foregroundColor(Color.Voxa.textTertiary)
                         Text("Last updated: \(formatDate(entry.updatedAt))")
-                            .font(Font.Wispflow.small)
-                            .foregroundColor(Color.Wispflow.textTertiary)
+                            .font(Font.Voxa.small)
+                            .foregroundColor(Color.Voxa.textTertiary)
                     }
                     .padding(.top, Spacing.md)
                 }
                 .padding(Spacing.lg)
             }
-            .background(Color.Wispflow.background)
+            .background(Color.Voxa.background)
             
             Divider()
             
@@ -3515,7 +3627,7 @@ struct EditDictionaryEntrySheet: View {
                 Button("Cancel") {
                     dismiss()
                 }
-                .buttonStyle(WispflowButtonStyle(variant: .secondary))
+                .buttonStyle(VoxaButtonStyle(variant: .secondary))
                 
                 Spacer()
                 
@@ -3527,14 +3639,14 @@ struct EditDictionaryEntrySheet: View {
                     )
                     dismiss()
                 }
-                .buttonStyle(WispflowButtonStyle(variant: .primary))
+                .buttonStyle(VoxaButtonStyle(variant: .primary))
                 .disabled(!isValid || !hasChanges)
             }
             .padding(Spacing.lg)
-            .background(Color.Wispflow.surface)
+            .background(Color.Voxa.surface)
         }
         .frame(width: 450, height: 420)
-        .background(Color.Wispflow.background)
+        .background(Color.Voxa.background)
         .onAppear {
             // Initialize with existing values
             word = entry.word
@@ -3582,17 +3694,17 @@ struct DictionaryExampleRow: View {
     var body: some View {
         HStack(spacing: Spacing.sm) {
             Text(word)
-                .font(Font.Wispflow.body)
-                .foregroundColor(Color.Wispflow.textPrimary)
+                .font(Font.Voxa.body)
+                .foregroundColor(Color.Voxa.textPrimary)
             
             if let hint = hint {
                 Text("→")
-                    .font(Font.Wispflow.body)
-                    .foregroundColor(Color.Wispflow.textTertiary)
+                    .font(Font.Voxa.body)
+                    .foregroundColor(Color.Voxa.textTertiary)
                 
                 Text(hint)
-                    .font(Font.Wispflow.mono)
-                    .foregroundColor(Color.Wispflow.accent)
+                    .font(Font.Voxa.mono)
+                    .foregroundColor(Color.Voxa.accent)
             }
         }
     }
@@ -3750,7 +3862,7 @@ struct SettingsContentView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.Wispflow.background)
+        .background(Color.Voxa.background)
     }
     
     // MARK: - Header View
@@ -3758,12 +3870,12 @@ struct SettingsContentView: View {
     private var settingsHeader: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             Text("Settings")
-                .font(Font.Wispflow.largeTitle)
-                .foregroundColor(Color.Wispflow.textPrimary)
+                .font(Font.Voxa.largeTitle)
+                .foregroundColor(Color.Voxa.textPrimary)
             
-            Text("Configure WispFlow preferences and options")
-                .font(Font.Wispflow.body)
-                .foregroundColor(Color.Wispflow.textSecondary)
+            Text("Configure Voxa preferences and options")
+                .font(Font.Voxa.body)
+                .foregroundColor(Color.Voxa.textSecondary)
         }
     }
     
@@ -3774,8 +3886,8 @@ struct SettingsContentView: View {
     private func sectionNavigationBar(scrollProxy: ScrollViewProxy) -> some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             Text("Jump to Section")
-                .font(Font.Wispflow.caption)
-                .foregroundColor(Color.Wispflow.textTertiary)
+                .font(Font.Voxa.caption)
+                .foregroundColor(Color.Voxa.textTertiary)
             
             // Horizontal scrollable section buttons
             ScrollView(.horizontal, showsIndicators: false) {
@@ -3794,9 +3906,9 @@ struct SettingsContentView: View {
             }
         }
         .padding(Spacing.md)
-        .background(Color.Wispflow.surface)
+        .background(Color.Voxa.surface)
         .cornerRadius(CornerRadius.medium)
-        .wispflowShadow(.subtle)
+        .voxaShadow(.subtle)
     }
     
     // MARK: - Scroll to Section (US-709)
@@ -3805,7 +3917,7 @@ struct SettingsContentView: View {
     /// US-709: Implement smooth scroll to section
     private func scrollToSection(_ section: SettingsSection, using proxy: ScrollViewProxy) {
         // Update active section for visual feedback
-        withAnimation(WispflowAnimation.smooth) {
+        withAnimation(VoxaAnimation.smooth) {
             activeSection = section
         }
         
@@ -3836,22 +3948,22 @@ struct SettingsSectionNavButton: View {
                     .font(.system(size: 12, weight: .medium))
                 
                 Text(section.displayName)
-                    .font(Font.Wispflow.caption)
+                    .font(Font.Voxa.caption)
                     .fontWeight(.medium)
             }
-            .foregroundColor(isActive ? .white : (isHovering ? Color.Wispflow.accent : Color.Wispflow.textSecondary))
+            .foregroundColor(isActive ? .white : (isHovering ? Color.Voxa.accent : Color.Voxa.textSecondary))
             .padding(.horizontal, Spacing.md)
             .padding(.vertical, Spacing.sm)
             .background(
                 RoundedRectangle(cornerRadius: CornerRadius.small)
-                    .fill(isActive ? Color.Wispflow.accent : (isHovering ? Color.Wispflow.accentLight : Color.Wispflow.border.opacity(0.3)))
+                    .fill(isActive ? Color.Voxa.accent : (isHovering ? Color.Voxa.accentLight : Color.Voxa.border.opacity(0.3)))
             )
             .contentShape(Rectangle())
         }
         .buttonStyle(PlainButtonStyle())
         .scaleEffect(isHovering ? 1.02 : 1.0)
-        .animation(WispflowAnimation.quick, value: isHovering)
-        .animation(WispflowAnimation.quick, value: isActive)
+        .animation(VoxaAnimation.quick, value: isHovering)
+        .animation(VoxaAnimation.quick, value: isActive)
         .onHover { hovering in
             isHovering = hovering
         }
@@ -3862,7 +3974,7 @@ struct SettingsSectionNavButton: View {
 // MARK: - Settings Section View (US-701)
 
 /// A reusable section container for settings groups
-/// Applies consistent wispflowCard() styling to each section
+/// Applies consistent voxaCard() styling to each section
 struct SettingsSectionView<Content: View>: View {
     let title: String
     let icon: String
@@ -3876,7 +3988,7 @@ struct SettingsSectionView<Content: View>: View {
         VStack(alignment: .leading, spacing: 0) {
             // Section Header
             Button(action: {
-                withAnimation(WispflowAnimation.quick) {
+                withAnimation(VoxaAnimation.quick) {
                     isExpanded.toggle()
                 }
             }) {
@@ -3884,23 +3996,23 @@ struct SettingsSectionView<Content: View>: View {
                     // Section icon
                     ZStack {
                         RoundedRectangle(cornerRadius: CornerRadius.small)
-                            .fill(Color.Wispflow.accentLight)
+                            .fill(Color.Voxa.accentLight)
                             .frame(width: 36, height: 36)
                         
                         Image(systemName: icon)
                             .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(Color.Wispflow.accent)
+                            .foregroundColor(Color.Voxa.accent)
                     }
                     
                     // Title and description
                     VStack(alignment: .leading, spacing: Spacing.xs) {
                         Text(title)
-                            .font(Font.Wispflow.headline)
-                            .foregroundColor(Color.Wispflow.textPrimary)
+                            .font(Font.Voxa.headline)
+                            .foregroundColor(Color.Voxa.textPrimary)
                         
                         Text(description)
-                            .font(Font.Wispflow.caption)
-                            .foregroundColor(Color.Wispflow.textSecondary)
+                            .font(Font.Voxa.caption)
+                            .foregroundColor(Color.Voxa.textSecondary)
                             .lineLimit(1)
                     }
                     
@@ -3909,7 +4021,7 @@ struct SettingsSectionView<Content: View>: View {
                     // Expand/collapse indicator
                     Image(systemName: "chevron.down")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(Color.Wispflow.textTertiary)
+                        .foregroundColor(Color.Voxa.textTertiary)
                         .rotationEffect(.degrees(isExpanded ? 0 : -90))
                 }
                 .padding(Spacing.lg)
@@ -3918,10 +4030,10 @@ struct SettingsSectionView<Content: View>: View {
             .buttonStyle(PlainButtonStyle())
             .background(
                 RoundedRectangle(cornerRadius: isExpanded ? CornerRadius.medium : CornerRadius.medium)
-                    .fill(isHovering && !isExpanded ? Color.Wispflow.border.opacity(0.3) : Color.clear)
+                    .fill(isHovering && !isExpanded ? Color.Voxa.border.opacity(0.3) : Color.clear)
             )
             .onHover { hovering in
-                withAnimation(WispflowAnimation.quick) {
+                withAnimation(VoxaAnimation.quick) {
                     isHovering = hovering
                 }
             }
@@ -3929,7 +4041,7 @@ struct SettingsSectionView<Content: View>: View {
             // Section Content (expandable)
             if isExpanded {
                 Divider()
-                    .background(Color.Wispflow.border)
+                    .background(Color.Voxa.border)
                     .padding(.horizontal, Spacing.lg)
                 
                 VStack(alignment: .leading, spacing: Spacing.md) {
@@ -3939,9 +4051,9 @@ struct SettingsSectionView<Content: View>: View {
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
-        .background(Color.Wispflow.surface)
+        .background(Color.Voxa.surface)
         .cornerRadius(CornerRadius.medium)
-        .wispflowShadow(.subtle)
+        .voxaShadow(.subtle)
     }
 }
 
@@ -4002,7 +4114,7 @@ struct GeneralSettingsSummary: View {
                     Circle()
                         .fill(
                             LinearGradient(
-                                colors: [Color.Wispflow.accent.opacity(0.15), Color.Wispflow.accent.opacity(0.05)],
+                                colors: [Color.Voxa.accent.opacity(0.15), Color.Voxa.accent.opacity(0.05)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -4013,7 +4125,7 @@ struct GeneralSettingsSummary: View {
                         .font(.system(size: 40, weight: .medium))
                         .foregroundStyle(
                             LinearGradient(
-                                colors: [Color.Wispflow.accent, Color.Wispflow.accent.opacity(0.8)],
+                                colors: [Color.Voxa.accent, Color.Voxa.accent.opacity(0.8)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -4021,31 +4133,31 @@ struct GeneralSettingsSummary: View {
                 }
                 
                 // App name
-                Text("WispFlow")
-                    .font(Font.Wispflow.title)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                Text("Voxa")
+                    .font(Font.Voxa.title)
+                    .foregroundColor(Color.Voxa.textPrimary)
                 
                 // Version display
                 Text("Version \(appVersion)")
-                    .font(Font.Wispflow.caption)
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .font(Font.Voxa.caption)
+                    .foregroundColor(Color.Voxa.textSecondary)
                     .padding(.horizontal, Spacing.md)
                     .padding(.vertical, Spacing.xs)
-                    .background(Color.Wispflow.border.opacity(0.5))
+                    .background(Color.Voxa.border.opacity(0.5))
                     .cornerRadius(CornerRadius.small / 2)
             }
             
             // Tagline/Description
             Text("Voice-to-text dictation with AI-powered transcription and auto-editing. All processing happens locally on your device.")
-                .font(Font.Wispflow.body)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.body)
+                .foregroundColor(Color.Voxa.textSecondary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, Spacing.md)
         }
         .frame(maxWidth: .infinity)
         .padding(Spacing.lg)
-        .background(Color.Wispflow.border.opacity(0.2))
+        .background(Color.Voxa.border.opacity(0.2))
         .cornerRadius(CornerRadius.medium)
     }
     
@@ -4055,8 +4167,8 @@ struct GeneralSettingsSummary: View {
     private var linkButtonsSection: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             Text("Links")
-                .font(Font.Wispflow.headline)
-                .foregroundColor(Color.Wispflow.textPrimary)
+                .font(Font.Voxa.headline)
+                .foregroundColor(Color.Voxa.textPrimary)
             
             HStack(spacing: Spacing.md) {
                 GeneralSettingsLinkButton(
@@ -4068,13 +4180,13 @@ struct GeneralSettingsSummary: View {
                 GeneralSettingsLinkButton(
                     title: "Website",
                     icon: "globe",
-                    url: "https://wispflow.app"
+                    url: "https://voxa.app"
                 )
                 
                 GeneralSettingsLinkButton(
                     title: "Support",
                     icon: "questionmark.circle",
-                    url: "https://wispflow.app/support"
+                    url: "https://voxa.app/support"
                 )
             }
         }
@@ -4087,16 +4199,16 @@ struct GeneralSettingsSummary: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "keyboard")
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
                     .font(.system(size: 16, weight: .medium))
                 Text("Global Hotkey")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
             }
             
             Text("Press this keyboard shortcut from any app to start/stop voice recording.")
-                .font(Font.Wispflow.caption)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.caption)
+                .foregroundColor(Color.Voxa.textSecondary)
             
             HStack(spacing: Spacing.md) {
                 // Hotkey recorder component
@@ -4115,7 +4227,7 @@ struct GeneralSettingsSummary: View {
                         Text("Reset")
                     }
                 }
-                .buttonStyle(WispflowButtonStyle.secondary)
+                .buttonStyle(VoxaButtonStyle.secondary)
                 .disabled(hotkeyManager.configuration == .defaultHotkey)
             }
             
@@ -4125,8 +4237,8 @@ struct GeneralSettingsSummary: View {
                         .scaleEffect(0.6)
                         .frame(width: 12, height: 12)
                     Text("Press your desired key combination...")
-                        .font(Font.Wispflow.caption)
-                        .foregroundColor(Color.Wispflow.accent)
+                        .font(Font.Voxa.caption)
+                        .foregroundColor(Color.Voxa.accent)
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
@@ -4141,25 +4253,25 @@ struct GeneralSettingsSummary: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "power")
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
                     .font(.system(size: 16, weight: .medium))
                 Text("Startup")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
             }
             
             VStack(alignment: .leading, spacing: Spacing.sm) {
-                Toggle("Launch WispFlow at Login", isOn: $launchAtLogin)
-                    .toggleStyle(WispflowToggleStyle())
-                    .font(Font.Wispflow.body)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                Toggle("Launch Voxa at Login", isOn: $launchAtLogin)
+                    .toggleStyle(VoxaToggleStyle())
+                    .font(Font.Voxa.body)
+                    .foregroundColor(Color.Voxa.textPrimary)
                     .onChange(of: launchAtLogin) { _, newValue in
                         setLaunchAtLogin(enabled: newValue)
                     }
                 
-                Text("Automatically start WispFlow when you log in to your Mac. WispFlow runs quietly in the menu bar.")
-                    .font(Font.Wispflow.caption)
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                Text("Automatically start Voxa when you log in to your Mac. Voxa runs quietly in the menu bar.")
+                    .font(Font.Voxa.caption)
+                    .foregroundColor(Color.Voxa.textSecondary)
                     .padding(.leading, Spacing.xxl + Spacing.md)
             }
         }
@@ -4172,16 +4284,16 @@ struct GeneralSettingsSummary: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "lock.shield")
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
                     .font(.system(size: 16, weight: .medium))
                 Text("Permissions")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
             }
             
-            Text("WispFlow requires these permissions to function. Grant permissions to enable voice recording and text insertion.")
-                .font(Font.Wispflow.caption)
-                .foregroundColor(Color.Wispflow.textSecondary)
+            Text("Voxa requires these permissions to function. Grant permissions to enable voice recording and text insertion.")
+                .font(Font.Voxa.caption)
+                .foregroundColor(Color.Voxa.textSecondary)
             
             // Microphone Permission Status
             GeneralSettingsPermissionRow(
@@ -4197,7 +4309,7 @@ struct GeneralSettingsSummary: View {
             )
             
             Divider()
-                .background(Color.Wispflow.border)
+                .background(Color.Voxa.border)
             
             // Accessibility Permission Status
             GeneralSettingsPermissionRow(
@@ -4253,12 +4365,12 @@ struct GeneralSettingsLinkButton: View {
                 Image(systemName: icon)
                     .font(.system(size: 12, weight: .medium))
                 Text(title)
-                    .font(Font.Wispflow.caption)
+                    .font(Font.Voxa.caption)
             }
-            .foregroundColor(isHovering ? Color.Wispflow.accent : Color.Wispflow.textSecondary)
+            .foregroundColor(isHovering ? Color.Voxa.accent : Color.Voxa.textSecondary)
             .padding(.horizontal, Spacing.md)
             .padding(.vertical, Spacing.sm)
-            .background(isHovering ? Color.Wispflow.accentLight : Color.Wispflow.border.opacity(0.3))
+            .background(isHovering ? Color.Voxa.accentLight : Color.Voxa.border.opacity(0.3))
             .cornerRadius(CornerRadius.small)
         }
         .buttonStyle(.plain)
@@ -4298,25 +4410,25 @@ struct GeneralSettingsHotkeyRecorder: View {
                 if isRecording {
                     // Animated recording indicator
                     Circle()
-                        .fill(Color.Wispflow.accent)
+                        .fill(Color.Voxa.accent)
                         .frame(width: 8, height: 8)
                         .scaleEffect(pulseAnimation ? 1.2 : 0.8)
                         .opacity(pulseAnimation ? 1.0 : 0.6)
                     
                     Text("Recording...")
-                        .font(Font.Wispflow.body)
+                        .font(Font.Voxa.body)
                         .fontWeight(.medium)
-                        .foregroundColor(Color.Wispflow.accent)
+                        .foregroundColor(Color.Voxa.accent)
                 } else {
                     // Keyboard icon
                     Image(systemName: "command")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(isHovering ? Color.Wispflow.accent : Color.Wispflow.textSecondary)
+                        .foregroundColor(isHovering ? Color.Voxa.accent : Color.Voxa.textSecondary)
                     
                     Text(hotkeyManager.hotkeyDisplayString)
-                        .font(Font.Wispflow.mono)
+                        .font(Font.Voxa.mono)
                         .fontWeight(.medium)
-                        .foregroundColor(Color.Wispflow.textPrimary)
+                        .foregroundColor(Color.Voxa.textPrimary)
                 }
             }
             .frame(minWidth: 140)
@@ -4326,23 +4438,23 @@ struct GeneralSettingsHotkeyRecorder: View {
             .background(
                 ZStack {
                     RoundedRectangle(cornerRadius: CornerRadius.medium)
-                        .fill(isRecording ? Color.Wispflow.accentLight : (isHovering ? Color.Wispflow.border.opacity(0.3) : Color.Wispflow.surface))
+                        .fill(isRecording ? Color.Voxa.accentLight : (isHovering ? Color.Voxa.border.opacity(0.3) : Color.Voxa.surface))
                     
                     if !isRecording {
                         RoundedRectangle(cornerRadius: CornerRadius.medium)
-                            .stroke(Color.Wispflow.border.opacity(0.5), lineWidth: 1)
+                            .stroke(Color.Voxa.border.opacity(0.5), lineWidth: 1)
                     }
                 }
             )
             .overlay(
                 RoundedRectangle(cornerRadius: CornerRadius.medium)
                     .stroke(
-                        isRecording ? Color.Wispflow.accent : (isHovering ? Color.Wispflow.accent.opacity(0.5) : Color.Wispflow.border),
+                        isRecording ? Color.Voxa.accent : (isHovering ? Color.Voxa.accent.opacity(0.5) : Color.Voxa.border),
                         lineWidth: isRecording ? 2 : 1
                     )
             )
             .shadow(
-                color: isRecording ? Color.Wispflow.accent.opacity(0.4) : (isHovering ? Color.Wispflow.accent.opacity(0.15) : Color.clear),
+                color: isRecording ? Color.Voxa.accent.opacity(0.4) : (isHovering ? Color.Voxa.accent.opacity(0.15) : Color.clear),
                 radius: isRecording ? 12 : 6,
                 x: 0,
                 y: 0
@@ -4472,40 +4584,40 @@ struct GeneralSettingsPermissionRow: View {
             // Permission icon
             ZStack {
                 Circle()
-                    .fill(isGranted ? Color.Wispflow.successLight : Color.Wispflow.errorLight)
+                    .fill(isGranted ? Color.Voxa.successLight : Color.Voxa.errorLight)
                     .frame(width: 36, height: 36)
                 
                 Image(systemName: icon)
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(isGranted ? Color.Wispflow.success : Color.Wispflow.error)
+                    .foregroundColor(isGranted ? Color.Voxa.success : Color.Voxa.error)
             }
             
             // Permission info
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 HStack(spacing: Spacing.sm) {
                     Text(title)
-                        .font(Font.Wispflow.body)
+                        .font(Font.Voxa.body)
                         .fontWeight(.medium)
-                        .foregroundColor(Color.Wispflow.textPrimary)
+                        .foregroundColor(Color.Voxa.textPrimary)
                     
                     // Status indicator
                     HStack(spacing: 4) {
                         Image(systemName: isGranted ? "checkmark.circle.fill" : "xmark.circle.fill")
                             .font(.system(size: 12, weight: .semibold))
                         Text(isGranted ? "Granted" : "Not Granted")
-                            .font(Font.Wispflow.small)
+                            .font(Font.Voxa.small)
                             .fontWeight(.medium)
                     }
-                    .foregroundColor(isGranted ? Color.Wispflow.success : Color.Wispflow.error)
+                    .foregroundColor(isGranted ? Color.Voxa.success : Color.Voxa.error)
                     .padding(.horizontal, Spacing.sm)
                     .padding(.vertical, 2)
-                    .background((isGranted ? Color.Wispflow.success : Color.Wispflow.error).opacity(0.12))
+                    .background((isGranted ? Color.Voxa.success : Color.Voxa.error).opacity(0.12))
                     .cornerRadius(CornerRadius.small / 2)
                 }
                 
                 Text(description)
-                    .font(Font.Wispflow.caption)
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .font(Font.Voxa.caption)
+                    .foregroundColor(Color.Voxa.textSecondary)
             }
             
             Spacer()
@@ -4518,13 +4630,13 @@ struct GeneralSettingsPermissionRow: View {
                         Text("Grant")
                     }
                 }
-                .buttonStyle(WispflowButtonStyle.primary)
+                .buttonStyle(VoxaButtonStyle.primary)
             }
         }
         .padding(.vertical, Spacing.sm)
         .background(
             RoundedRectangle(cornerRadius: CornerRadius.small)
-                .fill(isHovering ? Color.Wispflow.border.opacity(0.2) : Color.clear)
+                .fill(isHovering ? Color.Voxa.border.opacity(0.2) : Color.clear)
         )
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.15)) {
@@ -4573,11 +4685,11 @@ struct AudioSettingsSummary: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "mic.fill")
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
                     .font(.system(size: 16, weight: .medium))
                 Text("Input Device")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
                 
                 Spacer()
                 
@@ -4590,12 +4702,12 @@ struct AudioSettingsSummary: View {
                         Image(systemName: "arrow.clockwise")
                             .font(.system(size: 12, weight: .medium))
                         Text("Refresh")
-                            .font(Font.Wispflow.caption)
+                            .font(Font.Voxa.caption)
                     }
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .foregroundColor(Color.Voxa.textSecondary)
                     .padding(.horizontal, Spacing.md)
                     .padding(.vertical, Spacing.sm)
-                    .background(Color.Wispflow.border.opacity(0.3))
+                    .background(Color.Voxa.border.opacity(0.3))
                     .cornerRadius(CornerRadius.small)
                 }
                 .buttonStyle(PlainButtonStyle())
@@ -4603,8 +4715,8 @@ struct AudioSettingsSummary: View {
             }
             
             Text("Select the microphone to use for voice recording. USB microphones are recommended for best accuracy.")
-                .font(Font.Wispflow.caption)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.caption)
+                .foregroundColor(Color.Voxa.textSecondary)
             
             // Audio device picker dropdown (US-703 Task 1)
             AudioSettingsDevicePicker(
@@ -4626,36 +4738,36 @@ struct AudioSettingsSummary: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "waveform")
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
                     .font(.system(size: 16, weight: .medium))
                 Text("Audio Preview")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
             }
             
             Text("Test your microphone and see the input level in real-time.")
-                .font(Font.Wispflow.caption)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.caption)
+                .foregroundColor(Color.Voxa.textSecondary)
             
             // Audio level meter display (US-703 Task 2)
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 // Level meter header
                 HStack {
                     Text("Input Level")
-                        .font(Font.Wispflow.body)
-                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .font(Font.Voxa.body)
+                        .foregroundColor(Color.Voxa.textSecondary)
                     
                     Spacer()
                     
                     // Level value and status
                     HStack(spacing: Spacing.sm) {
                         Text(String(format: "%.1f dB", currentLevel))
-                            .font(Font.Wispflow.mono)
+                            .font(Font.Voxa.mono)
                             .foregroundColor(levelColor(for: currentLevel))
                         
                         // Status badge
                         Text(levelStatus(for: currentLevel))
-                            .font(Font.Wispflow.small)
+                            .font(Font.Voxa.small)
                             .fontWeight(.medium)
                             .foregroundColor(levelColor(for: currentLevel))
                             .padding(.horizontal, Spacing.sm)
@@ -4676,15 +4788,15 @@ struct AudioSettingsSummary: View {
                         Text(isPreviewingAudio ? "Stop Preview" : "Start Preview")
                     }
                 }
-                .buttonStyle(WispflowButtonStyle(variant: isPreviewingAudio ? .secondary : .primary))
+                .buttonStyle(VoxaButtonStyle(variant: isPreviewingAudio ? .secondary : .primary))
                 .padding(.top, Spacing.sm)
             }
             .padding(Spacing.lg)
-            .background(Color.Wispflow.surface)
+            .background(Color.Voxa.surface)
             .cornerRadius(CornerRadius.medium)
             .overlay(
                 RoundedRectangle(cornerRadius: CornerRadius.medium)
-                    .stroke(isPreviewingAudio ? Color.Wispflow.accent : Color.Wispflow.border, lineWidth: 1)
+                    .stroke(isPreviewingAudio ? Color.Voxa.accent : Color.Voxa.border, lineWidth: 1)
             )
         }
     }
@@ -4696,29 +4808,29 @@ struct AudioSettingsSummary: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "dial.low")
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
                     .font(.system(size: 16, weight: .medium))
                 Text("Input Sensitivity")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
             }
             
             Text("Adjust the microphone sensitivity. Higher values pick up quieter sounds but may introduce background noise.")
-                .font(Font.Wispflow.caption)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.caption)
+                .foregroundColor(Color.Voxa.textSecondary)
             
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 HStack {
                     Text("Sensitivity")
-                        .font(Font.Wispflow.body)
-                        .foregroundColor(Color.Wispflow.textPrimary)
+                        .font(Font.Voxa.body)
+                        .foregroundColor(Color.Voxa.textPrimary)
                     Spacer()
                     Text(String(format: "%.0f%%", inputGain * 100))
-                        .font(Font.Wispflow.mono)
-                        .foregroundColor(Color.Wispflow.accent)
+                        .font(Font.Voxa.mono)
+                        .foregroundColor(Color.Voxa.accent)
                         .padding(.horizontal, Spacing.sm)
                         .padding(.vertical, Spacing.xs)
-                        .background(Color.Wispflow.accentLight)
+                        .background(Color.Voxa.accentLight)
                         .cornerRadius(CornerRadius.small / 2)
                 }
                 
@@ -4728,12 +4840,12 @@ struct AudioSettingsSummary: View {
                 
                 HStack {
                     Text("Low")
-                        .font(Font.Wispflow.small)
-                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .font(Font.Voxa.small)
+                        .foregroundColor(Color.Voxa.textSecondary)
                     Spacer()
                     Text("High")
-                        .font(Font.Wispflow.small)
-                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .font(Font.Voxa.small)
+                        .foregroundColor(Color.Voxa.textSecondary)
                 }
                 
                 // Reset to default
@@ -4750,16 +4862,16 @@ struct AudioSettingsSummary: View {
                             Text("Reset to Default")
                         }
                     }
-                    .buttonStyle(WispflowButtonStyle.ghost)
+                    .buttonStyle(VoxaButtonStyle.ghost)
                     .disabled(inputGain == 1.0)
                 }
             }
             .padding(Spacing.lg)
-            .background(Color.Wispflow.surface)
+            .background(Color.Voxa.surface)
             .cornerRadius(CornerRadius.medium)
             .overlay(
                 RoundedRectangle(cornerRadius: CornerRadius.medium)
-                    .stroke(Color.Wispflow.border, lineWidth: 1)
+                    .stroke(Color.Voxa.border, lineWidth: 1)
             )
         }
     }
@@ -4771,16 +4883,16 @@ struct AudioSettingsSummary: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "tuningfork")
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
                     .font(.system(size: 16, weight: .medium))
                 Text("Audio Level Calibration")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
             }
             
-            Text("Calibrate your microphone for optimal silence detection in your environment. This helps WispFlow distinguish between ambient noise and speech.")
-                .font(Font.Wispflow.caption)
-                .foregroundColor(Color.Wispflow.textSecondary)
+            Text("Calibrate your microphone for optimal silence detection in your environment. This helps Voxa distinguish between ambient noise and speech.")
+                .font(Font.Voxa.caption)
+                .foregroundColor(Color.Voxa.textSecondary)
             
             // Calibration status display
             AudioSettingsCalibrationStatus(audioManager: audioManager)
@@ -4803,7 +4915,7 @@ struct AudioSettingsSummary: View {
                         Text(calibrateButtonText)
                     }
                 }
-                .buttonStyle(WispflowButtonStyle.primary)
+                .buttonStyle(VoxaButtonStyle.primary)
                 .disabled(isCalibrationDisabled)
                 
                 // Cancel button (shown during calibration)
@@ -4817,7 +4929,7 @@ struct AudioSettingsSummary: View {
                             Text("Cancel")
                         }
                     }
-                    .buttonStyle(WispflowButtonStyle.secondary)
+                    .buttonStyle(VoxaButtonStyle.secondary)
                 }
                 
                 Spacer()
@@ -4833,7 +4945,7 @@ struct AudioSettingsSummary: View {
                             Text("Reset to Defaults")
                         }
                     }
-                    .buttonStyle(WispflowButtonStyle.ghost)
+                    .buttonStyle(VoxaButtonStyle.ghost)
                     .disabled(isCalibrating)
                 }
             }
@@ -4906,13 +5018,13 @@ struct AudioSettingsSummary: View {
     
     private func levelColor(for level: Float) -> Color {
         if level > -10 {
-            return Color.Wispflow.error // Clipping/too loud
+            return Color.Voxa.error // Clipping/too loud
         } else if level > -30 {
-            return Color.Wispflow.success // Good level
+            return Color.Voxa.success // Good level
         } else if level > -50 {
-            return Color.Wispflow.warning // Quiet
+            return Color.Voxa.warning // Quiet
         } else {
-            return Color.Wispflow.textSecondary // Very quiet/silent
+            return Color.Voxa.textSecondary // Very quiet/silent
         }
     }
     
@@ -4986,29 +5098,29 @@ struct AudioSettingsDevicePicker: View {
                     // Device icon
                     Image(systemName: deviceIcon(for: selectedDevice))
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(Color.Wispflow.accent)
+                        .foregroundColor(Color.Voxa.accent)
                         .frame(width: 24)
                     
                     // Device name
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: Spacing.xs) {
                             Text(selectedDevice?.name ?? "No device selected")
-                                .font(Font.Wispflow.body)
-                                .foregroundColor(Color.Wispflow.textPrimary)
+                                .font(Font.Voxa.body)
+                                .foregroundColor(Color.Voxa.textPrimary)
                             
                             // Warning icon for low-quality selected device
                             if let device = selectedDevice, isLowQualityDevice(device) {
                                 Image(systemName: "exclamationmark.triangle.fill")
                                     .font(.system(size: 12, weight: .medium))
-                                    .foregroundColor(Color.Wispflow.warning)
+                                    .foregroundColor(Color.Voxa.warning)
                                     .help(lowQualityWarningText(for: device))
                             }
                         }
                         
                         if let device = selectedDevice, device.isDefault {
                             Text("System Default")
-                                .font(Font.Wispflow.small)
-                                .foregroundColor(Color.Wispflow.textSecondary)
+                                .font(Font.Voxa.small)
+                                .foregroundColor(Color.Voxa.textSecondary)
                         }
                     }
                     
@@ -5017,18 +5129,18 @@ struct AudioSettingsDevicePicker: View {
                     // Dropdown indicator
                     Image(systemName: "chevron.down")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .foregroundColor(Color.Voxa.textSecondary)
                         .rotationEffect(.degrees(isExpanded ? 180 : 0))
                 }
                 .padding(Spacing.md)
                 .contentShape(Rectangle())
                 .background(
                     RoundedRectangle(cornerRadius: CornerRadius.medium)
-                        .fill(isHovering ? Color.Wispflow.border.opacity(0.3) : Color.Wispflow.surface)
+                        .fill(isHovering ? Color.Voxa.border.opacity(0.3) : Color.Voxa.surface)
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: CornerRadius.medium)
-                        .stroke(isExpanded ? Color.Wispflow.accent : Color.Wispflow.border, lineWidth: 1)
+                        .stroke(isExpanded ? Color.Voxa.accent : Color.Voxa.border, lineWidth: 1)
                 )
             }
             .buttonStyle(.plain)
@@ -5056,13 +5168,13 @@ struct AudioSettingsDevicePicker: View {
                         )
                     }
                 }
-                .background(Color.Wispflow.surface)
+                .background(Color.Voxa.surface)
                 .cornerRadius(CornerRadius.medium)
                 .overlay(
                     RoundedRectangle(cornerRadius: CornerRadius.medium)
-                        .stroke(Color.Wispflow.border, lineWidth: 1)
+                        .stroke(Color.Voxa.border, lineWidth: 1)
                 )
-                .wispflowShadow(.card)
+                .voxaShadow(.card)
                 .padding(.top, Spacing.xs)
                 .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .top)))
             }
@@ -5137,33 +5249,33 @@ struct AudioSettingsDeviceRow: View {
                 // Device icon
                 Image(systemName: deviceIcon(for: device))
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(isSelected ? Color.Wispflow.accent : Color.Wispflow.textSecondary)
+                    .foregroundColor(isSelected ? Color.Voxa.accent : Color.Voxa.textSecondary)
                     .frame(width: 20)
                 
                 // Device name
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: Spacing.xs) {
                         Text(device.name)
-                            .font(Font.Wispflow.body)
-                            .foregroundColor(isSelected ? Color.Wispflow.accent : Color.Wispflow.textPrimary)
+                            .font(Font.Voxa.body)
+                            .foregroundColor(isSelected ? Color.Voxa.accent : Color.Voxa.textPrimary)
                         
                         // Warning icon for low-quality devices
                         if isLowQuality {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(Color.Wispflow.warning)
+                                .foregroundColor(Color.Voxa.warning)
                                 .help(lowQualityReason)
                         }
                     }
                     
                     if device.isDefault {
                         Text("System Default")
-                            .font(Font.Wispflow.small)
-                            .foregroundColor(Color.Wispflow.textSecondary)
+                            .font(Font.Voxa.small)
+                            .foregroundColor(Color.Voxa.textSecondary)
                     } else if isLowQuality {
                         Text("May reduce transcription accuracy")
-                            .font(Font.Wispflow.small)
-                            .foregroundColor(Color.Wispflow.warning)
+                            .font(Font.Voxa.small)
+                            .foregroundColor(Color.Voxa.warning)
                     }
                 }
                 
@@ -5173,14 +5285,14 @@ struct AudioSettingsDeviceRow: View {
                 if isSelected {
                     Image(systemName: "checkmark")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(Color.Wispflow.accent)
+                        .foregroundColor(Color.Voxa.accent)
                 }
             }
             .padding(Spacing.md)
             .contentShape(Rectangle())
             .background(
                 RoundedRectangle(cornerRadius: CornerRadius.small)
-                    .fill(isHovering ? Color.Wispflow.accentLight : Color.clear)
+                    .fill(isHovering ? Color.Voxa.accentLight : Color.clear)
             )
         }
         .buttonStyle(.plain)
@@ -5222,7 +5334,7 @@ struct AudioSettingsLevelMeter: View {
             ZStack(alignment: .leading) {
                 // Background track
                 RoundedRectangle(cornerRadius: CornerRadius.small)
-                    .fill(Color.Wispflow.border)
+                    .fill(Color.Voxa.border)
                 
                 // Segmented level indicator
                 HStack(spacing: 2) {
@@ -5242,11 +5354,11 @@ struct AudioSettingsLevelMeter: View {
     
     private func segmentColor(for segmentLevel: Float, isLit: Bool) -> Color {
         if segmentLevel > -10 {
-            return Color.Wispflow.error
+            return Color.Voxa.error
         } else if segmentLevel > -30 {
-            return Color.Wispflow.success
+            return Color.Voxa.success
         } else {
-            return Color.Wispflow.accent
+            return Color.Voxa.accent
         }
     }
 }
@@ -5269,14 +5381,14 @@ struct AudioSettingsSlider: View {
             ZStack(alignment: .leading) {
                 // Track background
                 RoundedRectangle(cornerRadius: 4)
-                    .fill(Color.Wispflow.border)
+                    .fill(Color.Voxa.border)
                     .frame(height: 8)
                 
                 // Filled track
                 RoundedRectangle(cornerRadius: 4)
                     .fill(
                         LinearGradient(
-                            colors: [Color.Wispflow.accent.opacity(0.7), Color.Wispflow.accent],
+                            colors: [Color.Voxa.accent.opacity(0.7), Color.Voxa.accent],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
@@ -5285,13 +5397,13 @@ struct AudioSettingsSlider: View {
                 
                 // Thumb
                 Circle()
-                    .fill(Color.Wispflow.surface)
+                    .fill(Color.Voxa.surface)
                     .frame(width: 20, height: 20)
                     .overlay(
                         Circle()
-                            .stroke(Color.Wispflow.accent, lineWidth: 2)
+                            .stroke(Color.Voxa.accent, lineWidth: 2)
                     )
-                    .shadow(color: Color.Wispflow.accent.opacity(isDragging ? 0.4 : 0.2), radius: isDragging ? 8 : 4)
+                    .shadow(color: Color.Voxa.accent.opacity(isDragging ? 0.4 : 0.2), radius: isDragging ? 8 : 4)
                     .scaleEffect(isDragging ? 1.1 : 1.0)
                     .offset(x: thumbPosition - 10)
             }
@@ -5339,11 +5451,11 @@ struct AudioSettingsCalibrationStatus: View {
             }
         }
         .padding(Spacing.md)
-        .background(Color.Wispflow.surface)
+        .background(Color.Voxa.surface)
         .cornerRadius(CornerRadius.medium)
         .overlay(
             RoundedRectangle(cornerRadius: CornerRadius.medium)
-                .stroke(Color.Wispflow.border, lineWidth: 1)
+                .stroke(Color.Voxa.border, lineWidth: 1)
         )
     }
 }
@@ -5359,33 +5471,33 @@ struct AudioSettingsCalibrationResult: View {
             // Status icon
             ZStack {
                 Circle()
-                    .fill(Color.Wispflow.successLight)
+                    .fill(Color.Voxa.successLight)
                     .frame(width: 36, height: 36)
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(Color.Wispflow.success)
+                    .foregroundColor(Color.Voxa.success)
             }
             
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 HStack(spacing: Spacing.sm) {
                     Text("Calibrated")
-                        .font(Font.Wispflow.body)
+                        .font(Font.Voxa.body)
                         .fontWeight(.medium)
-                        .foregroundColor(Color.Wispflow.textPrimary)
+                        .foregroundColor(Color.Voxa.textPrimary)
                     
                     // Status badge
                     HStack(spacing: 4) {
                         Circle()
-                            .fill(Color.Wispflow.success)
+                            .fill(Color.Voxa.success)
                             .frame(width: 6, height: 6)
                         Text("Active")
-                            .font(Font.Wispflow.small)
+                            .font(Font.Voxa.small)
                             .fontWeight(.medium)
                     }
-                    .foregroundColor(Color.Wispflow.success)
+                    .foregroundColor(Color.Voxa.success)
                     .padding(.horizontal, Spacing.sm)
                     .padding(.vertical, 2)
-                    .background(Color.Wispflow.success.opacity(0.12))
+                    .background(Color.Voxa.success.opacity(0.12))
                     .cornerRadius(CornerRadius.small / 2)
                 }
                 
@@ -5396,8 +5508,8 @@ struct AudioSettingsCalibrationResult: View {
                 
                 // Calibration date
                 Text("Last calibrated: \(formattedDate(calibration.calibrationDate))")
-                    .font(Font.Wispflow.small)
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .font(Font.Voxa.small)
+                    .foregroundColor(Color.Voxa.textSecondary)
             }
             
             Spacer()
@@ -5421,36 +5533,36 @@ struct AudioSettingsDefaultThreshold: View {
             // Status icon
             ZStack {
                 Circle()
-                    .fill(Color.Wispflow.border.opacity(0.3))
+                    .fill(Color.Voxa.border.opacity(0.3))
                     .frame(width: 36, height: 36)
                 Image(systemName: "circle.dashed")
                     .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .foregroundColor(Color.Voxa.textSecondary)
             }
             
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 HStack(spacing: Spacing.sm) {
                     Text("Not Calibrated")
-                        .font(Font.Wispflow.body)
+                        .font(Font.Voxa.body)
                         .fontWeight(.medium)
-                        .foregroundColor(Color.Wispflow.textPrimary)
+                        .foregroundColor(Color.Voxa.textPrimary)
                     
                     // Status badge
                     Text("Using Default")
-                        .font(Font.Wispflow.small)
+                        .font(Font.Voxa.small)
                         .fontWeight(.medium)
-                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .foregroundColor(Color.Voxa.textSecondary)
                         .padding(.horizontal, Spacing.sm)
                         .padding(.vertical, 2)
-                        .background(Color.Wispflow.border.opacity(0.3))
+                        .background(Color.Voxa.border.opacity(0.3))
                         .cornerRadius(CornerRadius.small / 2)
                 }
                 
                 AudioSettingsMetric(label: "Default Threshold", value: String(format: "%.0f dB", AudioManager.silenceThreshold))
                 
                 Text("Calibrate to optimize for your environment")
-                    .font(Font.Wispflow.small)
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .font(Font.Voxa.small)
+                    .foregroundColor(Color.Voxa.textSecondary)
             }
             
             Spacer()
@@ -5470,42 +5582,42 @@ struct AudioSettingsCalibrationProgress: View {
                 // Animated mic icon
                 ZStack {
                     Circle()
-                        .fill(Color.Wispflow.accentLight)
+                        .fill(Color.Voxa.accentLight)
                         .frame(width: 36, height: 36)
                     Image(systemName: "waveform")
                         .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(Color.Wispflow.accent)
+                        .foregroundColor(Color.Voxa.accent)
                 }
                 
                 VStack(alignment: .leading, spacing: Spacing.xs) {
                     Text("Measuring ambient noise...")
-                        .font(Font.Wispflow.body)
+                        .font(Font.Voxa.body)
                         .fontWeight(.medium)
-                        .foregroundColor(Color.Wispflow.textPrimary)
+                        .foregroundColor(Color.Voxa.textPrimary)
                     
                     Text("Please remain quiet for 3 seconds")
-                        .font(Font.Wispflow.caption)
-                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .font(Font.Voxa.caption)
+                        .foregroundColor(Color.Voxa.textSecondary)
                 }
                 
                 Spacer()
                 
                 Text("\(Int(progress * 100))%")
-                    .font(Font.Wispflow.mono)
+                    .font(Font.Voxa.mono)
                     .fontWeight(.semibold)
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
             }
             
             // Progress bar
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 5)
-                        .fill(Color.Wispflow.border)
+                        .fill(Color.Voxa.border)
                     
                     RoundedRectangle(cornerRadius: 5)
                         .fill(
                             LinearGradient(
-                                colors: [Color.Wispflow.accent.opacity(0.7), Color.Wispflow.accent],
+                                colors: [Color.Voxa.accent.opacity(0.7), Color.Voxa.accent],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
@@ -5533,11 +5645,11 @@ struct AudioSettingsCalibrationCompleted: View {
             // Success icon with animation
             ZStack {
                 Circle()
-                    .fill(Color.Wispflow.successLight)
+                    .fill(Color.Voxa.successLight)
                     .frame(width: 36, height: 36)
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(Color.Wispflow.success)
+                    .foregroundColor(Color.Voxa.success)
                     .scaleEffect(showCheckmark ? 1.0 : 0.5)
                     .opacity(showCheckmark ? 1.0 : 0.0)
             }
@@ -5545,9 +5657,9 @@ struct AudioSettingsCalibrationCompleted: View {
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 HStack(spacing: Spacing.sm) {
                     Text("Calibration Complete!")
-                        .font(Font.Wispflow.body)
+                        .font(Font.Voxa.body)
                         .fontWeight(.medium)
-                        .foregroundColor(Color.Wispflow.success)
+                        .foregroundColor(Color.Voxa.success)
                 }
                 
                 if let cal = calibration {
@@ -5579,22 +5691,22 @@ struct AudioSettingsCalibrationFailed: View {
             // Error icon
             ZStack {
                 Circle()
-                    .fill(Color.Wispflow.errorLight)
+                    .fill(Color.Voxa.errorLight)
                     .frame(width: 36, height: 36)
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(Color.Wispflow.error)
+                    .foregroundColor(Color.Voxa.error)
             }
             
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 Text("Calibration Failed")
-                    .font(Font.Wispflow.body)
+                    .font(Font.Voxa.body)
                     .fontWeight(.medium)
-                    .foregroundColor(Color.Wispflow.error)
+                    .foregroundColor(Color.Voxa.error)
                 
                 Text(message)
-                    .font(Font.Wispflow.caption)
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .font(Font.Voxa.caption)
+                    .foregroundColor(Color.Voxa.textSecondary)
             }
             
             Spacer()
@@ -5612,12 +5724,12 @@ struct AudioSettingsMetric: View {
     var body: some View {
         HStack(spacing: Spacing.xs) {
             Text(label + ":")
-                .font(Font.Wispflow.small)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.small)
+                .foregroundColor(Color.Voxa.textSecondary)
             Text(value)
-                .font(Font.Wispflow.mono)
+                .font(Font.Voxa.mono)
                 .fontWeight(.medium)
-                .foregroundColor(Color.Wispflow.accent)
+                .foregroundColor(Color.Voxa.accent)
         }
     }
 }
@@ -5687,16 +5799,16 @@ struct TranscriptionSettingsSummary: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "cpu")
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
                     .font(.system(size: 16, weight: .medium))
                 Text("Whisper Model")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
             }
             
             Text("Select a model size. Larger models are more accurate but slower and use more memory.")
-                .font(Font.Wispflow.caption)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.caption)
+                .foregroundColor(Color.Voxa.textSecondary)
             
             // Card-based model picker (US-704)
             VStack(spacing: Spacing.sm) {
@@ -5726,17 +5838,17 @@ struct TranscriptionSettingsSummary: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "arrow.down.circle")
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
                     .font(.system(size: 16, weight: .medium))
                 Text("Model Actions")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
             }
             
             // Status message
             Text(whisperManager.statusMessage)
-                .font(Font.Wispflow.body)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.body)
+                .foregroundColor(Color.Voxa.textSecondary)
             
             // Download progress bar (US-704 Task 2)
             if case .downloading(let progress) = whisperManager.modelStatus {
@@ -5744,13 +5856,13 @@ struct TranscriptionSettingsSummary: View {
                     // Progress percentage header
                     HStack {
                         Text("Downloading \(whisperManager.selectedModel.displayName.components(separatedBy: " (").first ?? "model")...")
-                            .font(Font.Wispflow.body)
-                            .foregroundColor(Color.Wispflow.textPrimary)
+                            .font(Font.Voxa.body)
+                            .foregroundColor(Color.Voxa.textPrimary)
                         Spacer()
                         Text("\(Int(progress * 100))%")
-                            .font(Font.Wispflow.mono)
+                            .font(Font.Voxa.mono)
                             .fontWeight(.semibold)
-                            .foregroundColor(Color.Wispflow.accent)
+                            .foregroundColor(Color.Voxa.accent)
                     }
                     
                     // Gradient progress bar
@@ -5759,11 +5871,11 @@ struct TranscriptionSettingsSummary: View {
                     
                     // Status message
                     Text("Please wait, this may take a few minutes...")
-                        .font(Font.Wispflow.small)
-                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .font(Font.Voxa.small)
+                        .foregroundColor(Color.Voxa.textSecondary)
                 }
                 .padding(Spacing.md)
-                .background(Color.Wispflow.accentLight.opacity(0.5))
+                .background(Color.Voxa.accentLight.opacity(0.5))
                 .cornerRadius(CornerRadius.small)
             }
             
@@ -5793,7 +5905,7 @@ struct TranscriptionSettingsSummary: View {
                     }
                 }
                 .disabled(isLoadingModel || whisperManager.modelStatus == .ready)
-                .buttonStyle(WispflowButtonStyle.primary)
+                .buttonStyle(VoxaButtonStyle.primary)
                 
                 // Retry button (shown when there's an error)
                 if case .error = whisperManager.modelStatus {
@@ -5814,7 +5926,7 @@ struct TranscriptionSettingsSummary: View {
                         }
                     }
                     .disabled(isLoadingModel)
-                    .buttonStyle(WispflowButtonStyle.secondary)
+                    .buttonStyle(VoxaButtonStyle.secondary)
                     
                     Button(action: {
                         showErrorAlert = true
@@ -5824,7 +5936,7 @@ struct TranscriptionSettingsSummary: View {
                             Text("Details")
                         }
                     }
-                    .buttonStyle(WispflowButtonStyle.ghost)
+                    .buttonStyle(VoxaButtonStyle.ghost)
                 }
                 
                 // Delete button (if model is downloaded)
@@ -5839,7 +5951,7 @@ struct TranscriptionSettingsSummary: View {
                         }
                     }
                     .disabled(isLoadingModel)
-                    .buttonStyle(WispflowButtonStyle.secondary)
+                    .buttonStyle(VoxaButtonStyle.secondary)
                 }
             }
         }
@@ -5853,16 +5965,16 @@ struct TranscriptionSettingsSummary: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "globe")
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
                     .font(.system(size: 16, weight: .medium))
                 Text("Transcription Language")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
             }
             
             Text("Select the language for speech recognition. Auto-detect works best for most cases.")
-                .font(Font.Wispflow.caption)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.caption)
+                .foregroundColor(Color.Voxa.textSecondary)
             
             // Language picker dropdown
             TranscriptionLanguagePicker(
@@ -5880,11 +5992,11 @@ struct TranscriptionSettingsSummary: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "info.circle")
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
                     .font(.system(size: 16, weight: .medium))
                 Text("Quality vs Speed")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
             }
             
             VStack(alignment: .leading, spacing: Spacing.sm) {
@@ -5910,11 +6022,11 @@ struct TranscriptionSettingsSummary: View {
                 )
             }
             .padding(Spacing.md)
-            .background(Color.Wispflow.surface)
+            .background(Color.Voxa.surface)
             .cornerRadius(CornerRadius.medium)
             .overlay(
                 RoundedRectangle(cornerRadius: CornerRadius.medium)
-                    .stroke(Color.Wispflow.border, lineWidth: 1)
+                    .stroke(Color.Voxa.border, lineWidth: 1)
             )
         }
     }
@@ -5987,27 +6099,27 @@ struct TranscriptionModelCard: View {
                 // Model icon
                 ZStack {
                     RoundedRectangle(cornerRadius: CornerRadius.small)
-                        .fill(isSelected ? Color.Wispflow.accentLight : Color.Wispflow.border.opacity(0.3))
+                        .fill(isSelected ? Color.Voxa.accentLight : Color.Voxa.border.opacity(0.3))
                         .frame(width: 44, height: 44)
                     
                     Image(systemName: modelInfo.icon)
                         .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(isSelected ? Color.Wispflow.accent : Color.Wispflow.textSecondary)
+                        .foregroundColor(isSelected ? Color.Voxa.accent : Color.Voxa.textSecondary)
                 }
                 
                 // Model info
                 VStack(alignment: .leading, spacing: Spacing.xs) {
                     HStack(spacing: Spacing.sm) {
                         Text(model.displayName.components(separatedBy: " (").first ?? model.rawValue.capitalized)
-                            .font(Font.Wispflow.body)
+                            .font(Font.Voxa.body)
                             .fontWeight(.medium)
-                            .foregroundColor(Color.Wispflow.textPrimary)
+                            .foregroundColor(Color.Voxa.textPrimary)
                         
                         // Status badge
                         if isActive {
-                            TranscriptionModelBadge(text: "Active", color: Color.Wispflow.success)
+                            TranscriptionModelBadge(text: "Active", color: Color.Voxa.success)
                         } else if isDownloaded {
-                            TranscriptionModelBadge(text: "Downloaded", color: Color.Wispflow.accent)
+                            TranscriptionModelBadge(text: "Downloaded", color: Color.Voxa.accent)
                         }
                     }
                     
@@ -6024,12 +6136,12 @@ struct TranscriptionModelCard: View {
                 // Selection indicator
                 ZStack {
                     Circle()
-                        .stroke(isSelected ? Color.Wispflow.accent : Color.Wispflow.border, lineWidth: 2)
+                        .stroke(isSelected ? Color.Voxa.accent : Color.Voxa.border, lineWidth: 2)
                         .frame(width: 22, height: 22)
                     
                     if isSelected {
                         Circle()
-                            .fill(Color.Wispflow.accent)
+                            .fill(Color.Voxa.accent)
                             .frame(width: 14, height: 14)
                     }
                 }
@@ -6038,14 +6150,14 @@ struct TranscriptionModelCard: View {
             .contentShape(Rectangle())
             .background(
                 RoundedRectangle(cornerRadius: CornerRadius.medium)
-                    .fill(isHovering ? Color.Wispflow.border.opacity(0.2) : Color.Wispflow.surface)
+                    .fill(isHovering ? Color.Voxa.border.opacity(0.2) : Color.Voxa.surface)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: CornerRadius.medium)
-                    .stroke(isSelected ? Color.Wispflow.accent : Color.Wispflow.border.opacity(0.5), lineWidth: isSelected ? 2 : 1)
+                    .stroke(isSelected ? Color.Voxa.accent : Color.Voxa.border.opacity(0.5), lineWidth: isSelected ? 2 : 1)
             )
             .shadow(
-                color: isSelected ? Color.Wispflow.accent.opacity(0.15) : Color.clear,
+                color: isSelected ? Color.Voxa.accent.opacity(0.15) : Color.clear,
                 radius: 8,
                 x: 0,
                 y: 2
@@ -6069,7 +6181,7 @@ struct TranscriptionModelBadge: View {
     
     var body: some View {
         Text(text)
-            .font(Font.Wispflow.small)
+            .font(Font.Voxa.small)
             .fontWeight(.medium)
             .foregroundColor(color)
             .padding(.horizontal, Spacing.sm)
@@ -6090,10 +6202,10 @@ struct TranscriptionModelSpec: View {
         HStack(spacing: 4) {
             Image(systemName: icon)
                 .font(.system(size: 10))
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .foregroundColor(Color.Voxa.textSecondary)
             Text(text)
-                .font(Font.Wispflow.small)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.small)
+                .foregroundColor(Color.Voxa.textSecondary)
         }
     }
 }
@@ -6109,16 +6221,16 @@ struct TranscriptionProgressBar: View {
             ZStack(alignment: .leading) {
                 // Background track
                 RoundedRectangle(cornerRadius: 5)
-                    .fill(Color.Wispflow.border)
+                    .fill(Color.Voxa.border)
                 
                 // Gradient fill
                 RoundedRectangle(cornerRadius: 5)
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color.Wispflow.accent.opacity(0.7),
-                                Color.Wispflow.accent,
-                                Color.Wispflow.accent.opacity(0.9)
+                                Color.Voxa.accent.opacity(0.7),
+                                Color.Voxa.accent,
+                                Color.Voxa.accent.opacity(0.9)
                             ],
                             startPoint: .leading,
                             endPoint: .trailing
@@ -6173,13 +6285,13 @@ struct TranscriptionLanguagePicker: View {
                     // Language name
                     VStack(alignment: .leading, spacing: 2) {
                         Text(selectedLanguage.displayName)
-                            .font(Font.Wispflow.body)
-                            .foregroundColor(Color.Wispflow.textPrimary)
+                            .font(Font.Voxa.body)
+                            .foregroundColor(Color.Voxa.textPrimary)
                         
                         if selectedLanguage == .automatic {
                             Text("Recommended for mixed-language content")
-                                .font(Font.Wispflow.small)
-                                .foregroundColor(Color.Wispflow.textSecondary)
+                                .font(Font.Voxa.small)
+                                .foregroundColor(Color.Voxa.textSecondary)
                         }
                     }
                     
@@ -6188,18 +6300,18 @@ struct TranscriptionLanguagePicker: View {
                     // Dropdown indicator
                     Image(systemName: "chevron.down")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .foregroundColor(Color.Voxa.textSecondary)
                         .rotationEffect(.degrees(isExpanded ? 180 : 0))
                 }
                 .padding(Spacing.md)
                 .contentShape(Rectangle())
                 .background(
                     RoundedRectangle(cornerRadius: CornerRadius.medium)
-                        .fill(isHovering ? Color.Wispflow.border.opacity(0.3) : Color.Wispflow.surface)
+                        .fill(isHovering ? Color.Voxa.border.opacity(0.3) : Color.Voxa.surface)
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: CornerRadius.medium)
-                        .stroke(isExpanded ? Color.Wispflow.accent : Color.Wispflow.border, lineWidth: 1)
+                        .stroke(isExpanded ? Color.Voxa.accent : Color.Voxa.border, lineWidth: 1)
                 )
             }
             .buttonStyle(.plain)
@@ -6229,13 +6341,13 @@ struct TranscriptionLanguagePicker: View {
                     }
                 }
                 .frame(maxHeight: 250)
-                .background(Color.Wispflow.surface)
+                .background(Color.Voxa.surface)
                 .cornerRadius(CornerRadius.medium)
                 .overlay(
                     RoundedRectangle(cornerRadius: CornerRadius.medium)
-                        .stroke(Color.Wispflow.border, lineWidth: 1)
+                        .stroke(Color.Voxa.border, lineWidth: 1)
                 )
-                .wispflowShadow(.card)
+                .voxaShadow(.card)
                 .padding(.top, Spacing.xs)
                 .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .top)))
             }
@@ -6262,16 +6374,16 @@ struct TranscriptionLanguageRow: View {
                 
                 // Language name
                 Text(language.displayName)
-                    .font(Font.Wispflow.body)
-                    .foregroundColor(isSelected ? Color.Wispflow.accent : Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.body)
+                    .foregroundColor(isSelected ? Color.Voxa.accent : Color.Voxa.textPrimary)
                 
                 if language == .automatic {
                     Text("Recommended")
-                        .font(Font.Wispflow.small)
-                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .font(Font.Voxa.small)
+                        .foregroundColor(Color.Voxa.textSecondary)
                         .padding(.horizontal, Spacing.sm)
                         .padding(.vertical, 2)
-                        .background(Color.Wispflow.border.opacity(0.5))
+                        .background(Color.Voxa.border.opacity(0.5))
                         .cornerRadius(CornerRadius.small / 2)
                 }
                 
@@ -6281,14 +6393,14 @@ struct TranscriptionLanguageRow: View {
                 if isSelected {
                     Image(systemName: "checkmark")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(Color.Wispflow.accent)
+                        .foregroundColor(Color.Voxa.accent)
                 }
             }
             .padding(Spacing.md)
             .contentShape(Rectangle())
             .background(
                 RoundedRectangle(cornerRadius: CornerRadius.small)
-                    .fill(isHovering ? Color.Wispflow.accentLight : Color.clear)
+                    .fill(isHovering ? Color.Voxa.accentLight : Color.clear)
             )
         }
         .buttonStyle(.plain)
@@ -6313,18 +6425,18 @@ struct TranscriptionTradeoffRow: View {
         HStack(spacing: Spacing.md) {
             Image(systemName: icon)
                 .font(.system(size: 16, weight: .medium))
-                .foregroundColor(highlight ? Color.Wispflow.accent : Color.Wispflow.textSecondary)
+                .foregroundColor(highlight ? Color.Voxa.accent : Color.Voxa.textSecondary)
                 .frame(width: 24)
             
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(Font.Wispflow.body)
+                    .font(Font.Voxa.body)
                     .fontWeight(highlight ? .semibold : .regular)
-                    .foregroundColor(highlight ? Color.Wispflow.textPrimary : Color.Wispflow.textSecondary)
+                    .foregroundColor(highlight ? Color.Voxa.textPrimary : Color.Voxa.textSecondary)
                 
                 Text(description)
-                    .font(Font.Wispflow.small)
-                    .foregroundColor(Color.Wispflow.textTertiary)
+                    .font(Font.Voxa.small)
+                    .foregroundColor(Color.Voxa.textTertiary)
             }
             
             Spacer()
@@ -6332,13 +6444,13 @@ struct TranscriptionTradeoffRow: View {
             if highlight {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
             }
         }
         .padding(.vertical, Spacing.sm)
         .background(
             RoundedRectangle(cornerRadius: CornerRadius.small)
-                .fill(highlight ? Color.Wispflow.accentLight.opacity(0.5) : Color.clear)
+                .fill(highlight ? Color.Voxa.accentLight.opacity(0.5) : Color.clear)
         )
         .padding(.horizontal, Spacing.xs)
     }
@@ -6376,29 +6488,29 @@ struct TextCleanupSettingsSummary: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "wand.and.stars")
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
                     .font(.system(size: 16, weight: .medium))
                 Text("Text Cleanup")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
                 
                 Spacer()
                 
                 // Status badge
                 StatusPill(
                     text: textCleanupManager.isCleanupEnabled ? "Enabled" : "Disabled",
-                    color: textCleanupManager.isCleanupEnabled ? Color.Wispflow.success : Color.Wispflow.textTertiary
+                    color: textCleanupManager.isCleanupEnabled ? Color.Voxa.success : Color.Voxa.textTertiary
                 )
             }
             
             Toggle("Enable Text Cleanup", isOn: $textCleanupManager.isCleanupEnabled)
-                .toggleStyle(WispflowToggleStyle())
-                .font(Font.Wispflow.body)
-                .foregroundColor(Color.Wispflow.textPrimary)
+                .toggleStyle(VoxaToggleStyle())
+                .font(Font.Voxa.body)
+                .foregroundColor(Color.Voxa.textPrimary)
             
             Text("When enabled, transcribed text will be cleaned up to remove filler words, fix grammar, and improve formatting.")
-                .font(Font.Wispflow.caption)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.caption)
+                .foregroundColor(Color.Voxa.textSecondary)
         }
     }
     
@@ -6410,16 +6522,16 @@ struct TextCleanupSettingsSummary: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "minus.circle")
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
                     .font(.system(size: 16, weight: .medium))
                 Text("Cleanup Mode")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
             }
             
             Text("Select a cleanup intensity level. Higher levels remove more filler words and apply more formatting.")
-                .font(Font.Wispflow.caption)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.caption)
+                .foregroundColor(Color.Voxa.textSecondary)
             
             // Mode selection cards
             VStack(spacing: Spacing.sm) {
@@ -6443,14 +6555,14 @@ struct TextCleanupSettingsSummary: View {
             // Mode description
             HStack(spacing: Spacing.sm) {
                 Image(systemName: modeDescriptionIcon)
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .foregroundColor(Color.Voxa.textSecondary)
                     .font(.system(size: 12))
                 Text(textCleanupManager.selectedMode.description)
-                    .font(Font.Wispflow.caption)
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .font(Font.Voxa.caption)
+                    .foregroundColor(Color.Voxa.textSecondary)
             }
             .padding(Spacing.sm)
-            .background(Color.Wispflow.border.opacity(0.3))
+            .background(Color.Voxa.border.opacity(0.3))
             .cornerRadius(CornerRadius.small)
         }
     }
@@ -6463,16 +6575,16 @@ struct TextCleanupSettingsSummary: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "text.badge.plus")
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
                     .font(.system(size: 16, weight: .medium))
                 Text("Post-Processing")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
             }
             
             Text("These options apply to all transcriptions, even when full text cleanup is disabled.")
-                .font(Font.Wispflow.caption)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.caption)
+                .foregroundColor(Color.Voxa.textSecondary)
             
             VStack(alignment: .leading, spacing: Spacing.md) {
                 // Auto-capitalize first letter toggle
@@ -6484,7 +6596,7 @@ struct TextCleanupSettingsSummary: View {
                 )
                 
                 Divider()
-                    .background(Color.Wispflow.border)
+                    .background(Color.Voxa.border)
                 
                 // Add period at end toggle
                 TextCleanupToggleRow(
@@ -6495,7 +6607,7 @@ struct TextCleanupSettingsSummary: View {
                 )
                 
                 Divider()
-                    .background(Color.Wispflow.border)
+                    .background(Color.Voxa.border)
                 
                 // Trim whitespace toggle
                 TextCleanupToggleRow(
@@ -6506,11 +6618,11 @@ struct TextCleanupSettingsSummary: View {
                 )
             }
             .padding(Spacing.md)
-            .background(Color.Wispflow.surface)
+            .background(Color.Voxa.surface)
             .cornerRadius(CornerRadius.medium)
             .overlay(
                 RoundedRectangle(cornerRadius: CornerRadius.medium)
-                    .stroke(Color.Wispflow.border, lineWidth: 1)
+                    .stroke(Color.Voxa.border, lineWidth: 1)
             )
         }
     }
@@ -6522,16 +6634,16 @@ struct TextCleanupSettingsSummary: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "eye")
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
                     .font(.system(size: 16, weight: .medium))
                 Text("Preview")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
             }
             
             Text("See how your transcriptions will be cleaned up with the selected mode.")
-                .font(Font.Wispflow.caption)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.caption)
+                .foregroundColor(Color.Voxa.textSecondary)
             
             // Preview cards
             VStack(alignment: .leading, spacing: Spacing.sm) {
@@ -6539,7 +6651,7 @@ struct TextCleanupSettingsSummary: View {
                 TextCleanupPreviewText(
                     label: "Before",
                     text: sampleBefore,
-                    color: Color.Wispflow.error
+                    color: Color.Voxa.error
                 )
                 
                 // Arrow indicator
@@ -6547,7 +6659,7 @@ struct TextCleanupSettingsSummary: View {
                     Spacer()
                     Image(systemName: "arrow.down")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(Color.Wispflow.accent)
+                        .foregroundColor(Color.Voxa.accent)
                     Spacer()
                 }
                 .padding(.vertical, Spacing.xs)
@@ -6556,7 +6668,7 @@ struct TextCleanupSettingsSummary: View {
                 TextCleanupPreviewText(
                     label: "After (\(textCleanupManager.selectedMode.displayName.components(separatedBy: " ").first ?? ""))",
                     text: sampleAfter,
-                    color: Color.Wispflow.success
+                    color: Color.Voxa.success
                 )
             }
         }
@@ -6633,17 +6745,17 @@ struct TextCleanupModeCard: View {
                 // Mode icon
                 ZStack {
                     RoundedRectangle(cornerRadius: CornerRadius.small)
-                        .fill(isSelected ? Color.Wispflow.accentLight : Color.Wispflow.border.opacity(0.3))
+                        .fill(isSelected ? Color.Voxa.accentLight : Color.Voxa.border.opacity(0.3))
                         .frame(width: 44, height: 44)
                     
                     Image(systemName: modeInfo.icon)
                         .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(isSelected ? Color.Wispflow.accent : Color.Wispflow.textSecondary)
+                        .foregroundColor(isSelected ? Color.Voxa.accent : Color.Voxa.textSecondary)
                     
                     // LLM ready indicator for AI mode
                     if mode == .aiPowered && llmReady {
                         Circle()
-                            .fill(Color.Wispflow.success)
+                            .fill(Color.Voxa.success)
                             .frame(width: 8, height: 8)
                             .offset(x: 14, y: -14)
                     }
@@ -6653,23 +6765,23 @@ struct TextCleanupModeCard: View {
                 VStack(alignment: .leading, spacing: Spacing.xs) {
                     HStack(spacing: Spacing.sm) {
                         Text(modeInfo.shortName)
-                            .font(Font.Wispflow.body)
+                            .font(Font.Voxa.body)
                             .fontWeight(.medium)
-                            .foregroundColor(Color.Wispflow.textPrimary)
+                            .foregroundColor(Color.Voxa.textPrimary)
                         
                         // LLM status for AI mode
                         if mode == .aiPowered {
                             TextCleanupModeBadge(
                                 text: llmReady ? "LLM Ready" : "LLM Required",
-                                color: llmReady ? Color.Wispflow.success : Color.Wispflow.warning
+                                color: llmReady ? Color.Voxa.success : Color.Voxa.warning
                             )
                         }
                     }
                     
                     // Filler words removed description
                     Text("Removes: \(modeInfo.fillerWords)")
-                        .font(Font.Wispflow.small)
-                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .font(Font.Voxa.small)
+                        .foregroundColor(Color.Voxa.textSecondary)
                         .lineLimit(1)
                 }
                 
@@ -6678,12 +6790,12 @@ struct TextCleanupModeCard: View {
                 // Selection indicator
                 ZStack {
                     Circle()
-                        .stroke(isSelected ? Color.Wispflow.accent : Color.Wispflow.border, lineWidth: 2)
+                        .stroke(isSelected ? Color.Voxa.accent : Color.Voxa.border, lineWidth: 2)
                         .frame(width: 22, height: 22)
                     
                     if isSelected {
                         Circle()
-                            .fill(Color.Wispflow.accent)
+                            .fill(Color.Voxa.accent)
                             .frame(width: 14, height: 14)
                     }
                 }
@@ -6692,14 +6804,14 @@ struct TextCleanupModeCard: View {
             .contentShape(Rectangle())
             .background(
                 RoundedRectangle(cornerRadius: CornerRadius.medium)
-                    .fill(isHovering ? Color.Wispflow.border.opacity(0.2) : Color.Wispflow.surface)
+                    .fill(isHovering ? Color.Voxa.border.opacity(0.2) : Color.Voxa.surface)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: CornerRadius.medium)
-                    .stroke(isSelected ? Color.Wispflow.accent : Color.Wispflow.border.opacity(0.5), lineWidth: isSelected ? 2 : 1)
+                    .stroke(isSelected ? Color.Voxa.accent : Color.Voxa.border.opacity(0.5), lineWidth: isSelected ? 2 : 1)
             )
             .shadow(
-                color: isSelected ? Color.Wispflow.accent.opacity(0.15) : Color.clear,
+                color: isSelected ? Color.Voxa.accent.opacity(0.15) : Color.clear,
                 radius: 8,
                 x: 0,
                 y: 2
@@ -6724,7 +6836,7 @@ struct TextCleanupModeBadge: View {
     
     var body: some View {
         Text(text)
-            .font(Font.Wispflow.small)
+            .font(Font.Voxa.small)
             .fontWeight(.medium)
             .foregroundColor(color)
             .padding(.horizontal, Spacing.sm)
@@ -6750,22 +6862,22 @@ struct TextCleanupToggleRow: View {
                 HStack(spacing: Spacing.sm) {
                     Image(systemName: icon)
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(isOn ? Color.Wispflow.accent : Color.Wispflow.textSecondary)
+                        .foregroundColor(isOn ? Color.Voxa.accent : Color.Voxa.textSecondary)
                         .frame(width: 20)
                     
                     Text(title)
-                        .font(Font.Wispflow.body)
-                        .foregroundColor(Color.Wispflow.textPrimary)
+                        .font(Font.Voxa.body)
+                        .foregroundColor(Color.Voxa.textPrimary)
                 }
             }
-            .toggleStyle(WispflowToggleStyle())
+            .toggleStyle(VoxaToggleStyle())
             .onChange(of: isOn) { _, newValue in
                 print("[US-705] Post-processing toggle '\(title)' changed to: \(newValue)")
             }
             
             Text(description)
-                .font(Font.Wispflow.small)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.small)
+                .foregroundColor(Color.Voxa.textSecondary)
                 .padding(.leading, Spacing.xxl + Spacing.md)
         }
     }
@@ -6786,14 +6898,14 @@ struct TextCleanupPreviewText: View {
                     .fill(color.opacity(0.5))
                     .frame(width: 8, height: 8)
                 Text(label)
-                    .font(Font.Wispflow.small)
+                    .font(Font.Voxa.small)
                     .fontWeight(.semibold)
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .foregroundColor(Color.Voxa.textSecondary)
             }
             
             Text(text)
-                .font(Font.Wispflow.body)
-                .foregroundColor(label.contains("Before") ? Color.Wispflow.textSecondary : Color.Wispflow.textPrimary)
+                .font(Font.Voxa.body)
+                .foregroundColor(label.contains("Before") ? Color.Voxa.textSecondary : Color.Voxa.textPrimary)
                 .padding(Spacing.md)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(color.opacity(0.08))
@@ -6817,27 +6929,27 @@ struct TextInsertionSettingsSummary: View {
             insertionMethodSection
             
             Divider()
-                .background(Color.Wispflow.border)
+                .background(Color.Voxa.border)
             
             // MARK: - Clipboard Preservation Section (US-706 Task 2)
             clipboardPreservationSection
             
             Divider()
-                .background(Color.Wispflow.border)
+                .background(Color.Voxa.border)
             
             // MARK: - Timing Options Section (US-706 Task 3)
             if textInserter.preserveClipboard {
                 timingOptionsSection
                 
                 Divider()
-                    .background(Color.Wispflow.border)
+                    .background(Color.Voxa.border)
             }
             
             // MARK: - Accessibility Permission Section
             accessibilityPermissionSection
             
             Divider()
-                .background(Color.Wispflow.border)
+                .background(Color.Voxa.border)
             
             // MARK: - How It Works Section
             howItWorksSection
@@ -6867,15 +6979,15 @@ struct TextInsertionSettingsSummary: View {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "keyboard.badge.ellipsis")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
                 Text("Insertion Method")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
             }
             
             Text("Choose how transcribed text is inserted into your applications.")
-                .font(Font.Wispflow.caption)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.caption)
+                .foregroundColor(Color.Voxa.textSecondary)
             
             // Method selection card
             TextInsertionMethodCard(
@@ -6890,13 +7002,13 @@ struct TextInsertionSettingsSummary: View {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "info.circle.fill")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(Color.Wispflow.info)
+                    .foregroundColor(Color.Voxa.info)
                 Text("The paste method is the most reliable and works across all applications.")
-                    .font(Font.Wispflow.small)
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .font(Font.Voxa.small)
+                    .foregroundColor(Color.Voxa.textSecondary)
             }
             .padding(Spacing.sm)
-            .background(Color.Wispflow.infoLight.opacity(0.3))
+            .background(Color.Voxa.infoLight.opacity(0.3))
             .cornerRadius(CornerRadius.small)
         }
     }
@@ -6910,10 +7022,10 @@ struct TextInsertionSettingsSummary: View {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "doc.on.clipboard.fill")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
                 Text("Clipboard Preservation")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
             }
             
             // Toggle row
@@ -6928,14 +7040,14 @@ struct TextInsertionSettingsSummary: View {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: textInserter.preserveClipboard ? "checkmark.circle.fill" : "xmark.circle.fill")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(textInserter.preserveClipboard ? Color.Wispflow.success : Color.Wispflow.textTertiary)
+                    .foregroundColor(textInserter.preserveClipboard ? Color.Voxa.success : Color.Voxa.textTertiary)
                 
                 Text(textInserter.preserveClipboard ? "Your clipboard will be restored after insertion" : "Clipboard will not be restored")
-                    .font(Font.Wispflow.small)
-                    .foregroundColor(textInserter.preserveClipboard ? Color.Wispflow.success : Color.Wispflow.textSecondary)
+                    .font(Font.Voxa.small)
+                    .foregroundColor(textInserter.preserveClipboard ? Color.Voxa.success : Color.Voxa.textSecondary)
             }
             .padding(Spacing.sm)
-            .background(textInserter.preserveClipboard ? Color.Wispflow.successLight.opacity(0.3) : Color.Wispflow.border.opacity(0.2))
+            .background(textInserter.preserveClipboard ? Color.Voxa.successLight.opacity(0.3) : Color.Voxa.border.opacity(0.2))
             .cornerRadius(CornerRadius.small)
         }
     }
@@ -6949,33 +7061,33 @@ struct TextInsertionSettingsSummary: View {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "clock.fill")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
                 Text("Timing Options")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
             }
             
             Text("Configure the delay before restoring clipboard contents.")
-                .font(Font.Wispflow.caption)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.caption)
+                .foregroundColor(Color.Voxa.textSecondary)
             
             // Delay slider with visual display
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 HStack {
                     Text("Restore Delay")
-                        .font(Font.Wispflow.body)
-                        .foregroundColor(Color.Wispflow.textPrimary)
+                        .font(Font.Voxa.body)
+                        .foregroundColor(Color.Voxa.textPrimary)
                     
                     Spacer()
                     
                     // Formatted delay value badge
                     Text(String(format: "%.1f seconds", textInserter.clipboardRestoreDelay))
-                        .font(Font.Wispflow.caption)
+                        .font(Font.Voxa.caption)
                         .fontWeight(.semibold)
-                        .foregroundColor(Color.Wispflow.accent)
+                        .foregroundColor(Color.Voxa.accent)
                         .padding(.horizontal, Spacing.sm)
                         .padding(.vertical, Spacing.xs)
-                        .background(Color.Wispflow.accentLight)
+                        .background(Color.Voxa.accentLight)
                         .cornerRadius(CornerRadius.small)
                 }
                 
@@ -6985,33 +7097,33 @@ struct TextInsertionSettingsSummary: View {
                 // Slider labels
                 HStack {
                     Text("0.2s")
-                        .font(Font.Wispflow.small)
-                        .foregroundColor(Color.Wispflow.textTertiary)
+                        .font(Font.Voxa.small)
+                        .foregroundColor(Color.Voxa.textTertiary)
                     Spacer()
                     Text("2.0s")
-                        .font(Font.Wispflow.small)
-                        .foregroundColor(Color.Wispflow.textTertiary)
+                        .font(Font.Voxa.small)
+                        .foregroundColor(Color.Voxa.textTertiary)
                 }
             }
             .padding(Spacing.md)
-            .background(Color.Wispflow.surface)
+            .background(Color.Voxa.surface)
             .cornerRadius(CornerRadius.medium)
             .overlay(
                 RoundedRectangle(cornerRadius: CornerRadius.medium)
-                    .stroke(Color.Wispflow.border, lineWidth: 1)
+                    .stroke(Color.Voxa.border, lineWidth: 1)
             )
             
             // Help text
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "lightbulb.fill")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(Color.Wispflow.warning)
+                    .foregroundColor(Color.Voxa.warning)
                 Text("Increase the delay if inserted text gets cut off. The default 0.8s works for most applications.")
-                    .font(Font.Wispflow.small)
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .font(Font.Voxa.small)
+                    .foregroundColor(Color.Voxa.textSecondary)
             }
             .padding(Spacing.sm)
-            .background(Color.Wispflow.warningLight.opacity(0.3))
+            .background(Color.Voxa.warningLight.opacity(0.3))
             .cornerRadius(CornerRadius.small)
         }
     }
@@ -7024,38 +7136,38 @@ struct TextInsertionSettingsSummary: View {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "hand.raised.fill")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
                 Text("Accessibility Permission")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
             }
             
             Text("Required for simulating keyboard shortcuts to paste text.")
-                .font(Font.Wispflow.caption)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.caption)
+                .foregroundColor(Color.Voxa.textSecondary)
             
             // Permission status card
             HStack(spacing: Spacing.md) {
                 // Status icon
                 ZStack {
                     Circle()
-                        .fill(textInserter.hasAccessibilityPermission ? Color.Wispflow.successLight : Color.Wispflow.errorLight)
+                        .fill(textInserter.hasAccessibilityPermission ? Color.Voxa.successLight : Color.Voxa.errorLight)
                         .frame(width: 40, height: 40)
                     
                     Image(systemName: textInserter.hasAccessibilityPermission ? "checkmark.circle.fill" : "xmark.circle.fill")
                         .font(.system(size: 20, weight: .semibold))
-                        .foregroundColor(textInserter.hasAccessibilityPermission ? Color.Wispflow.success : Color.Wispflow.error)
+                        .foregroundColor(textInserter.hasAccessibilityPermission ? Color.Voxa.success : Color.Voxa.error)
                 }
                 
                 VStack(alignment: .leading, spacing: Spacing.xs) {
                     Text(textInserter.hasAccessibilityPermission ? "Permission Granted" : "Permission Not Granted")
-                        .font(Font.Wispflow.body)
+                        .font(Font.Voxa.body)
                         .fontWeight(.semibold)
-                        .foregroundColor(textInserter.hasAccessibilityPermission ? Color.Wispflow.success : Color.Wispflow.error)
+                        .foregroundColor(textInserter.hasAccessibilityPermission ? Color.Voxa.success : Color.Voxa.error)
                     
                     Text(textInserter.hasAccessibilityPermission ? "Text insertion is ready to use" : "Grant permission to enable text insertion")
-                        .font(Font.Wispflow.small)
-                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .font(Font.Voxa.small)
+                        .foregroundColor(Color.Voxa.textSecondary)
                 }
                 
                 Spacer()
@@ -7070,38 +7182,38 @@ struct TextInsertionSettingsSummary: View {
                             Image(systemName: "gear")
                                 .font(.system(size: 12, weight: .semibold))
                             Text("Grant Access")
-                                .font(Font.Wispflow.caption)
+                                .font(Font.Voxa.caption)
                                 .fontWeight(.semibold)
                         }
                         .padding(.horizontal, Spacing.md)
                         .padding(.vertical, Spacing.sm)
                         .foregroundColor(.white)
-                        .background(Color.Wispflow.accent)
+                        .background(Color.Voxa.accent)
                         .cornerRadius(CornerRadius.small)
                     }
                     .buttonStyle(PlainButtonStyle())
                 }
             }
             .padding(Spacing.md)
-            .background(textInserter.hasAccessibilityPermission ? Color.Wispflow.successLight.opacity(0.2) : Color.Wispflow.errorLight.opacity(0.2))
+            .background(textInserter.hasAccessibilityPermission ? Color.Voxa.successLight.opacity(0.2) : Color.Voxa.errorLight.opacity(0.2))
             .cornerRadius(CornerRadius.medium)
             .overlay(
                 RoundedRectangle(cornerRadius: CornerRadius.medium)
-                    .stroke(textInserter.hasAccessibilityPermission ? Color.Wispflow.success.opacity(0.3) : Color.Wispflow.error.opacity(0.3), lineWidth: 1)
+                    .stroke(textInserter.hasAccessibilityPermission ? Color.Voxa.success.opacity(0.3) : Color.Voxa.error.opacity(0.3), lineWidth: 1)
             )
             
             // Success message when permission is granted
             if showPermissionGrantedMessage {
                 HStack(spacing: Spacing.sm) {
                     Image(systemName: "checkmark.seal.fill")
-                        .foregroundColor(Color.Wispflow.success)
+                        .foregroundColor(Color.Voxa.success)
                     Text("Permission Granted!")
-                        .font(Font.Wispflow.caption)
-                        .foregroundColor(Color.Wispflow.success)
+                        .font(Font.Voxa.caption)
+                        .foregroundColor(Color.Voxa.success)
                         .fontWeight(.semibold)
                 }
                 .padding(Spacing.sm)
-                .background(Color.Wispflow.successLight)
+                .background(Color.Voxa.successLight)
                 .cornerRadius(CornerRadius.small)
                 .transition(.opacity.combined(with: .scale))
             }
@@ -7110,16 +7222,16 @@ struct TextInsertionSettingsSummary: View {
             if !textInserter.hasAccessibilityPermission {
                 VStack(alignment: .leading, spacing: Spacing.sm) {
                     Text("How to grant permission:")
-                        .font(Font.Wispflow.caption)
-                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .font(Font.Voxa.caption)
+                        .foregroundColor(Color.Voxa.textSecondary)
                         .fontWeight(.semibold)
                     
                     TextInsertionInstructionRow(number: 1, text: "Click \"Grant Access\" above to open System Settings")
-                    TextInsertionInstructionRow(number: 2, text: "Find WispFlow in the list and enable the toggle")
-                    TextInsertionInstructionRow(number: 3, text: "Return to WispFlow - permission will be detected automatically")
+                    TextInsertionInstructionRow(number: 2, text: "Find Voxa in the list and enable the toggle")
+                    TextInsertionInstructionRow(number: 3, text: "Return to Voxa - permission will be detected automatically")
                 }
                 .padding(Spacing.md)
-                .background(Color.Wispflow.surface)
+                .background(Color.Voxa.surface)
                 .cornerRadius(CornerRadius.small)
             }
         }
@@ -7133,29 +7245,29 @@ struct TextInsertionSettingsSummary: View {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "questionmark.circle.fill")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
                 Text("How Text Insertion Works")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
             }
             
             // Feature list
             VStack(alignment: .leading, spacing: Spacing.sm) {
-                TextInsertionFeatureRow(icon: "1.circle.fill", text: "Transcribed text is copied to the clipboard", color: Color.Wispflow.accent)
-                TextInsertionFeatureRow(icon: "2.circle.fill", text: "Cmd+V keystroke is simulated to paste", color: Color.Wispflow.accent)
+                TextInsertionFeatureRow(icon: "1.circle.fill", text: "Transcribed text is copied to the clipboard", color: Color.Voxa.accent)
+                TextInsertionFeatureRow(icon: "2.circle.fill", text: "Cmd+V keystroke is simulated to paste", color: Color.Voxa.accent)
                 if textInserter.preserveClipboard {
-                    TextInsertionFeatureRow(icon: "3.circle.fill", text: "Original clipboard is restored after \(String(format: "%.1fs", textInserter.clipboardRestoreDelay))", color: Color.Wispflow.accent)
+                    TextInsertionFeatureRow(icon: "3.circle.fill", text: "Original clipboard is restored after \(String(format: "%.1fs", textInserter.clipboardRestoreDelay))", color: Color.Voxa.accent)
                 } else {
-                    TextInsertionFeatureRow(icon: "3.circle.fill", text: "Text remains on clipboard (preservation disabled)", color: Color.Wispflow.textTertiary)
+                    TextInsertionFeatureRow(icon: "3.circle.fill", text: "Text remains on clipboard (preservation disabled)", color: Color.Voxa.textTertiary)
                 }
-                TextInsertionFeatureRow(icon: "checkmark.circle.fill", text: "Works in any application with text input", color: Color.Wispflow.success)
+                TextInsertionFeatureRow(icon: "checkmark.circle.fill", text: "Works in any application with text input", color: Color.Voxa.success)
             }
             .padding(Spacing.md)
-            .background(Color.Wispflow.surface)
+            .background(Color.Voxa.surface)
             .cornerRadius(CornerRadius.medium)
             .overlay(
                 RoundedRectangle(cornerRadius: CornerRadius.medium)
-                    .stroke(Color.Wispflow.border, lineWidth: 1)
+                    .stroke(Color.Voxa.border, lineWidth: 1)
             )
         }
     }
@@ -7178,12 +7290,12 @@ struct TextInsertionMethodCard: View {
             // Selection indicator
             ZStack {
                 Circle()
-                    .stroke(isSelected ? Color.Wispflow.accent : Color.Wispflow.border, lineWidth: 2)
+                    .stroke(isSelected ? Color.Voxa.accent : Color.Voxa.border, lineWidth: 2)
                     .frame(width: 20, height: 20)
                 
                 if isSelected {
                     Circle()
-                        .fill(Color.Wispflow.accent)
+                        .fill(Color.Voxa.accent)
                         .frame(width: 12, height: 12)
                 }
             }
@@ -7194,28 +7306,28 @@ struct TextInsertionMethodCard: View {
                 HStack(spacing: Spacing.sm) {
                     Image(systemName: icon)
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(isSelected ? Color.Wispflow.accent : Color.Wispflow.textSecondary)
+                        .foregroundColor(isSelected ? Color.Voxa.accent : Color.Voxa.textSecondary)
                     
                     Text(title)
-                        .font(Font.Wispflow.body)
+                        .font(Font.Voxa.body)
                         .fontWeight(.semibold)
-                        .foregroundColor(Color.Wispflow.textPrimary)
+                        .foregroundColor(Color.Voxa.textPrimary)
                     
                     if isSelected {
                         Text("Active")
-                            .font(Font.Wispflow.small)
+                            .font(Font.Voxa.small)
                             .fontWeight(.semibold)
-                            .foregroundColor(Color.Wispflow.success)
+                            .foregroundColor(Color.Voxa.success)
                             .padding(.horizontal, Spacing.sm)
                             .padding(.vertical, Spacing.xs - 2)
-                            .background(Color.Wispflow.successLight)
+                            .background(Color.Voxa.successLight)
                             .cornerRadius(CornerRadius.small)
                     }
                 }
                 
                 Text(description)
-                    .font(Font.Wispflow.caption)
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .font(Font.Voxa.caption)
+                    .foregroundColor(Color.Voxa.textSecondary)
                 
                 // Features list
                 HStack(spacing: Spacing.md) {
@@ -7223,10 +7335,10 @@ struct TextInsertionMethodCard: View {
                         HStack(spacing: Spacing.xs) {
                             Image(systemName: "checkmark")
                                 .font(.system(size: 10, weight: .bold))
-                                .foregroundColor(Color.Wispflow.success)
+                                .foregroundColor(Color.Voxa.success)
                             Text(feature)
-                                .font(Font.Wispflow.small)
-                                .foregroundColor(Color.Wispflow.textSecondary)
+                                .font(Font.Voxa.small)
+                                .foregroundColor(Color.Voxa.textSecondary)
                         }
                     }
                 }
@@ -7235,14 +7347,14 @@ struct TextInsertionMethodCard: View {
             Spacer()
         }
         .padding(Spacing.md)
-        .background(isSelected ? Color.Wispflow.accentLight.opacity(0.3) : Color.Wispflow.surface)
+        .background(isSelected ? Color.Voxa.accentLight.opacity(0.3) : Color.Voxa.surface)
         .cornerRadius(CornerRadius.medium)
         .overlay(
             RoundedRectangle(cornerRadius: CornerRadius.medium)
-                .stroke(isSelected ? Color.Wispflow.accent.opacity(0.5) : Color.Wispflow.border, lineWidth: isSelected ? 2 : 1)
+                .stroke(isSelected ? Color.Voxa.accent.opacity(0.5) : Color.Voxa.border, lineWidth: isSelected ? 2 : 1)
         )
         .scaleEffect(isHovering ? 1.01 : 1.0)
-        .animation(WispflowAnimation.quick, value: isHovering)
+        .animation(VoxaAnimation.quick, value: isHovering)
         .onHover { hovering in
             isHovering = hovering
         }
@@ -7264,22 +7376,22 @@ struct TextInsertionToggleRow: View {
                 HStack(spacing: Spacing.sm) {
                     Image(systemName: icon)
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(isOn ? Color.Wispflow.accent : Color.Wispflow.textSecondary)
+                        .foregroundColor(isOn ? Color.Voxa.accent : Color.Voxa.textSecondary)
                         .frame(width: 20)
                     
                     Text(title)
-                        .font(Font.Wispflow.body)
-                        .foregroundColor(Color.Wispflow.textPrimary)
+                        .font(Font.Voxa.body)
+                        .foregroundColor(Color.Voxa.textPrimary)
                 }
             }
-            .toggleStyle(WispflowToggleStyle())
+            .toggleStyle(VoxaToggleStyle())
             .onChange(of: isOn) { _, newValue in
                 print("[US-706] Text insertion toggle '\(title)' changed to: \(newValue)")
             }
             
             Text(description)
-                .font(Font.Wispflow.small)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.small)
+                .foregroundColor(Color.Voxa.textSecondary)
                 .padding(.leading, Spacing.xxl + Spacing.md)
         }
     }
@@ -7299,14 +7411,14 @@ struct TextInsertionDelaySlider: View {
             ZStack(alignment: .leading) {
                 // Track background
                 RoundedRectangle(cornerRadius: 4)
-                    .fill(Color.Wispflow.border)
+                    .fill(Color.Voxa.border)
                     .frame(height: 8)
                 
                 // Filled portion
                 RoundedRectangle(cornerRadius: 4)
                     .fill(
                         LinearGradient(
-                            colors: [Color.Wispflow.accent.opacity(0.7), Color.Wispflow.accent],
+                            colors: [Color.Voxa.accent.opacity(0.7), Color.Voxa.accent],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
@@ -7320,7 +7432,7 @@ struct TextInsertionDelaySlider: View {
                     .shadow(color: Color.black.opacity(0.2), radius: 2, x: 0, y: 1)
                     .overlay(
                         Circle()
-                            .stroke(Color.Wispflow.accent, lineWidth: 2)
+                            .stroke(Color.Voxa.accent, lineWidth: 2)
                     )
                     .offset(x: CGFloat((value - minValue) / (maxValue - minValue)) * (geometry.size.width - 20))
                     .gesture(
@@ -7348,14 +7460,14 @@ struct TextInsertionInstructionRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: Spacing.sm) {
             Text("\(number).")
-                .font(Font.Wispflow.caption)
-                .foregroundColor(Color.Wispflow.accent)
+                .font(Font.Voxa.caption)
+                .foregroundColor(Color.Voxa.accent)
                 .fontWeight(.semibold)
                 .frame(width: 16, alignment: .trailing)
             
             Text(text)
-                .font(Font.Wispflow.caption)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.caption)
+                .foregroundColor(Color.Voxa.textSecondary)
         }
     }
 }
@@ -7376,8 +7488,8 @@ struct TextInsertionFeatureRow: View {
                 .frame(width: 20)
             
             Text(text)
-                .font(Font.Wispflow.body)
-                .foregroundColor(Color.Wispflow.textPrimary)
+                .font(Font.Voxa.body)
+                .foregroundColor(Color.Voxa.textPrimary)
             
             Spacer()
         }
@@ -7436,7 +7548,7 @@ struct DebugSettingsSummary: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This will reset all WispFlow settings to their default values. This action cannot be undone.")
+            Text("This will reset all Voxa settings to their default values. This action cannot be undone.")
         }
         .onAppear {
             // Set up playback completion callback
@@ -7457,33 +7569,33 @@ struct DebugSettingsSummary: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "ladybug")
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
                     .font(.system(size: 16, weight: .medium))
                 Text("Debug Mode")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
                 
                 Spacer()
                 
                 StatusPill(
                     text: debugManager.isDebugModeEnabled ? "Enabled" : "Disabled",
-                    color: debugManager.isDebugModeEnabled ? Color.Wispflow.warning : Color.Wispflow.textTertiary
+                    color: debugManager.isDebugModeEnabled ? Color.Voxa.warning : Color.Voxa.textTertiary
                 )
             }
             
             Toggle("Enable Debug Mode", isOn: $debugManager.isDebugModeEnabled)
-                .toggleStyle(WispflowToggleStyle())
-                .font(Font.Wispflow.body)
-                .foregroundColor(Color.Wispflow.textPrimary)
+                .toggleStyle(VoxaToggleStyle())
+                .font(Font.Voxa.body)
+                .foregroundColor(Color.Voxa.textPrimary)
             
-            Text("When enabled, WispFlow will log detailed information about audio capture, transcription, and text cleanup. Use this to troubleshoot issues.")
-                .font(Font.Wispflow.caption)
-                .foregroundColor(Color.Wispflow.textSecondary)
+            Text("When enabled, Voxa will log detailed information about audio capture, transcription, and text cleanup. Use this to troubleshoot issues.")
+                .font(Font.Voxa.caption)
+                .foregroundColor(Color.Voxa.textSecondary)
             
             // Debug sub-options (only visible when debug mode is enabled)
             if debugManager.isDebugModeEnabled {
                 Divider()
-                    .background(Color.Wispflow.border)
+                    .background(Color.Voxa.border)
                 
                 // Silence detection override
                 DebugSettingsToggleRow(
@@ -7494,13 +7606,13 @@ struct DebugSettingsSummary: View {
                 )
                 
                 Divider()
-                    .background(Color.Wispflow.border)
+                    .background(Color.Voxa.border)
                 
                 // Auto-save recordings toggle
                 DebugSettingsToggleRow(
                     icon: "arrow.down.doc",
                     title: "Auto-Save Recordings",
-                    description: "Each recording will be saved to Documents/WispFlow/DebugRecordings/ for analysis.",
+                    description: "Each recording will be saved to Documents/Voxa/DebugRecordings/ for analysis.",
                     isOn: $debugManager.isAutoSaveEnabled
                 )
             }
@@ -7514,16 +7626,16 @@ struct DebugSettingsSummary: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "list.bullet.rectangle")
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
                     .font(.system(size: 16, weight: .medium))
                 Text("Log Level")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
             }
             
             Text("Select the verbosity of debug logging. Higher levels include more detailed information.")
-                .font(Font.Wispflow.caption)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.caption)
+                .foregroundColor(Color.Voxa.textSecondary)
             
             // Log level picker
             DebugLogLevelPicker(selectedLevel: $selectedLogLevel)
@@ -7533,10 +7645,10 @@ struct DebugSettingsSummary: View {
                 HStack(spacing: Spacing.xs) {
                     Image(systemName: "info.circle")
                         .font(.system(size: 12))
-                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .foregroundColor(Color.Voxa.textSecondary)
                     Text("Enable Debug Mode to configure log level")
-                        .font(Font.Wispflow.small)
-                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .font(Font.Voxa.small)
+                        .foregroundColor(Color.Voxa.textSecondary)
                 }
             }
         }
@@ -7549,11 +7661,11 @@ struct DebugSettingsSummary: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "square.and.arrow.up")
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
                     .font(.system(size: 16, weight: .medium))
                 Text("Debug Actions")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
             }
             
             // Action buttons row
@@ -7565,7 +7677,7 @@ struct DebugSettingsSummary: View {
                         Text("Export Logs")
                     }
                 }
-                .buttonStyle(WispflowButtonStyle.secondary)
+                .buttonStyle(VoxaButtonStyle.secondary)
                 .disabled(!debugManager.isDebugModeEnabled || debugManager.logEntries.isEmpty)
                 
                 // Open Recordings Folder button (US-707 Task 3)
@@ -7578,7 +7690,7 @@ struct DebugSettingsSummary: View {
                         Text("Open Recordings Folder")
                     }
                 }
-                .buttonStyle(WispflowButtonStyle.secondary)
+                .buttonStyle(VoxaButtonStyle.secondary)
             }
             
             // Additional action buttons (when debug mode is enabled)
@@ -7591,7 +7703,7 @@ struct DebugSettingsSummary: View {
                             Text("Export Last Audio")
                         }
                     }
-                    .buttonStyle(WispflowButtonStyle.secondary)
+                    .buttonStyle(VoxaButtonStyle.secondary)
                     
                     // Playback button (if there's an exported file)
                     if AudioExporter.shared.lastExportedURL != nil {
@@ -7601,7 +7713,7 @@ struct DebugSettingsSummary: View {
                                 Text(isPlayingAudio ? "Stop" : "Play")
                             }
                         }
-                        .buttonStyle(WispflowButtonStyle(variant: isPlayingAudio ? .ghost : .secondary))
+                        .buttonStyle(VoxaButtonStyle(variant: isPlayingAudio ? .ghost : .secondary))
                         
                         // Show in Finder
                         Button(action: {
@@ -7613,7 +7725,7 @@ struct DebugSettingsSummary: View {
                                 Text("Show in Finder")
                             }
                         }
-                        .buttonStyle(WispflowButtonStyle.secondary)
+                        .buttonStyle(VoxaButtonStyle.secondary)
                     }
                 }
             }
@@ -7622,11 +7734,11 @@ struct DebugSettingsSummary: View {
             if let path = exportedFilePath {
                 VStack(alignment: .leading, spacing: Spacing.xs) {
                     Text("Last Export:")
-                        .font(Font.Wispflow.caption)
-                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .font(Font.Voxa.caption)
+                        .foregroundColor(Color.Voxa.textSecondary)
                     Text(path)
-                        .font(Font.Wispflow.small)
-                        .foregroundColor(Color.Wispflow.accent)
+                        .font(Font.Voxa.small)
+                        .foregroundColor(Color.Voxa.accent)
                         .lineLimit(2)
                         .truncationMode(.middle)
                 }
@@ -7637,10 +7749,10 @@ struct DebugSettingsSummary: View {
                 HStack(spacing: Spacing.xs) {
                     Image(systemName: "info.circle")
                         .font(.system(size: 12))
-                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .foregroundColor(Color.Voxa.textSecondary)
                     Text("Enable Debug Mode to access export features")
-                        .font(Font.Wispflow.small)
-                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .font(Font.Voxa.small)
+                        .foregroundColor(Color.Voxa.textSecondary)
                 }
                 .padding(.top, Spacing.xs)
             }
@@ -7654,11 +7766,11 @@ struct DebugSettingsSummary: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "info.circle")
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
                     .font(.system(size: 16, weight: .medium))
                 Text("System Info")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
             }
             
             // System info grid
@@ -7670,11 +7782,11 @@ struct DebugSettingsSummary: View {
                 DebugSystemInfoRow(label: "Available Memory", value: availableMemory)
             }
             .padding(Spacing.md)
-            .background(Color.Wispflow.surface)
+            .background(Color.Voxa.surface)
             .cornerRadius(CornerRadius.medium)
             .overlay(
                 RoundedRectangle(cornerRadius: CornerRadius.medium)
-                    .stroke(Color.Wispflow.border, lineWidth: 1)
+                    .stroke(Color.Voxa.border, lineWidth: 1)
             )
         }
     }
@@ -7686,11 +7798,11 @@ struct DebugSettingsSummary: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "waveform")
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
                     .font(.system(size: 16, weight: .medium))
                 Text("Last Recording")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
             }
             
             if let audioData = debugManager.lastAudioData {
@@ -7706,7 +7818,7 @@ struct DebugSettingsSummary: View {
                             icon: "speaker.wave.2",
                             label: "Peak Level",
                             value: String(format: "%.1f dB", audioData.peakLevel),
-                            color: audioData.peakLevel > -55 ? Color.Wispflow.success : Color.Wispflow.warning
+                            color: audioData.peakLevel > -55 ? Color.Voxa.success : Color.Voxa.warning
                         )
                         
                         DebugRecordingMetric(
@@ -7725,28 +7837,28 @@ struct DebugSettingsSummary: View {
                     .padding(.top, Spacing.xs)
                 }
                 .padding(Spacing.md)
-                .background(Color.Wispflow.surface)
+                .background(Color.Voxa.surface)
                 .cornerRadius(CornerRadius.medium)
                 .overlay(
                     RoundedRectangle(cornerRadius: CornerRadius.medium)
-                        .stroke(Color.Wispflow.border, lineWidth: 1)
+                        .stroke(Color.Voxa.border, lineWidth: 1)
                 )
             } else {
                 HStack(spacing: Spacing.sm) {
                     Image(systemName: "waveform.slash")
                         .font(.system(size: 14))
-                        .foregroundColor(Color.Wispflow.textTertiary)
+                        .foregroundColor(Color.Voxa.textTertiary)
                     Text("No recording data available")
-                        .font(Font.Wispflow.caption)
-                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .font(Font.Voxa.caption)
+                        .foregroundColor(Color.Voxa.textSecondary)
                 }
                 .padding(Spacing.md)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.Wispflow.surface)
+                .background(Color.Voxa.surface)
                 .cornerRadius(CornerRadius.medium)
                 .overlay(
                     RoundedRectangle(cornerRadius: CornerRadius.medium)
-                        .stroke(Color.Wispflow.border, lineWidth: 1)
+                        .stroke(Color.Voxa.border, lineWidth: 1)
                 )
             }
         }
@@ -7759,16 +7871,16 @@ struct DebugSettingsSummary: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "arrow.counterclockwise")
-                    .foregroundColor(Color.Wispflow.error)
+                    .foregroundColor(Color.Voxa.error)
                     .font(.system(size: 16, weight: .medium))
                 Text("Reset Settings")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
             }
             
-            Text("Reset all WispFlow settings to their default values. This cannot be undone.")
-                .font(Font.Wispflow.caption)
-                .foregroundColor(Color.Wispflow.textSecondary)
+            Text("Reset all Voxa settings to their default values. This cannot be undone.")
+                .font(Font.Voxa.caption)
+                .foregroundColor(Color.Voxa.textSecondary)
             
             Button(action: {
                 showResetConfirmation = true
@@ -7779,8 +7891,8 @@ struct DebugSettingsSummary: View {
                     Text("Reset All Settings")
                 }
             }
-            .buttonStyle(WispflowButtonStyle(variant: .ghost))
-            .foregroundColor(Color.Wispflow.error)
+            .buttonStyle(VoxaButtonStyle(variant: .ghost))
+            .foregroundColor(Color.Voxa.error)
         }
     }
     
@@ -7864,7 +7976,7 @@ struct DebugSettingsSummary: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
         let timestamp = formatter.string(from: Date())
-        return "WispFlow_Logs_\(timestamp).txt"
+        return "Voxa_Logs_\(timestamp).txt"
     }
     
     /// Reset all settings to defaults (US-707 Task 5)
@@ -7971,11 +8083,11 @@ enum DebugLogLevel: String, CaseIterable, Identifiable {
     
     var color: Color {
         switch self {
-        case .verbose: return Color.Wispflow.textSecondary
-        case .debug: return Color.Wispflow.info
-        case .info: return Color.Wispflow.success
-        case .warning: return Color.Wispflow.warning
-        case .error: return Color.Wispflow.error
+        case .verbose: return Color.Voxa.textSecondary
+        case .debug: return Color.Voxa.info
+        case .info: return Color.Voxa.success
+        case .warning: return Color.Voxa.warning
+        case .error: return Color.Voxa.error
         }
     }
 }
@@ -8021,24 +8133,24 @@ struct DebugLogLevelRow: View {
                 // Level icon
                 ZStack {
                     RoundedRectangle(cornerRadius: CornerRadius.small)
-                        .fill(isSelected ? level.color.opacity(0.2) : Color.Wispflow.border.opacity(0.3))
+                        .fill(isSelected ? level.color.opacity(0.2) : Color.Voxa.border.opacity(0.3))
                         .frame(width: 36, height: 36)
                     
                     Image(systemName: level.icon)
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(isSelected ? level.color : Color.Wispflow.textSecondary)
+                        .foregroundColor(isSelected ? level.color : Color.Voxa.textSecondary)
                 }
                 
                 // Level info
                 VStack(alignment: .leading, spacing: 2) {
                     Text(level.displayName)
-                        .font(Font.Wispflow.body)
+                        .font(Font.Voxa.body)
                         .fontWeight(isSelected ? .medium : .regular)
-                        .foregroundColor(isSelected ? Color.Wispflow.textPrimary : Color.Wispflow.textSecondary)
+                        .foregroundColor(isSelected ? Color.Voxa.textPrimary : Color.Voxa.textSecondary)
                     
                     Text(level.description)
-                        .font(Font.Wispflow.small)
-                        .foregroundColor(Color.Wispflow.textTertiary)
+                        .font(Font.Voxa.small)
+                        .foregroundColor(Color.Voxa.textTertiary)
                 }
                 
                 Spacer()
@@ -8046,7 +8158,7 @@ struct DebugLogLevelRow: View {
                 // Selection indicator
                 ZStack {
                     Circle()
-                        .stroke(isSelected ? level.color : Color.Wispflow.border, lineWidth: 2)
+                        .stroke(isSelected ? level.color : Color.Voxa.border, lineWidth: 2)
                         .frame(width: 20, height: 20)
                     
                     if isSelected {
@@ -8060,7 +8172,7 @@ struct DebugLogLevelRow: View {
             .contentShape(Rectangle())
             .background(
                 RoundedRectangle(cornerRadius: CornerRadius.small)
-                    .fill(isHovering ? Color.Wispflow.border.opacity(0.2) : Color.clear)
+                    .fill(isHovering ? Color.Voxa.border.opacity(0.2) : Color.clear)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: CornerRadius.small)
@@ -8091,19 +8203,19 @@ struct DebugSettingsToggleRow: View {
                 HStack(spacing: Spacing.sm) {
                     Image(systemName: icon)
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .foregroundColor(Color.Voxa.textSecondary)
                         .frame(width: 20)
                     
                     Text(title)
-                        .font(Font.Wispflow.body)
-                        .foregroundColor(Color.Wispflow.textPrimary)
+                        .font(Font.Voxa.body)
+                        .foregroundColor(Color.Voxa.textPrimary)
                 }
             }
-            .toggleStyle(WispflowToggleStyle())
+            .toggleStyle(VoxaToggleStyle())
             
             Text(description)
-                .font(Font.Wispflow.caption)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.caption)
+                .foregroundColor(Color.Voxa.textSecondary)
                 .padding(.leading, 28) // Align with title text
         }
     }
@@ -8120,14 +8232,14 @@ struct DebugSystemInfoRow: View {
     var body: some View {
         HStack {
             Text(label)
-                .font(Font.Wispflow.body)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.body)
+                .foregroundColor(Color.Voxa.textSecondary)
             
             Spacer()
             
             Text(value)
-                .font(Font.Wispflow.mono)
-                .foregroundColor(Color.Wispflow.textPrimary)
+                .font(Font.Voxa.mono)
+                .foregroundColor(Color.Voxa.textPrimary)
         }
     }
 }
@@ -8139,21 +8251,21 @@ struct DebugRecordingMetric: View {
     let icon: String
     let label: String
     let value: String
-    var color: Color = Color.Wispflow.textPrimary
+    var color: Color = Color.Voxa.textPrimary
     
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             HStack(spacing: 4) {
                 Image(systemName: icon)
                     .font(.system(size: 10, weight: .medium))
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .foregroundColor(Color.Voxa.textSecondary)
                 Text(label)
-                    .font(Font.Wispflow.small)
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .font(Font.Voxa.small)
+                    .foregroundColor(Color.Voxa.textSecondary)
             }
             
             Text(value)
-                .font(Font.Wispflow.body)
+                .font(Font.Voxa.body)
                 .fontWeight(.medium)
                 .foregroundColor(color)
         }
@@ -8196,13 +8308,13 @@ struct DebugCompactWaveformView: View {
     
     private func barColor(for rms: Float) -> Color {
         if rms > 0.5 {
-            return Color.Wispflow.error
+            return Color.Voxa.error
         } else if rms > 0.1 {
-            return Color.Wispflow.success
+            return Color.Voxa.success
         } else if rms > 0.01 {
-            return Color.Wispflow.accent
+            return Color.Voxa.accent
         } else {
-            return Color.Wispflow.textTertiary
+            return Color.Voxa.textTertiary
         }
     }
 }
@@ -8219,18 +8331,18 @@ struct SettingsInfoRow: View {
         HStack(spacing: Spacing.md) {
             Image(systemName: icon)
                 .font(.system(size: 14, weight: .medium))
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .foregroundColor(Color.Voxa.textSecondary)
                 .frame(width: 20)
             
             Text(title)
-                .font(Font.Wispflow.body)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.body)
+                .foregroundColor(Color.Voxa.textSecondary)
             
             Spacer()
             
             Text(value)
-                .font(Font.Wispflow.body)
-                .foregroundColor(Color.Wispflow.textPrimary)
+                .font(Font.Voxa.body)
+                .foregroundColor(Color.Voxa.textPrimary)
         }
     }
 }
@@ -8243,16 +8355,16 @@ struct PermissionBadge: View {
     var body: some View {
         ZStack {
             Circle()
-                .fill(isGranted ? Color.Wispflow.successLight : Color.Wispflow.errorLight)
+                .fill(isGranted ? Color.Voxa.successLight : Color.Voxa.errorLight)
                 .frame(width: 28, height: 28)
             
             Image(systemName: icon)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundColor(isGranted ? Color.Wispflow.success : Color.Wispflow.error)
+                .foregroundColor(isGranted ? Color.Voxa.success : Color.Voxa.error)
         }
         .overlay(
             Circle()
-                .stroke(isGranted ? Color.Wispflow.success.opacity(0.3) : Color.Wispflow.error.opacity(0.3), lineWidth: 1)
+                .stroke(isGranted ? Color.Voxa.success.opacity(0.3) : Color.Voxa.error.opacity(0.3), lineWidth: 1)
         )
         .help(isGranted ? "Permission granted" : "Permission not granted")
     }
@@ -8264,11 +8376,11 @@ struct ModelStatusIndicator: View {
     
     private var color: Color {
         switch status {
-        case .ready: return Color.Wispflow.success
-        case .loading, .downloading: return Color.Wispflow.warning
-        case .downloaded: return Color.Wispflow.accent
-        case .notDownloaded: return Color.Wispflow.textTertiary
-        case .error: return Color.Wispflow.error
+        case .ready: return Color.Voxa.success
+        case .loading, .downloading: return Color.Voxa.warning
+        case .downloaded: return Color.Voxa.accent
+        case .notDownloaded: return Color.Voxa.textTertiary
+        case .error: return Color.Voxa.error
         }
     }
     
@@ -8289,7 +8401,7 @@ struct ModelStatusIndicator: View {
                 .fill(color)
                 .frame(width: 6, height: 6)
             Text(text)
-                .font(Font.Wispflow.small)
+                .font(Font.Voxa.small)
                 .foregroundColor(color)
         }
         .padding(.horizontal, Spacing.sm)
@@ -8306,7 +8418,7 @@ struct StatusPill: View {
     
     var body: some View {
         Text(text)
-            .font(Font.Wispflow.small)
+            .font(Font.Voxa.small)
             .fontWeight(.medium)
             .foregroundColor(color)
             .padding(.horizontal, Spacing.sm)
@@ -8323,12 +8435,12 @@ struct MiniFeatureBadge: View {
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 4)
-                .fill(Color.Wispflow.accentLight)
+                .fill(Color.Voxa.accentLight)
                 .frame(width: 22, height: 22)
             
             Image(systemName: icon)
                 .font(.system(size: 10, weight: .medium))
-                .foregroundColor(Color.Wispflow.accent)
+                .foregroundColor(Color.Voxa.accent)
         }
     }
 }
@@ -8341,6 +8453,12 @@ struct MiniFeatureBadge: View {
 /// Handles window state persistence and lifecycle
 final class MainWindowController: NSObject {
     private var mainWindow: NSWindow?
+    
+    /// Audio manager reference for onboarding
+    private var audioManager: AudioManager?
+    
+    /// Hotkey manager reference for onboarding
+    private var hotkeyManager: HotkeyManager?
     
     /// UserDefaults keys for window state persistence
     private enum WindowStateKeys {
@@ -8356,6 +8474,12 @@ final class MainWindowController: NSObject {
     
     override init() {
         super.init()
+    }
+    
+    /// Configure with managers for onboarding
+    func configure(audioManager: AudioManager, hotkeyManager: HotkeyManager) {
+        self.audioManager = audioManager
+        self.hotkeyManager = hotkeyManager
     }
     
     /// Show the main window
@@ -8375,12 +8499,23 @@ final class MainWindowController: NSObject {
             return
         }
         
+        guard let audio = audioManager, let hotkey = hotkeyManager else {
+            print("MainWindowController: Error - managers not configured")
+            return
+        }
+        
         let mainView = MainWindowView(initialNavigationItem: initialNavItem)
+            .environmentObject(audio)
+            .environmentObject(hotkey)
         let hostingController = NSHostingController(rootView: mainView)
         
         let window = NSWindow(contentViewController: hostingController)
-        window.title = "WispFlow"
-        window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
+        window.title = "Voxa"
+        window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+        window.appearance = NSAppearance(named: .aqua)
+        window.backgroundColor = NSColor(Color.Voxa.background)
         window.minSize = minimumSize
         window.delegate = self
         
@@ -8465,6 +8600,8 @@ extension MainWindowController: NSWindowDelegate {
 struct MainWindowView_Previews: PreviewProvider {
     static var previews: some View {
         MainWindowView()
+            .environmentObject(AudioManager())
+            .environmentObject(HotkeyManager.shared)
             .frame(width: 1000, height: 700)
     }
 }

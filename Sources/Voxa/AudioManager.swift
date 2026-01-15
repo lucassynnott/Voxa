@@ -397,7 +397,7 @@ final class AudioManager: NSObject, ObservableObject {
         DispatchQueue.main.async {
             let alert = NSAlert()
             alert.messageText = "Microphone Access Required"
-            alert.informativeText = "WispFlow needs microphone access to capture your voice. Please enable microphone access in System Settings > Privacy & Security > Microphone."
+            alert.informativeText = "Voxa needs microphone access to capture your voice. Please enable microphone access in System Settings > Privacy & Security > Microphone."
             alert.alertStyle = .warning
             alert.addButton(withTitle: "Open System Settings")
             alert.addButton(withTitle: "Cancel")

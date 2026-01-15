@@ -3,7 +3,7 @@ import Carbon.HIToolbox
 
 /// US-510: Manager for handling global keyboard shortcuts
 /// Uses CGEvent tap at kCGSessionEventTap level for reliable global hotkey detection
-/// that works regardless of which app is focused and even when WispFlow window is not visible.
+/// that works regardless of which app is focused and even when Voxa window is not visible.
 final class HotkeyManager: ObservableObject {
     
     // MARK: - Singleton

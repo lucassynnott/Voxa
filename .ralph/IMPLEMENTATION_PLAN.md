@@ -2083,3 +2083,199 @@ This plan implements a comprehensive overhaul of WispFlow's core systems based o
 - Updates `activeSection` state to highlight currently navigated section
 - Collapsible sections already implemented in `SettingsSectionView` via expand/collapse toggle
 - Verified via `swift build` - typecheck passes
+
+---
+
+## Phase 11: Minimalist Dashboard UI Redesign (from prd-voxa-minimalist-ui.json)
+
+### [x] US-801: Home Dashboard Header with Time-Based Greeting
+**Status:** complete
+**Priority:** high
+**Estimated effort:** medium
+**Depends on:** none
+
+**Description:** Display personalized time-based greeting (Good morning/afternoon/evening) with subtitle.
+
+**Tasks:**
+- [x] Create time-based greeting logic (morning <12pm, afternoon 12-5pm, evening >5pm)
+- [x] Use Playfair Display font for greeting (~48-60pt)
+- [x] Add subtitle with last session info
+- [x] Add DASHBOARD label (uppercase, tracking-widest)
+- [x] Add date and System Active status in top-right
+
+**Acceptance Criteria:**
+- [x] Greeting changes based on time of day
+- [x] Subtitle shows last session time
+- [x] Header layout matches design
+
+**Implementation Notes:**
+- Time-based greeting logic in `greetingMessage` computed property:
+  - Morning (before 12pm): "Good morning."
+  - Afternoon (12pm-5pm): "Good afternoon."
+  - Evening (after 5pm): "Good evening."
+- Subtitle format in `lastSessionSubtitle` computed property:
+  - With previous session: "Ready to capture your thoughts? Your last session was X ago."
+  - Without previous session: "Ready to capture your thoughts?"
+- Header components in `welcomeSection`:
+  - DASHBOARD label (uppercase, tracking-widest using 4pt letter spacing)
+  - Date in top-right formatted as "Thursday, January 15"
+  - System Active status with green dot indicator
+- Typography using serif design fonts (inspired by Playfair Display):
+  - `Font.Voxa.displayGreeting` (52pt serif) for main greeting
+  - System serif design provides elegant editorial appearance
+- Relative time formatting via `relativeTimeString(from:)` helper
+- Verified via `swift build` - typecheck passes
+
+---
+
+### [ ] US-802: Start Recording Button
+**Status:** open
+**Priority:** high
+**Estimated effort:** small
+**Depends on:** US-801
+
+**Description:** Prominent pill-shaped Start Recording button in dashboard header.
+
+**Tasks:**
+- [ ] Create pill-shaped button with terracotta background
+- [ ] Add microphone icon with pulse animation
+- [ ] Add keyboard shortcut badge
+- [ ] Implement hover lift effect
+- [ ] Connect to recording functionality
+
+**Acceptance Criteria:**
+- [ ] Button triggers recording
+- [ ] Hover state with lift effect
+- [ ] Shows Stop Recording when active
+
+---
+
+### [ ] US-803: Recent Transcriptions List
+**Status:** open
+**Priority:** high
+**Estimated effort:** medium
+**Depends on:** none
+
+**Description:** Display recent transcriptions with icons, titles, and timestamps.
+
+**Tasks:**
+- [ ] Create section header with Playfair Display italic
+- [ ] Add View All link
+- [ ] Build transcription item component with icon, title, subtitle, timestamp
+- [ ] Implement hover states
+- [ ] Connect to transcription history data
+
+**Acceptance Criteria:**
+- [ ] Shows last 3-5 transcriptions
+- [ ] Each item has icon, title, metadata, timestamp
+- [ ] Hover highlights and changes title color
+- [ ] Empty state when no transcriptions
+
+---
+
+### [ ] US-804: Daily Insights Sidebar
+**Status:** open
+**Priority:** medium
+**Estimated effort:** small
+**Depends on:** none
+
+**Description:** Display daily statistics (words spoken, time saved) in sidebar.
+
+**Tasks:**
+- [ ] Create Daily Insights section with italic header
+- [ ] Display Words Spoken with large number and percentage change
+- [ ] Display Time Saved with comparison label
+- [ ] Connect to UsageStatsManager
+
+**Acceptance Criteria:**
+- [ ] Large numbers displayed prominently
+- [ ] Percentage change with colored indicator
+- [ ] Stats from actual usage data
+
+---
+
+### [ ] US-805: Quick Tools Section
+**Status:** open
+**Priority:** medium
+**Estimated effort:** small
+**Depends on:** none
+
+**Description:** Quick access buttons for AI Text Cleanup and Import Audio.
+
+**Tasks:**
+- [ ] Create Quick Tools section with italic header
+- [ ] Build bordered button components with icons
+- [ ] Implement hover states (border and icon turn terracotta)
+- [ ] Connect button actions
+
+**Acceptance Criteria:**
+- [ ] Two tool buttons displayed
+- [ ] Hover changes border and icon color
+- [ ] Buttons trigger appropriate actions
+
+---
+
+### [ ] US-806: Sidebar Navigation Redesign
+**Status:** open
+**Priority:** high
+**Estimated effort:** medium
+**Depends on:** none
+
+**Description:** Update sidebar to match new minimalist design.
+
+**Tasks:**
+- [ ] Update sidebar background colors for light/dark mode
+- [ ] Restyle navigation items with new icons
+- [ ] Implement terracotta highlight for active item
+- [ ] Update hover states
+- [ ] Style collapse button
+
+**Acceptance Criteria:**
+- [ ] Sidebar background matches design
+- [ ] Active item has terracotta highlight
+- [ ] Inactive items have muted color with hover effect
+- [ ] Collapse functionality works
+
+---
+
+### [ ] US-807: Dashboard Layout Grid
+**Status:** open
+**Priority:** high
+**Estimated effort:** medium
+**Depends on:** US-801, US-803, US-804, US-805
+
+**Description:** Arrange dashboard content in clean two-column grid layout.
+
+**Tasks:**
+- [ ] Create main content area with proper padding
+- [ ] Add horizontal divider below header
+- [ ] Implement two-column grid (8/4 split)
+- [ ] Add border between columns
+- [ ] Implement responsive single-column fallback
+
+**Acceptance Criteria:**
+- [ ] Two-column layout on wide windows
+- [ ] Single column on narrow windows
+- [ ] Proper spacing and borders
+
+---
+
+### [ ] US-808: Typography System Update
+**Status:** open
+**Priority:** high
+**Estimated effort:** small
+**Depends on:** none
+
+**Description:** Add Playfair Display and Manrope font support to design system.
+
+**Tasks:**
+- [ ] Add Font.Voxa.display for Playfair Display
+- [ ] Add Font.Voxa.displayItalic for italic headings
+- [ ] Update body fonts to Manrope style
+- [ ] Define font size scale
+- [ ] Add fallbacks for unavailable fonts
+
+**Acceptance Criteria:**
+- [ ] Display font available for headings
+- [ ] Body font consistent throughout
+- [ ] Fallbacks work correctly

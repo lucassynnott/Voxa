@@ -15,7 +15,7 @@ enum OnboardingStep: Int, CaseIterable {
     var title: String {
         switch self {
         case .welcome:
-            return "Welcome to WispFlow"
+            return "Welcome to Voxa"
         case .microphone:
             return "Microphone Permission"
         case .accessibility:
@@ -41,7 +41,7 @@ enum OnboardingStep: Int, CaseIterable {
 
 // MARK: - Welcome Screen (US-517)
 
-/// Welcome screen shown on first launch - explains what WispFlow does
+/// Welcome screen shown on first launch - explains what Voxa does
 /// US-517: Onboarding Welcome Screen
 struct WelcomeView: View {
     /// Callback when user clicks "Get Started"
@@ -62,17 +62,17 @@ struct WelcomeView: View {
                 .frame(height: Spacing.xl)
             
             // Title
-            Text("WispFlow")
+            Text("Voxa")
                 .font(.system(size: 36, weight: .bold, design: .rounded))
-                .foregroundColor(Color.Wispflow.textPrimary)
+                .foregroundColor(Color.Voxa.textPrimary)
             
             Spacer()
                 .frame(height: Spacing.sm)
             
             // Brief description: "Voice-to-text for your Mac"
             Text("Voice-to-text for your Mac")
-                .font(Font.Wispflow.title)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.title)
+                .foregroundColor(Color.Voxa.textSecondary)
             
             Spacer()
                 .frame(height: Spacing.xxl)
@@ -86,11 +86,11 @@ struct WelcomeView: View {
             // "Get Started" button advances to next step
             Button(action: onGetStarted) {
                 Text("Get Started")
-                    .font(Font.Wispflow.headline)
+                    .font(Font.Voxa.headline)
                     .foregroundColor(.white)
                     .frame(maxWidth: 200)
                     .padding(.vertical, Spacing.md)
-                    .background(Color.Wispflow.accent)
+                    .background(Color.Voxa.accent)
                     .cornerRadius(CornerRadius.small)
             }
             .buttonStyle(InteractiveScaleStyle())
@@ -101,8 +101,8 @@ struct WelcomeView: View {
             // "Skip Setup" link available (not prominent)
             Button(action: onSkipSetup) {
                 Text("Skip Setup")
-                    .font(Font.Wispflow.caption)
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .font(Font.Voxa.caption)
+                    .foregroundColor(Color.Voxa.textSecondary)
                     .underline()
             }
             .buttonStyle(PlainButtonStyle())
@@ -114,7 +114,7 @@ struct WelcomeView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.Wispflow.background)
+        .background(Color.Voxa.background)
     }
     
     // MARK: - App Logo
@@ -124,20 +124,20 @@ struct WelcomeView: View {
         ZStack {
             // Outer glow circle
             Circle()
-                .fill(Color.Wispflow.accent.opacity(0.15))
+                .fill(Color.Voxa.accent.opacity(0.15))
                 .frame(width: 120, height: 120)
             
             // Inner circle with gradient
             Circle()
                 .fill(
                     LinearGradient(
-                        colors: [Color.Wispflow.accent.opacity(0.9), Color.Wispflow.accent],
+                        colors: [Color.Voxa.accent.opacity(0.9), Color.Voxa.accent],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
                 )
                 .frame(width: 90, height: 90)
-                .shadow(color: Color.Wispflow.accent.opacity(0.3), radius: 10, x: 0, y: 5)
+                .shadow(color: Color.Voxa.accent.opacity(0.3), radius: 10, x: 0, y: 5)
             
             // Microphone icon representing voice-to-text
             Image(systemName: "waveform.and.mic")
@@ -192,22 +192,22 @@ struct FeatureRow: View {
             // Icon in a rounded square
             ZStack {
                 RoundedRectangle(cornerRadius: CornerRadius.small)
-                    .fill(Color.Wispflow.accentLight)
+                    .fill(Color.Voxa.accentLight)
                     .frame(width: 44, height: 44)
                 
                 Image(systemName: icon)
                     .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
             }
             
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 Text(title)
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
                 
                 Text(description)
-                    .font(Font.Wispflow.body)
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .font(Font.Voxa.body)
+                    .foregroundColor(Color.Voxa.textSecondary)
             }
             
             Spacer()
@@ -251,15 +251,15 @@ struct MicrophonePermissionView: View {
             // Title
             Text("Microphone Access")
                 .font(.system(size: 28, weight: .bold, design: .rounded))
-                .foregroundColor(Color.Wispflow.textPrimary)
+                .foregroundColor(Color.Voxa.textPrimary)
             
             Spacer()
                 .frame(height: Spacing.sm)
             
             // Screen explains why microphone access is needed
-            Text("WispFlow needs microphone access to\nrecord and transcribe your voice.")
-                .font(Font.Wispflow.body)
-                .foregroundColor(Color.Wispflow.textSecondary)
+            Text("Voxa needs microphone access to\nrecord and transcribe your voice.")
+                .font(Font.Voxa.body)
+                .foregroundColor(Color.Voxa.textSecondary)
                 .multilineTextAlignment(.center)
                 .lineSpacing(4)
             
@@ -280,12 +280,12 @@ struct MicrophonePermissionView: View {
                             LoadingSpinner(size: 16, lineWidth: 2, color: .white)
                         }
                         Text("Grant Access")
-                            .font(Font.Wispflow.headline)
+                            .font(Font.Voxa.headline)
                     }
                     .foregroundColor(.white)
                     .frame(maxWidth: 200)
                     .padding(.vertical, Spacing.md)
-                    .background(Color.Wispflow.accent)
+                    .background(Color.Voxa.accent)
                     .cornerRadius(CornerRadius.small)
                 }
                 .buttonStyle(InteractiveScaleStyle())
@@ -294,11 +294,11 @@ struct MicrophonePermissionView: View {
                 // "Continue" enabled only after permission granted
                 Button(action: onContinue) {
                     Text("Continue")
-                        .font(Font.Wispflow.headline)
+                        .font(Font.Voxa.headline)
                         .foregroundColor(.white)
                         .frame(maxWidth: 200)
                         .padding(.vertical, Spacing.md)
-                        .background(Color.Wispflow.success)
+                        .background(Color.Voxa.success)
                         .cornerRadius(CornerRadius.small)
                 }
                 .buttonStyle(InteractiveScaleStyle())
@@ -310,8 +310,8 @@ struct MicrophonePermissionView: View {
             // "Skip" always available
             Button(action: onSkip) {
                 Text("Skip for now")
-                    .font(Font.Wispflow.caption)
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .font(Font.Voxa.caption)
+                    .foregroundColor(Color.Voxa.textSecondary)
                     .underline()
             }
             .buttonStyle(PlainButtonStyle())
@@ -320,7 +320,7 @@ struct MicrophonePermissionView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.Wispflow.background)
+        .background(Color.Voxa.background)
         .onAppear {
             // Refresh status when view appears
             permissionManager.refreshMicrophoneStatus()
@@ -335,20 +335,20 @@ struct MicrophonePermissionView: View {
         ZStack {
             // Outer glow circle
             Circle()
-                .fill(Color.Wispflow.accent.opacity(0.15))
+                .fill(Color.Voxa.accent.opacity(0.15))
                 .frame(width: 120, height: 120)
             
             // Inner circle with gradient
             Circle()
                 .fill(
                     LinearGradient(
-                        colors: [Color.Wispflow.accent.opacity(0.9), Color.Wispflow.accent],
+                        colors: [Color.Voxa.accent.opacity(0.9), Color.Voxa.accent],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
                 )
                 .frame(width: 90, height: 90)
-                .shadow(color: Color.Wispflow.accent.opacity(0.3), radius: 10, x: 0, y: 5)
+                .shadow(color: Color.Voxa.accent.opacity(0.3), radius: 10, x: 0, y: 5)
             
             // Microphone icon
             Image(systemName: "mic.fill")
@@ -365,33 +365,33 @@ struct MicrophonePermissionView: View {
             // Status icon
             ZStack {
                 Circle()
-                    .fill(isPermissionGranted ? Color.Wispflow.successLight : Color.Wispflow.errorLight)
+                    .fill(isPermissionGranted ? Color.Voxa.successLight : Color.Voxa.errorLight)
                     .frame(width: 40, height: 40)
                 
                 Image(systemName: isPermissionGranted ? "checkmark.circle.fill" : "xmark.circle.fill")
                     .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(isPermissionGranted ? Color.Wispflow.success : Color.Wispflow.error)
+                    .foregroundColor(isPermissionGranted ? Color.Voxa.success : Color.Voxa.error)
             }
             
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 Text("Microphone Permission")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
                 
                 // Status text updates after permission granted
                 Text(statusText)
-                    .font(Font.Wispflow.caption)
-                    .foregroundColor(isPermissionGranted ? Color.Wispflow.success : Color.Wispflow.textSecondary)
+                    .font(Font.Voxa.caption)
+                    .foregroundColor(isPermissionGranted ? Color.Voxa.success : Color.Voxa.textSecondary)
             }
             
             Spacer()
         }
         .padding(Spacing.lg)
-        .background(Color.Wispflow.surface)
+        .background(Color.Voxa.surface)
         .cornerRadius(CornerRadius.medium)
-        .wispflowShadow(.card)
+        .voxaShadow(.card)
         .padding(.horizontal, Spacing.xxl)
-        .animation(WispflowAnimation.smooth, value: isPermissionGranted)
+        .animation(VoxaAnimation.smooth, value: isPermissionGranted)
     }
     
     /// Status text based on current permission state
@@ -447,93 +447,81 @@ struct AccessibilityPermissionView: View {
     }
     
     var body: some View {
-        VStack(spacing: 0) {
-            Spacer()
-                .frame(height: Spacing.xxl)
-            
-            // Illustration/icon showing accessibility
-            accessibilityIllustration
-            
-            Spacer()
-                .frame(height: Spacing.xl)
-            
-            // Title
-            Text("Accessibility Access")
-                .font(.system(size: 28, weight: .bold, design: .rounded))
-                .foregroundColor(Color.Wispflow.textPrimary)
-            
-            Spacer()
-                .frame(height: Spacing.sm)
-            
-            // Screen explains why accessibility access is needed (hotkeys + text insertion)
-            Text("WispFlow needs accessibility access for\nglobal hotkeys and text insertion.")
-                .font(Font.Wispflow.body)
-                .foregroundColor(Color.Wispflow.textSecondary)
-                .multilineTextAlignment(.center)
-                .lineSpacing(4)
-            
-            Spacer()
-                .frame(height: Spacing.xxl)
-            
-            // Current permission status displayed
-            permissionStatusCard
-            
-            Spacer()
-                .frame(height: Spacing.lg)
-            
-            // Instructions: "Enable WispFlow in the list"
-            instructionsCard
-            
-            Spacer()
-                .frame(height: Spacing.xxl)
-            
-            // "Open System Settings" button opens Accessibility pane
-            if !isPermissionGranted {
-                Button(action: openSystemSettings) {
-                    HStack(spacing: Spacing.sm) {
-                        Image(systemName: "gear")
-                            .font(.system(size: 16, weight: .medium))
-                        Text("Open System Settings")
-                            .font(Font.Wispflow.headline)
-                    }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: 220)
-                    .padding(.vertical, Spacing.md)
-                    .background(Color.Wispflow.accent)
-                    .cornerRadius(CornerRadius.small)
-                }
-                .buttonStyle(InteractiveScaleStyle())
-            } else {
-                // "Continue" enabled only after permission granted
-                Button(action: onContinue) {
-                    Text("Continue")
-                        .font(Font.Wispflow.headline)
+        ScrollView {
+            VStack(spacing: Spacing.lg) {
+                Spacer()
+                    .frame(height: Spacing.xl)
+                
+                // Illustration/icon showing accessibility
+                accessibilityIllustration
+                
+                // Title
+                Text("Accessibility Access")
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundColor(Color.Voxa.textPrimary)
+                
+                // Screen explains why accessibility access is needed (hotkeys + text insertion)
+                Text("Voxa needs accessibility access for\nglobal hotkeys and text insertion.")
+                    .font(Font.Voxa.body)
+                    .foregroundColor(Color.Voxa.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(4)
+                
+                // Current permission status displayed
+                permissionStatusCard
+                
+                // Instructions: "Enable Voxa in the list"
+                instructionsCard
+                
+                Spacer()
+                    .frame(height: Spacing.md)
+                
+                // "Open System Settings" button opens Accessibility pane
+                if !isPermissionGranted {
+                    Button(action: openSystemSettings) {
+                        HStack(spacing: Spacing.sm) {
+                            Image(systemName: "gear")
+                                .font(.system(size: 16, weight: .medium))
+                            Text("Open System Settings")
+                                .font(Font.Voxa.headline)
+                        }
                         .foregroundColor(.white)
-                        .frame(maxWidth: 200)
+                        .frame(maxWidth: 220)
                         .padding(.vertical, Spacing.md)
-                        .background(Color.Wispflow.success)
+                        .background(Color.Voxa.accent)
                         .cornerRadius(CornerRadius.small)
+                    }
+                    .buttonStyle(InteractiveScaleStyle())
+                } else {
+                    // "Continue" enabled only after permission granted
+                    Button(action: onContinue) {
+                        Text("Continue")
+                            .font(Font.Voxa.headline)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: 200)
+                            .padding(.vertical, Spacing.md)
+                            .background(Color.Voxa.success)
+                            .cornerRadius(CornerRadius.small)
+                    }
+                    .buttonStyle(InteractiveScaleStyle())
                 }
-                .buttonStyle(InteractiveScaleStyle())
+                
+                // "Skip" available
+                Button(action: onSkip) {
+                    Text("Skip for now")
+                        .font(Font.Voxa.caption)
+                        .foregroundColor(Color.Voxa.textSecondary)
+                        .underline()
+                }
+                .buttonStyle(PlainButtonStyle())
+                .opacity(0.7)
+                
+                Spacer()
+                    .frame(height: Spacing.xl)
             }
-            
-            Spacer()
-                .frame(height: Spacing.lg)
-            
-            // "Skip" available
-            Button(action: onSkip) {
-                Text("Skip for now")
-                    .font(Font.Wispflow.caption)
-                    .foregroundColor(Color.Wispflow.textSecondary)
-                    .underline()
-            }
-            .buttonStyle(PlainButtonStyle())
-            .opacity(0.7)
-            
-            Spacer()
+            .frame(maxWidth: .infinity)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.Wispflow.background)
+        .background(Color.Voxa.background)
         .onAppear {
             // Refresh status when view appears
             permissionManager.refreshAccessibilityStatus()
@@ -548,20 +536,20 @@ struct AccessibilityPermissionView: View {
         ZStack {
             // Outer glow circle
             Circle()
-                .fill(Color.Wispflow.accent.opacity(0.15))
+                .fill(Color.Voxa.accent.opacity(0.15))
                 .frame(width: 120, height: 120)
             
             // Inner circle with gradient
             Circle()
                 .fill(
                     LinearGradient(
-                        colors: [Color.Wispflow.accent.opacity(0.9), Color.Wispflow.accent],
+                        colors: [Color.Voxa.accent.opacity(0.9), Color.Voxa.accent],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
                 )
                 .frame(width: 90, height: 90)
-                .shadow(color: Color.Wispflow.accent.opacity(0.3), radius: 10, x: 0, y: 5)
+                .shadow(color: Color.Voxa.accent.opacity(0.3), radius: 10, x: 0, y: 5)
             
             // Accessibility icon (keyboard representing hotkeys + text insertion)
             Image(systemName: "keyboard.fill")
@@ -578,59 +566,59 @@ struct AccessibilityPermissionView: View {
             // Status icon
             ZStack {
                 Circle()
-                    .fill(isPermissionGranted ? Color.Wispflow.successLight : Color.Wispflow.errorLight)
+                    .fill(isPermissionGranted ? Color.Voxa.successLight : Color.Voxa.errorLight)
                     .frame(width: 40, height: 40)
                 
                 Image(systemName: isPermissionGranted ? "checkmark.circle.fill" : "xmark.circle.fill")
                     .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(isPermissionGranted ? Color.Wispflow.success : Color.Wispflow.error)
+                    .foregroundColor(isPermissionGranted ? Color.Voxa.success : Color.Voxa.error)
             }
             
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 Text("Accessibility Permission")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
                 
                 // Status updates when user returns to app
                 Text(statusText)
-                    .font(Font.Wispflow.caption)
-                    .foregroundColor(isPermissionGranted ? Color.Wispflow.success : Color.Wispflow.textSecondary)
+                    .font(Font.Voxa.caption)
+                    .foregroundColor(isPermissionGranted ? Color.Voxa.success : Color.Voxa.textSecondary)
             }
             
             Spacer()
         }
         .padding(Spacing.lg)
-        .background(Color.Wispflow.surface)
+        .background(Color.Voxa.surface)
         .cornerRadius(CornerRadius.medium)
-        .wispflowShadow(.card)
+        .voxaShadow(.card)
         .padding(.horizontal, Spacing.xxl)
-        .animation(WispflowAnimation.smooth, value: isPermissionGranted)
+        .animation(VoxaAnimation.smooth, value: isPermissionGranted)
     }
     
     // MARK: - Instructions Card
     
-    /// Instructions: "Enable WispFlow in the list"
+    /// Instructions: "Enable Voxa in the list"
     private var instructionsCard: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "info.circle.fill")
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
                 
                 Text("How to enable")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
             }
             
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 InstructionRow(number: 1, text: "Click \"Open System Settings\" below")
-                InstructionRow(number: 2, text: "Find WispFlow in the list")
+                InstructionRow(number: 2, text: "Find Voxa in the list")
                 InstructionRow(number: 3, text: "Toggle the switch to enable")
                 InstructionRow(number: 4, text: "Return to this window")
             }
         }
         .padding(Spacing.lg)
-        .background(Color.Wispflow.surface.opacity(0.5))
+        .background(Color.Voxa.surface.opacity(0.5))
         .cornerRadius(CornerRadius.medium)
         .padding(.horizontal, Spacing.xxl)
     }
@@ -668,17 +656,17 @@ struct InstructionRow: View {
             // Number badge
             ZStack {
                 Circle()
-                    .fill(Color.Wispflow.accentLight)
+                    .fill(Color.Voxa.accentLight)
                     .frame(width: 22, height: 22)
                 
                 Text("\(number)")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
             }
             
             Text(text)
-                .font(Font.Wispflow.body)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.body)
+                .foregroundColor(Color.Voxa.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -727,15 +715,15 @@ struct AudioTestView: View {
             // Title
             Text("Test Your Microphone")
                 .font(.system(size: 28, weight: .bold, design: .rounded))
-                .foregroundColor(Color.Wispflow.textPrimary)
+                .foregroundColor(Color.Voxa.textPrimary)
             
             Spacer()
                 .frame(height: Spacing.sm)
             
             // Description
             Text("Speak into your microphone to make sure\nit's working correctly.")
-                .font(Font.Wispflow.body)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.body)
+                .foregroundColor(Color.Voxa.textSecondary)
                 .multilineTextAlignment(.center)
                 .lineSpacing(4)
             
@@ -765,11 +753,11 @@ struct AudioTestView: View {
             if hasTestedAudio {
                 Button(action: onContinue) {
                     Text("Sounds Good!")
-                        .font(Font.Wispflow.headline)
+                        .font(Font.Voxa.headline)
                         .foregroundColor(.white)
                         .frame(maxWidth: 200)
                         .padding(.vertical, Spacing.md)
-                        .background(Color.Wispflow.success)
+                        .background(Color.Voxa.success)
                         .cornerRadius(CornerRadius.small)
                 }
                 .buttonStyle(InteractiveScaleStyle())
@@ -789,9 +777,9 @@ struct AudioTestView: View {
                     Image(systemName: showTroubleshootingTips ? "chevron.up" : "questionmark.circle")
                         .font(.system(size: 12, weight: .medium))
                     Text("Having Issues?")
-                        .font(Font.Wispflow.caption)
+                        .font(Font.Voxa.caption)
                 }
-                .foregroundColor(Color.Wispflow.accent)
+                .foregroundColor(Color.Voxa.accent)
             }
             .buttonStyle(PlainButtonStyle())
             
@@ -807,8 +795,8 @@ struct AudioTestView: View {
             // Skip link
             Button(action: onSkip) {
                 Text("Skip for now")
-                    .font(Font.Wispflow.caption)
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .font(Font.Voxa.caption)
+                    .foregroundColor(Color.Voxa.textSecondary)
                     .underline()
             }
             .buttonStyle(PlainButtonStyle())
@@ -817,7 +805,7 @@ struct AudioTestView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.Wispflow.background)
+        .background(Color.Voxa.background)
         .onAppear {
             print("OnboardingWindow: [US-520] Audio test view appeared")
             audioManager.refreshAvailableDevices()
@@ -834,7 +822,7 @@ struct AudioTestView: View {
         ZStack {
             // Outer animated ring (pulses when testing)
             Circle()
-                .stroke(Color.Wispflow.accent.opacity(isTestingAudio ? 0.3 : 0.1), lineWidth: 3)
+                .stroke(Color.Voxa.accent.opacity(isTestingAudio ? 0.3 : 0.1), lineWidth: 3)
                 .frame(width: 130, height: 130)
                 .scaleEffect(isTestingAudio ? 1.1 : 1.0)
                 .animation(
@@ -846,20 +834,20 @@ struct AudioTestView: View {
             
             // Outer glow circle
             Circle()
-                .fill(Color.Wispflow.accent.opacity(0.15))
+                .fill(Color.Voxa.accent.opacity(0.15))
                 .frame(width: 120, height: 120)
             
             // Inner circle with gradient
             Circle()
                 .fill(
                     LinearGradient(
-                        colors: [Color.Wispflow.accent.opacity(0.9), Color.Wispflow.accent],
+                        colors: [Color.Voxa.accent.opacity(0.9), Color.Voxa.accent],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
                 )
                 .frame(width: 90, height: 90)
-                .shadow(color: Color.Wispflow.accent.opacity(0.3), radius: 10, x: 0, y: 5)
+                .shadow(color: Color.Voxa.accent.opacity(0.3), radius: 10, x: 0, y: 5)
             
             // Waveform icon
             Image(systemName: isTestingAudio ? "waveform" : "mic.fill")
@@ -875,9 +863,9 @@ struct AudioTestView: View {
     private var deviceSelector: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             Text("Select Microphone")
-                .font(Font.Wispflow.caption)
+                .font(Font.Voxa.caption)
                 .fontWeight(.medium)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .foregroundColor(Color.Voxa.textSecondary)
             
             Menu {
                 ForEach(audioManager.inputDevices) { device in
@@ -896,7 +884,7 @@ struct AudioTestView: View {
                             }
                             if device.isDefault {
                                 Text("(Default)")
-                                    .foregroundColor(Color.Wispflow.textSecondary)
+                                    .foregroundColor(Color.Voxa.textSecondary)
                             }
                         }
                     }
@@ -904,21 +892,21 @@ struct AudioTestView: View {
             } label: {
                 HStack {
                     Image(systemName: "mic.fill")
-                        .foregroundColor(Color.Wispflow.accent)
+                        .foregroundColor(Color.Voxa.accent)
                     Text(audioManager.currentDevice?.name ?? "Select Device")
-                        .font(Font.Wispflow.body)
-                        .foregroundColor(Color.Wispflow.textPrimary)
+                        .font(Font.Voxa.body)
+                        .foregroundColor(Color.Voxa.textPrimary)
                     Spacer()
                     Image(systemName: "chevron.down")
-                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .foregroundColor(Color.Voxa.textSecondary)
                         .font(.system(size: 12, weight: .medium))
                 }
                 .padding(Spacing.md)
-                .background(Color.Wispflow.surface)
+                .background(Color.Voxa.surface)
                 .cornerRadius(CornerRadius.medium)
                 .overlay(
                     RoundedRectangle(cornerRadius: CornerRadius.medium)
-                        .stroke(Color.Wispflow.border, lineWidth: 1)
+                        .stroke(Color.Voxa.border, lineWidth: 1)
                 )
             }
         }
@@ -941,11 +929,11 @@ struct AudioTestView: View {
             // Level indicator and status
             HStack {
                 Text("Level:")
-                    .font(Font.Wispflow.caption)
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .font(Font.Voxa.caption)
+                    .foregroundColor(Color.Voxa.textSecondary)
                 
                 Text(isTestingAudio ? String(format: "%.1f dB", currentLevel) : "—")
-                    .font(Font.Wispflow.mono)
+                    .font(Font.Voxa.mono)
                     .foregroundColor(levelColor(for: currentLevel))
                 
                 Spacer()
@@ -957,7 +945,7 @@ struct AudioTestView: View {
                             .fill(levelColor(for: currentLevel))
                             .frame(width: 8, height: 8)
                         Text(levelStatus(for: currentLevel))
-                            .font(Font.Wispflow.caption)
+                            .font(Font.Voxa.caption)
                             .foregroundColor(levelColor(for: currentLevel))
                     }
                     .padding(.horizontal, Spacing.sm)
@@ -968,13 +956,13 @@ struct AudioTestView: View {
             }
         }
         .padding(Spacing.lg)
-        .background(Color.Wispflow.surface)
+        .background(Color.Voxa.surface)
         .cornerRadius(CornerRadius.medium)
         .overlay(
             RoundedRectangle(cornerRadius: CornerRadius.medium)
-                .stroke(isTestingAudio ? Color.Wispflow.accent.opacity(0.5) : Color.Wispflow.border, lineWidth: 1)
+                .stroke(isTestingAudio ? Color.Voxa.accent.opacity(0.5) : Color.Voxa.border, lineWidth: 1)
         )
-        .wispflowShadow(.card)
+        .voxaShadow(.card)
         .padding(.horizontal, Spacing.xxl)
         .animation(.easeInOut(duration: 0.2), value: isTestingAudio)
     }
@@ -994,12 +982,12 @@ struct AudioTestView: View {
                 Image(systemName: isTestingAudio ? "stop.fill" : "mic.fill")
                     .font(.system(size: 14, weight: .medium))
                 Text(isTestingAudio ? "Stop Test" : "Start Test")
-                    .font(Font.Wispflow.headline)
+                    .font(Font.Voxa.headline)
             }
             .foregroundColor(.white)
             .frame(maxWidth: 180)
             .padding(.vertical, Spacing.md)
-            .background(isTestingAudio ? Color.Wispflow.error : Color.Wispflow.accent)
+            .background(isTestingAudio ? Color.Voxa.error : Color.Voxa.accent)
             .cornerRadius(CornerRadius.small)
         }
         .buttonStyle(InteractiveScaleStyle())
@@ -1012,11 +1000,11 @@ struct AudioTestView: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "lightbulb.fill")
-                    .foregroundColor(Color.Wispflow.warning)
+                    .foregroundColor(Color.Voxa.warning)
                     .font(.system(size: 14, weight: .medium))
                 Text("Troubleshooting Tips")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
             }
             
             VStack(alignment: .leading, spacing: Spacing.sm) {
@@ -1030,7 +1018,7 @@ struct AudioTestView: View {
                 )
                 TroubleshootingTipRow(
                     icon: "hand.raised",
-                    text: "Ensure WispFlow has microphone permission in System Settings > Privacy & Security"
+                    text: "Ensure Voxa has microphone permission in System Settings > Privacy & Security"
                 )
                 TroubleshootingTipRow(
                     icon: "arrow.clockwise",
@@ -1043,7 +1031,7 @@ struct AudioTestView: View {
             }
         }
         .padding(Spacing.lg)
-        .background(Color.Wispflow.surface.opacity(0.7))
+        .background(Color.Voxa.surface.opacity(0.7))
         .cornerRadius(CornerRadius.medium)
         .padding(.horizontal, Spacing.xxl)
         .padding(.top, Spacing.sm)
@@ -1098,13 +1086,13 @@ struct AudioTestView: View {
     /// Color for the current audio level
     private func levelColor(for level: Float) -> Color {
         if level > -10 {
-            return Color.Wispflow.error // Too loud / clipping
+            return Color.Voxa.error // Too loud / clipping
         } else if level > -30 {
-            return Color.Wispflow.success // Good level
+            return Color.Voxa.success // Good level
         } else if level > -50 {
-            return Color.Wispflow.warning // Quiet
+            return Color.Voxa.warning // Quiet
         } else {
-            return Color.Wispflow.textSecondary // Silent
+            return Color.Voxa.textSecondary // Silent
         }
     }
     
@@ -1135,7 +1123,7 @@ struct OnboardingAudioLevelMeter: View {
             ZStack(alignment: .leading) {
                 // Background track
                 RoundedRectangle(cornerRadius: CornerRadius.small)
-                    .fill(Color.Wispflow.border)
+                    .fill(Color.Voxa.border)
                 
                 // Segmented level indicator
                 HStack(spacing: 2) {
@@ -1156,11 +1144,11 @@ struct OnboardingAudioLevelMeter: View {
     /// Color for each segment based on level
     private func segmentColor(for segmentLevel: Float, isLit: Bool) -> Color {
         if segmentLevel > -10 {
-            return Color.Wispflow.error
+            return Color.Voxa.error
         } else if segmentLevel > -30 {
-            return Color.Wispflow.success
+            return Color.Voxa.success
         } else {
-            return Color.Wispflow.accent
+            return Color.Voxa.accent
         }
     }
 }
@@ -1176,12 +1164,12 @@ struct TroubleshootingTipRow: View {
         HStack(alignment: .top, spacing: Spacing.sm) {
             Image(systemName: icon)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundColor(Color.Wispflow.accent)
+                .foregroundColor(Color.Voxa.accent)
                 .frame(width: 16)
             
             Text(text)
-                .font(Font.Wispflow.caption)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.caption)
+                .foregroundColor(Color.Voxa.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -1227,15 +1215,15 @@ struct HotkeyIntroductionView: View {
             // Title
             Text("Your Recording Hotkey")
                 .font(.system(size: 28, weight: .bold, design: .rounded))
-                .foregroundColor(Color.Wispflow.textPrimary)
+                .foregroundColor(Color.Voxa.textPrimary)
             
             Spacer()
                 .frame(height: Spacing.sm)
             
             // Description
             Text("Press this shortcut anywhere to start recording.\nIt works in any app, anytime.")
-                .font(Font.Wispflow.body)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.body)
+                .foregroundColor(Color.Voxa.textSecondary)
                 .multilineTextAlignment(.center)
                 .lineSpacing(4)
             
@@ -1272,9 +1260,9 @@ struct HotkeyIntroductionView: View {
                         Image(systemName: "keyboard")
                             .font(.system(size: 12, weight: .medium))
                         Text("Change Hotkey")
-                            .font(Font.Wispflow.caption)
+                            .font(Font.Voxa.caption)
                     }
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
                 }
                 .buttonStyle(PlainButtonStyle())
             }
@@ -1291,11 +1279,11 @@ struct HotkeyIntroductionView: View {
             // Continue button
             Button(action: onContinue) {
                 Text(hotkeyPressed ? "Continue" : "Got it!")
-                    .font(Font.Wispflow.headline)
+                    .font(Font.Voxa.headline)
                     .foregroundColor(.white)
                     .frame(maxWidth: 200)
                     .padding(.vertical, Spacing.md)
-                    .background(hotkeyPressed ? Color.Wispflow.success : Color.Wispflow.accent)
+                    .background(hotkeyPressed ? Color.Voxa.success : Color.Voxa.accent)
                     .cornerRadius(CornerRadius.small)
             }
             .buttonStyle(InteractiveScaleStyle())
@@ -1306,8 +1294,8 @@ struct HotkeyIntroductionView: View {
             // Skip link
             Button(action: onSkip) {
                 Text("Skip for now")
-                    .font(Font.Wispflow.caption)
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .font(Font.Voxa.caption)
+                    .foregroundColor(Color.Voxa.textSecondary)
                     .underline()
             }
             .buttonStyle(PlainButtonStyle())
@@ -1316,7 +1304,7 @@ struct HotkeyIntroductionView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.Wispflow.background)
+        .background(Color.Voxa.background)
         .onAppear {
             print("OnboardingWindow: [US-521] Hotkey introduction view appeared")
             setupHotkeyTestListener()
@@ -1333,7 +1321,7 @@ struct HotkeyIntroductionView: View {
         ZStack {
             // Outer animated ring (pulses when hotkey pressed)
             Circle()
-                .stroke(Color.Wispflow.accent.opacity(hotkeyPressed ? 0.5 : 0.1), lineWidth: 3)
+                .stroke(Color.Voxa.accent.opacity(hotkeyPressed ? 0.5 : 0.1), lineWidth: 3)
                 .frame(width: 130, height: 130)
                 .scaleEffect(hotkeyPressed ? 1.15 : 1.0)
                 .animation(
@@ -1345,7 +1333,7 @@ struct HotkeyIntroductionView: View {
             
             // Outer glow circle
             Circle()
-                .fill(Color.Wispflow.accent.opacity(0.15))
+                .fill(Color.Voxa.accent.opacity(0.15))
                 .frame(width: 120, height: 120)
             
             // Inner circle with gradient
@@ -1353,15 +1341,15 @@ struct HotkeyIntroductionView: View {
                 .fill(
                     LinearGradient(
                         colors: [
-                            hotkeyPressed ? Color.Wispflow.success.opacity(0.9) : Color.Wispflow.accent.opacity(0.9),
-                            hotkeyPressed ? Color.Wispflow.success : Color.Wispflow.accent
+                            hotkeyPressed ? Color.Voxa.success.opacity(0.9) : Color.Voxa.accent.opacity(0.9),
+                            hotkeyPressed ? Color.Voxa.success : Color.Voxa.accent
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
                 )
                 .frame(width: 90, height: 90)
-                .shadow(color: (hotkeyPressed ? Color.Wispflow.success : Color.Wispflow.accent).opacity(0.3), radius: 10, x: 0, y: 5)
+                .shadow(color: (hotkeyPressed ? Color.Voxa.success : Color.Voxa.accent).opacity(0.3), radius: 10, x: 0, y: 5)
                 .animation(.easeInOut(duration: 0.3), value: hotkeyPressed)
             
             // Keyboard icon or checkmark
@@ -1385,13 +1373,13 @@ struct HotkeyIntroductionView: View {
             
             // Hotkey name
             Text(hotkeyManager.configuration.displayString)
-                .font(Font.Wispflow.caption)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.caption)
+                .foregroundColor(Color.Voxa.textSecondary)
         }
         .padding(Spacing.xl)
-        .background(Color.Wispflow.surface)
+        .background(Color.Voxa.surface)
         .cornerRadius(CornerRadius.large)
-        .wispflowShadow(.card)
+        .voxaShadow(.card)
         .padding(.horizontal, Spacing.xxl)
         .scaleEffect(hotkeyPressed ? 1.05 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.6), value: hotkeyPressed)
@@ -1428,18 +1416,18 @@ struct HotkeyIntroductionView: View {
     private var tryItNowPrompt: some View {
         VStack(spacing: Spacing.sm) {
             HStack(spacing: Spacing.sm) {
-                PulsingDot(size: 8, color: Color.Wispflow.accent)
+                PulsingDot(size: 8, color: Color.Voxa.accent)
                 Text("Try it now!")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
             }
             
             Text("Press the hotkey to see it in action")
-                .font(Font.Wispflow.caption)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.caption)
+                .foregroundColor(Color.Voxa.textSecondary)
         }
         .padding(Spacing.lg)
-        .background(Color.Wispflow.accentLight)
+        .background(Color.Voxa.accentLight)
         .cornerRadius(CornerRadius.medium)
         .padding(.horizontal, Spacing.xxl)
         .transition(.opacity.combined(with: .scale(scale: 0.95)))
@@ -1453,18 +1441,18 @@ struct HotkeyIntroductionView: View {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(Color.Wispflow.success)
+                    .foregroundColor(Color.Voxa.success)
                 Text("Perfect!")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.success)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.success)
             }
             
             Text("Your hotkey is working correctly")
-                .font(Font.Wispflow.caption)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.caption)
+                .foregroundColor(Color.Voxa.textSecondary)
         }
         .padding(Spacing.lg)
-        .background(Color.Wispflow.successLight)
+        .background(Color.Voxa.successLight)
         .cornerRadius(CornerRadius.medium)
         .padding(.horizontal, Spacing.xxl)
         .transition(.opacity.combined(with: .scale(scale: 0.95)))
@@ -1476,8 +1464,8 @@ struct HotkeyIntroductionView: View {
     private var hotkeyCustomizationView: some View {
         VStack(spacing: Spacing.md) {
             Text("Record New Hotkey")
-                .font(Font.Wispflow.headline)
-                .foregroundColor(Color.Wispflow.textPrimary)
+                .font(Font.Voxa.headline)
+                .foregroundColor(Color.Voxa.textPrimary)
             
             OnboardingHotkeyRecorder(hotkeyManager: hotkeyManager)
             
@@ -1487,16 +1475,16 @@ struct HotkeyIntroductionView: View {
                 }
             }) {
                 Text("Done")
-                    .font(Font.Wispflow.caption)
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .font(Font.Voxa.caption)
+                    .foregroundColor(Color.Voxa.textSecondary)
                     .underline()
             }
             .buttonStyle(PlainButtonStyle())
         }
         .padding(Spacing.lg)
-        .background(Color.Wispflow.surface)
+        .background(Color.Voxa.surface)
         .cornerRadius(CornerRadius.medium)
-        .wispflowShadow(.card)
+        .voxaShadow(.card)
         .padding(.horizontal, Spacing.xxl)
         .transition(.opacity.combined(with: .move(edge: .top)))
     }
@@ -1508,11 +1496,11 @@ struct HotkeyIntroductionView: View {
         HStack(spacing: Spacing.sm) {
             Image(systemName: "lightbulb.fill")
                 .font(.system(size: 12, weight: .medium))
-                .foregroundColor(Color.Wispflow.warning)
+                .foregroundColor(Color.Voxa.warning)
             
             Text("Tip: The default ⌘⇧Space works well for most users")
-                .font(Font.Wispflow.caption)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.caption)
+                .foregroundColor(Color.Voxa.textSecondary)
         }
         .padding(.horizontal, Spacing.xxl)
     }
@@ -1569,7 +1557,7 @@ struct OnboardingCompletionView: View {
     /// Hotkey manager for getting current hotkey configuration
     @ObservedObject var hotkeyManager: HotkeyManager
     
-    /// Callback when user clicks "Start Using WispFlow"
+    /// Callback when user clicks "Start Using Voxa"
     var onStartUsingApp: () -> Void
     
     /// Animation state for checkmark appearance
@@ -1592,15 +1580,15 @@ struct OnboardingCompletionView: View {
             // Title
             Text("You're All Set!")
                 .font(.system(size: 32, weight: .bold, design: .rounded))
-                .foregroundColor(Color.Wispflow.textPrimary)
+                .foregroundColor(Color.Voxa.textPrimary)
             
             Spacer()
                 .frame(height: Spacing.sm)
             
             // Brief description
-            Text("WispFlow is ready to transcribe your voice.")
-                .font(Font.Wispflow.body)
-                .foregroundColor(Color.Wispflow.textSecondary)
+            Text("Voxa is ready to transcribe your voice.")
+                .font(Font.Voxa.body)
+                .foregroundColor(Color.Voxa.textSecondary)
                 .multilineTextAlignment(.center)
             
             Spacer()
@@ -1618,18 +1606,18 @@ struct OnboardingCompletionView: View {
             Spacer()
                 .frame(height: Spacing.xxl)
             
-            // "Start Using WispFlow" button closes wizard
+            // "Start Using Voxa" button closes wizard
             Button(action: onStartUsingApp) {
                 HStack(spacing: Spacing.sm) {
-                    Text("Start Using WispFlow")
-                        .font(Font.Wispflow.headline)
+                    Text("Start Using Voxa")
+                        .font(Font.Voxa.headline)
                     Image(systemName: "arrow.right")
                         .font(.system(size: 14, weight: .semibold))
                 }
                 .foregroundColor(.white)
                 .frame(maxWidth: 240)
                 .padding(.vertical, Spacing.md)
-                .background(Color.Wispflow.success)
+                .background(Color.Voxa.success)
                 .cornerRadius(CornerRadius.small)
             }
             .buttonStyle(InteractiveScaleStyle())
@@ -1637,7 +1625,7 @@ struct OnboardingCompletionView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.Wispflow.background)
+        .background(Color.Voxa.background)
         .onAppear {
             print("OnboardingWindow: [US-522] Completion view appeared")
             // Trigger animations with slight delay
@@ -1661,14 +1649,14 @@ struct OnboardingCompletionView: View {
         ZStack {
             // Outer celebration ring
             Circle()
-                .stroke(Color.Wispflow.success.opacity(0.2), lineWidth: 4)
+                .stroke(Color.Voxa.success.opacity(0.2), lineWidth: 4)
                 .frame(width: 130, height: 130)
                 .scaleEffect(showSuccessIcon ? 1.0 : 0.5)
                 .opacity(showSuccessIcon ? 1.0 : 0.0)
             
             // Outer glow circle
             Circle()
-                .fill(Color.Wispflow.success.opacity(0.15))
+                .fill(Color.Voxa.success.opacity(0.15))
                 .frame(width: 120, height: 120)
                 .scaleEffect(showSuccessIcon ? 1.0 : 0.7)
             
@@ -1676,13 +1664,13 @@ struct OnboardingCompletionView: View {
             Circle()
                 .fill(
                     LinearGradient(
-                        colors: [Color.Wispflow.success.opacity(0.9), Color.Wispflow.success],
+                        colors: [Color.Voxa.success.opacity(0.9), Color.Voxa.success],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
                 )
                 .frame(width: 90, height: 90)
-                .shadow(color: Color.Wispflow.success.opacity(0.3), radius: 10, x: 0, y: 5)
+                .shadow(color: Color.Voxa.success.opacity(0.3), radius: 10, x: 0, y: 5)
                 .scaleEffect(showSuccessIcon ? 1.0 : 0.5)
             
             // Checkmark icon
@@ -1704,14 +1692,14 @@ struct OnboardingCompletionView: View {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "list.bullet.clipboard.fill")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(Color.Wispflow.accent)
+                    .foregroundColor(Color.Voxa.accent)
                 Text("Setup Complete")
-                    .font(Font.Wispflow.headline)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
             }
             
             Divider()
-                .background(Color.Wispflow.border)
+                .background(Color.Voxa.border)
             
             // Completed steps list
             VStack(alignment: .leading, spacing: Spacing.sm) {
@@ -1741,9 +1729,9 @@ struct OnboardingCompletionView: View {
             }
         }
         .padding(Spacing.lg)
-        .background(Color.Wispflow.surface)
+        .background(Color.Voxa.surface)
         .cornerRadius(CornerRadius.medium)
-        .wispflowShadow(.card)
+        .voxaShadow(.card)
         .padding(.horizontal, Spacing.xxl)
     }
     
@@ -1754,8 +1742,8 @@ struct OnboardingCompletionView: View {
         VStack(spacing: Spacing.md) {
             // Instruction text
             Text("To start recording, press:")
-                .font(Font.Wispflow.body)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.body)
+                .foregroundColor(Color.Voxa.textSecondary)
             
             // Hotkey display
             HStack(spacing: Spacing.sm) {
@@ -1766,15 +1754,15 @@ struct OnboardingCompletionView: View {
             
             // Hotkey string
             Text(hotkeyManager.configuration.displayString)
-                .font(Font.Wispflow.caption)
-                .foregroundColor(Color.Wispflow.textSecondary)
+                .font(Font.Voxa.caption)
+                .foregroundColor(Color.Voxa.textSecondary)
         }
         .padding(Spacing.xl)
-        .background(Color.Wispflow.accentLight.opacity(0.5))
+        .background(Color.Voxa.accentLight.opacity(0.5))
         .cornerRadius(CornerRadius.medium)
         .overlay(
             RoundedRectangle(cornerRadius: CornerRadius.medium)
-                .stroke(Color.Wispflow.accent.opacity(0.3), lineWidth: 1)
+                .stroke(Color.Voxa.accent.opacity(0.3), lineWidth: 1)
         )
         .padding(.horizontal, Spacing.xxl)
     }
@@ -1818,13 +1806,13 @@ struct CompletedStepRow: View {
             // Checkmark or X icon
             ZStack {
                 Circle()
-                    .fill(isCompleted ? Color.Wispflow.successLight : Color.Wispflow.surface)
+                    .fill(isCompleted ? Color.Voxa.successLight : Color.Voxa.surface)
                     .frame(width: 28, height: 28)
                 
                 if showCheckmark {
                     Image(systemName: isCompleted ? "checkmark" : "minus")
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(isCompleted ? Color.Wispflow.success : Color.Wispflow.textSecondary)
+                        .foregroundColor(isCompleted ? Color.Voxa.success : Color.Voxa.textSecondary)
                         .transition(.scale.combined(with: .opacity))
                 }
             }
@@ -1832,19 +1820,19 @@ struct CompletedStepRow: View {
             
             // Step title
             Text(title)
-                .font(Font.Wispflow.body)
-                .foregroundColor(isCompleted ? Color.Wispflow.textPrimary : Color.Wispflow.textSecondary)
+                .font(Font.Voxa.body)
+                .foregroundColor(isCompleted ? Color.Voxa.textPrimary : Color.Voxa.textSecondary)
             
             Spacer()
             
             // Status badge
             if showCheckmark {
                 Text(isCompleted ? "Done" : "Skipped")
-                    .font(Font.Wispflow.caption)
-                    .foregroundColor(isCompleted ? Color.Wispflow.success : Color.Wispflow.textSecondary)
+                    .font(Font.Voxa.caption)
+                    .foregroundColor(isCompleted ? Color.Voxa.success : Color.Voxa.textSecondary)
                     .padding(.horizontal, Spacing.sm)
                     .padding(.vertical, Spacing.xs)
-                    .background(isCompleted ? Color.Wispflow.successLight : Color.Wispflow.surface)
+                    .background(isCompleted ? Color.Voxa.successLight : Color.Voxa.surface)
                     .cornerRadius(CornerRadius.small)
                     .transition(.opacity)
             }
@@ -1862,16 +1850,16 @@ struct HotkeyKeyBadge: View {
     var body: some View {
         Text(symbol)
             .font(.system(size: 24, weight: .semibold, design: .rounded))
-            .foregroundColor(Color.Wispflow.textPrimary)
+            .foregroundColor(Color.Voxa.textPrimary)
             .frame(minWidth: 44, minHeight: 44)
             .background(
                 RoundedRectangle(cornerRadius: CornerRadius.small)
-                    .fill(Color.Wispflow.background)
+                    .fill(Color.Voxa.background)
                     .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 2)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: CornerRadius.small)
-                    .stroke(Color.Wispflow.border, lineWidth: 1)
+                    .stroke(Color.Voxa.border, lineWidth: 1)
             )
     }
 }
@@ -1894,15 +1882,15 @@ struct OnboardingHotkeyRecorder: View {
             // Current hotkey display
             HStack {
                 Text("Current:")
-                    .font(Font.Wispflow.caption)
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .font(Font.Voxa.caption)
+                    .foregroundColor(Color.Voxa.textSecondary)
                 
                 Text(hotkeyManager.configuration.displayString)
-                    .font(Font.Wispflow.mono)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .font(Font.Voxa.mono)
+                    .foregroundColor(Color.Voxa.textPrimary)
                     .padding(.horizontal, Spacing.sm)
                     .padding(.vertical, Spacing.xs)
-                    .background(Color.Wispflow.accentLight)
+                    .background(Color.Voxa.accentLight)
                     .cornerRadius(CornerRadius.small)
             }
             
@@ -1913,12 +1901,12 @@ struct OnboardingHotkeyRecorder: View {
                         PulsingDot(size: 8, color: .white)
                     }
                     Text(isRecording ? "Press keys..." : "Record New")
-                        .font(Font.Wispflow.body)
+                        .font(Font.Voxa.body)
                 }
                 .foregroundColor(.white)
                 .frame(maxWidth: 160)
                 .padding(.vertical, Spacing.sm)
-                .background(isRecording ? Color.Wispflow.error : Color.Wispflow.accent)
+                .background(isRecording ? Color.Voxa.error : Color.Voxa.accent)
                 .cornerRadius(CornerRadius.small)
             }
             .buttonStyle(InteractiveScaleStyle())
@@ -1929,8 +1917,8 @@ struct OnboardingHotkeyRecorder: View {
                     hotkeyManager.resetToDefault()
                 }) {
                     Text("Reset to Default (⌘⇧Space)")
-                        .font(Font.Wispflow.caption)
-                        .foregroundColor(Color.Wispflow.accent)
+                        .font(Font.Voxa.caption)
+                        .foregroundColor(Color.Voxa.accent)
                 }
                 .buttonStyle(PlainButtonStyle())
             }
@@ -2033,7 +2021,7 @@ struct OnboardingContainerView: View {
     var body: some View {
         ZStack {
             // Background
-            Color.Wispflow.background
+            Color.Voxa.background
                 .ignoresSafeArea()
             
             // Current step content
@@ -2108,7 +2096,7 @@ struct OnboardingContainerView: View {
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
             }
         }
-        .animation(WispflowAnimation.smooth, value: currentStep)
+        .animation(VoxaAnimation.smooth, value: currentStep)
     }
     
     // MARK: - Navigation
@@ -2197,7 +2185,7 @@ final class OnboardingWindowController: NSObject {
         let hostingController = NSHostingController(rootView: onboardingView)
         
         let window = NSWindow(contentViewController: hostingController)
-        window.title = "Welcome to WispFlow"
+        window.title = "Welcome to Voxa"
         window.styleMask = [.titled, .closable]
         window.setContentSize(NSSize(width: 520, height: 620))
         window.center()
@@ -2302,7 +2290,7 @@ struct OnboardingCompletionView_Previews: PreviewProvider {
         OnboardingCompletionView(
             permissionManager: PermissionManager.shared,
             hotkeyManager: HotkeyManager(),
-            onStartUsingApp: { print("Start Using WispFlow tapped") }
+            onStartUsingApp: { print("Start Using Voxa tapped") }
         )
         .frame(width: 520, height: 620)
     }

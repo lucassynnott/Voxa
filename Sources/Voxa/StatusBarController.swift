@@ -81,9 +81,9 @@ final class StatusBarController: NSObject {
         menu.addItem(NSMenuItem.separator())
         
         // US-632: Open Main Window item with app icon
-        let mainWindowItem = NSMenuItem(title: "Open WispFlow", action: #selector(openMainWindow), keyEquivalent: "o")
+        let mainWindowItem = NSMenuItem(title: "Open Voxa", action: #selector(openMainWindow), keyEquivalent: "o")
         mainWindowItem.target = self
-        mainWindowItem.image = createMenuIcon(systemName: "rectangle.grid.1x2", tint: NSColor.Wispflow.accent)
+        mainWindowItem.image = createMenuIcon(systemName: "rectangle.grid.1x2", tint: NSColor.Voxa.accent)
         menu.addItem(mainWindowItem)
         
         menu.addItem(NSMenuItem.separator())
@@ -91,14 +91,14 @@ final class StatusBarController: NSObject {
         // Settings item with gear icon
         let settingsItem = NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ",")
         settingsItem.target = self
-        settingsItem.image = createMenuIcon(systemName: "gearshape", tint: NSColor.Wispflow.textSecondary)
+        settingsItem.image = createMenuIcon(systemName: "gearshape", tint: NSColor.Voxa.textSecondary)
         menu.addItem(settingsItem)
         
         menu.addItem(NSMenuItem.separator())
         
         // Audio Input Device submenu with speaker icon
         let audioDeviceItem = NSMenuItem(title: "Audio Input", action: nil, keyEquivalent: "")
-        audioDeviceItem.image = createMenuIcon(systemName: "mic", tint: NSColor.Wispflow.textSecondary)
+        audioDeviceItem.image = createMenuIcon(systemName: "mic", tint: NSColor.Voxa.textSecondary)
         let audioDeviceSubmenu = NSMenu()
         audioDeviceItem.submenu = audioDeviceSubmenu
         menu.addItem(audioDeviceItem)
@@ -109,15 +109,15 @@ final class StatusBarController: NSObject {
         let launchAtLoginItem = NSMenuItem(title: "Launch at Login", action: #selector(toggleLaunchAtLogin(_:)), keyEquivalent: "")
         launchAtLoginItem.target = self
         launchAtLoginItem.state = isLaunchAtLoginEnabled() ? .on : .off
-        launchAtLoginItem.image = createMenuIcon(systemName: "arrow.counterclockwise.circle", tint: NSColor.Wispflow.textSecondary)
+        launchAtLoginItem.image = createMenuIcon(systemName: "arrow.counterclockwise.circle", tint: NSColor.Voxa.textSecondary)
         menu.addItem(launchAtLoginItem)
         
         menu.addItem(NSMenuItem.separator())
         
         // Quit item with power icon
-        let quitItem = NSMenuItem(title: "Quit WispFlow", action: #selector(quitApp), keyEquivalent: "q")
+        let quitItem = NSMenuItem(title: "Quit Voxa", action: #selector(quitApp), keyEquivalent: "q")
         quitItem.target = self
-        quitItem.image = createMenuIcon(systemName: "power", tint: NSColor.Wispflow.textSecondary)
+        quitItem.image = createMenuIcon(systemName: "power", tint: NSColor.Voxa.textSecondary)
         menu.addItem(quitItem)
         
         statusItem?.menu = menu
@@ -256,7 +256,7 @@ final class StatusBarController: NSObject {
                 stopPulseAnimation()
                 button.image = customIcon
                 button.image?.isTemplate = true  // Allow system to tint for dark/light mode
-                button.toolTip = "WispFlow - Ready"
+                button.toolTip = "Voxa - Ready"
                 return
             }
         }
@@ -272,7 +272,7 @@ final class StatusBarController: NSObject {
             // When recording, use recording icon with coral accent
             iconName = recordingState.iconName
             tooltip = recordingState.accessibilityLabel
-            iconTint = NSColor.Wispflow.accent
+            iconTint = NSColor.Voxa.accent
             
             // Start pulsing animation for recording state
             startPulseAnimation()
@@ -284,24 +284,24 @@ final class StatusBarController: NSObject {
             switch currentModelStatus {
             case .notDownloaded, .downloaded:
                 iconName = "waveform.slash"
-                tooltip = "WispFlow - Model not loaded"
-                iconTint = NSColor.Wispflow.textSecondary
+                tooltip = "Voxa - Model not loaded"
+                iconTint = NSColor.Voxa.textSecondary
             case .downloading(let progress):
                 iconName = "arrow.down.circle"
-                tooltip = "WispFlow - Downloading model (\(Int(progress * 100))%)"
-                iconTint = NSColor.Wispflow.accent
+                tooltip = "Voxa - Downloading model (\(Int(progress * 100))%)"
+                iconTint = NSColor.Voxa.accent
             case .loading:
                 iconName = "arrow.clockwise.circle"
-                tooltip = "WispFlow - Loading model..."
-                iconTint = NSColor.Wispflow.accent
+                tooltip = "Voxa - Loading model..."
+                iconTint = NSColor.Voxa.accent
             case .ready:
                 iconName = "waveform"
-                tooltip = "WispFlow - Ready"
-                iconTint = NSColor.Wispflow.textPrimary  // Warm charcoal for ready state
+                tooltip = "Voxa - Ready"
+                iconTint = NSColor.Voxa.textPrimary  // Warm charcoal for ready state
             case .error(let message):
                 iconName = "exclamationmark.triangle"
-                tooltip = "WispFlow - Error: \(message)"
-                iconTint = NSColor.Wispflow.error
+                tooltip = "Voxa - Error: \(message)"
+                iconTint = NSColor.Voxa.error
             }
         }
         
@@ -409,9 +409,9 @@ final class StatusBarController: NSObject {
         
         // Create coral color with varying brightness for pulse effect
         let pulseColor = NSColor(
-            calibratedRed: NSColor.Wispflow.accent.redComponent * intensity + 0.1 * (1 - intensity),
-            green: NSColor.Wispflow.accent.greenComponent * intensity,
-            blue: NSColor.Wispflow.accent.blueComponent * intensity,
+            calibratedRed: NSColor.Voxa.accent.redComponent * intensity + 0.1 * (1 - intensity),
+            green: NSColor.Voxa.accent.greenComponent * intensity,
+            blue: NSColor.Voxa.accent.blueComponent * intensity,
             alpha: 1.0
         )
         
@@ -471,7 +471,7 @@ final class StatusBarController: NSObject {
     
     /// US-632: Open the main application window
     @objc private func openMainWindow() {
-        print("Open WispFlow clicked - opening main window")
+        print("Open Voxa clicked - opening main window")
         onOpenMainWindow?()
     }
     

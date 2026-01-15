@@ -29,9 +29,9 @@ enum RecordingState: String {
     var accessibilityLabel: String {
         switch self {
         case .idle:
-            return "WispFlow - Click to start recording"
+            return "Voxa - Click to start recording"
         case .recording:
-            return "WispFlow - Recording... Click to stop"
+            return "Voxa - Recording... Click to stop"
         }
     }
 }

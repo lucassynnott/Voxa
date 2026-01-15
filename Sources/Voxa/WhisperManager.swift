@@ -269,7 +269,7 @@ final class WhisperManager: ObservableObject {
     /// Model download and caching directory
     private var modelsDirectory: URL {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let modelsDir = appSupport.appendingPathComponent("WispFlow/Models", isDirectory: true)
+        let modelsDir = appSupport.appendingPathComponent("Voxa/Models", isDirectory: true)
         try? FileManager.default.createDirectory(at: modelsDir, withIntermediateDirectories: true)
         return modelsDir
     }
@@ -570,11 +570,11 @@ final class WhisperManager: ObservableObject {
             message += "Suggestions:\n"
             message += "• Free up disk space\n"
             message += "• Try a smaller model (Tiny or Base)\n"
-            message += "• Check available space in ~/Library/Application Support/WispFlow"
+            message += "• Check available space in ~/Library/Application Support/Voxa"
         } else if errorString.contains("permission") || errorString.contains("access denied") {
             message += "Cause: Permission denied\n\n"
             message += "Suggestions:\n"
-            message += "• Check file permissions for ~/Library/Application Support/WispFlow\n"
+            message += "• Check file permissions for ~/Library/Application Support/Voxa\n"
             message += "• Try restarting the application\n"
             message += "• Run as administrator if needed"
         } else if errorString.contains("timeout") {

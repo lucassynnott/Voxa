@@ -14,13 +14,13 @@ enum ToastType {
     var backgroundColor: Color {
         switch self {
         case .success:
-            return Color.Wispflow.success
+            return Color.Voxa.success
         case .error:
-            return Color.Wispflow.accent  // Coral for errors per PRD
+            return Color.Voxa.accent  // Coral for errors per PRD
         case .warning:
-            return Color.Wispflow.warning  // Orange for warnings
+            return Color.Voxa.warning  // Orange for warnings
         case .info:
-            return Color.Wispflow.textSecondary
+            return Color.Voxa.textSecondary
         }
     }
     
@@ -28,13 +28,13 @@ enum ToastType {
     var lightBackgroundColor: Color {
         switch self {
         case .success:
-            return Color.Wispflow.successLight
+            return Color.Voxa.successLight
         case .error:
-            return Color.Wispflow.accentLight
+            return Color.Voxa.accentLight
         case .warning:
-            return Color.Wispflow.warning.opacity(0.2)
+            return Color.Voxa.warning.opacity(0.2)
         case .info:
-            return Color.Wispflow.border
+            return Color.Voxa.border
         }
     }
     
@@ -222,7 +222,7 @@ final class ToastManager: ObservableObject {
             self.dismissTimers.removeValue(forKey: id)
             
             // Remove from active toasts with animation
-            withAnimation(WispflowAnimation.slide) {
+            withAnimation(VoxaAnimation.slide) {
                 self.activeToasts.removeAll { $0.id == id }
             }
             
@@ -240,7 +240,7 @@ final class ToastManager: ObservableObject {
             
             // Clear queue and active toasts
             self.toastQueue.removeAll()
-            withAnimation(WispflowAnimation.slide) {
+            withAnimation(VoxaAnimation.slide) {
                 self.activeToasts.removeAll()
             }
         }
@@ -249,7 +249,7 @@ final class ToastManager: ObservableObject {
     // MARK: - Private Methods
     
     private func displayToast(_ toast: ToastItem) {
-        withAnimation(WispflowAnimation.slide) {
+        withAnimation(VoxaAnimation.slide) {
             activeToasts.insert(toast, at: 0)
         }
         
@@ -268,10 +268,10 @@ final class ToastManager: ObservableObject {
     }
 }
 
-// MARK: - WispflowToast View Component
+// MARK: - VoxaToast View Component
 
 /// Individual toast view with frosted glass effect and slide-in animation
-struct WispflowToast: View {
+struct VoxaToast: View {
     let toast: ToastItem
     let onDismiss: () -> Void
     
@@ -313,15 +313,15 @@ struct WispflowToast: View {
             // Content
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 Text(toast.title)
-                    .font(Font.Wispflow.body)
+                    .font(Font.Voxa.body)
                     .fontWeight(.semibold)
-                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .foregroundColor(Color.Voxa.textPrimary)
                     .lineLimit(2)
                 
                 if let message = toast.message {
                     Text(message)
-                        .font(Font.Wispflow.caption)
-                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .font(Font.Voxa.caption)
+                        .foregroundColor(Color.Voxa.textSecondary)
                         .lineLimit(2)
                 }
             }
@@ -335,7 +335,7 @@ struct WispflowToast: View {
                     onDismiss()
                 }) {
                     Text(actionTitle)
-                        .font(Font.Wispflow.caption)
+                        .font(Font.Voxa.caption)
                         .fontWeight(.medium)
                         .foregroundColor(toast.type.backgroundColor)
                         .padding(.horizontal, Spacing.sm)
@@ -350,11 +350,11 @@ struct WispflowToast: View {
             Button(action: onDismiss) {
                 Image(systemName: "xmark")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .foregroundColor(Color.Voxa.textSecondary)
                     .frame(width: 24, height: 24)
                     .background(
                         Circle()
-                            .fill(isHovering ? Color.Wispflow.border.opacity(0.5) : Color.clear)
+                            .fill(isHovering ? Color.Voxa.border.opacity(0.5) : Color.clear)
                     )
             }
             .buttonStyle(.plain)
@@ -369,7 +369,7 @@ struct WispflowToast: View {
                 
                 // Warm tint overlay for design system compliance
                 RoundedRectangle(cornerRadius: CornerRadius.medium)
-                    .fill(Color.Wispflow.background.opacity(0.7))
+                    .fill(Color.Voxa.background.opacity(0.7))
                 
                 // Subtle colored border based on type
                 RoundedRectangle(cornerRadius: CornerRadius.medium)
@@ -389,7 +389,7 @@ struct WispflowToast: View {
             }
             .clipShape(RoundedRectangle(cornerRadius: CornerRadius.medium))
         )
-        .wispflowShadow(.floating)
+        .voxaShadow(.floating)
         .onHover { hovering in
             isHovering = hovering
             
@@ -431,7 +431,7 @@ struct ToastContainerView: View {
     var body: some View {
         VStack(alignment: .trailing, spacing: Spacing.sm) {
             ForEach(toastManager.activeToasts) { toast in
-                WispflowToast(
+                VoxaToast(
                     toast: toast,
                     onDismiss: {
                         toastManager.dismiss(toast)
@@ -702,5 +702,5 @@ extension ToastManager {
 // MARK: - Notification Names
 
 extension Notification.Name {
-    static let openSettings = Notification.Name("WispFlow.openSettings")
+    static let openSettings = Notification.Name("Voxa.openSettings")
 }

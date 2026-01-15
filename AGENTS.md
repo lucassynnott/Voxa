@@ -1,4 +1,4 @@
-# WispFlow - Agent Instructions
+# Voxa - Agent Instructions
 
 ## Build
 
@@ -6,7 +6,7 @@
 # Quick build (just compile)
 swift build
 
-# Build app bundle (creates .build/WispFlow.app)
+# Build app bundle (creates .build/Voxa.app)
 ./scripts/build-app.sh
 
 # Build release app bundle
@@ -17,10 +17,10 @@ swift build
 
 ```bash
 # Run from app bundle (preferred)
-open .build/WispFlow.app
+open .build/Voxa.app
 
 # Or run directly
-.build/debug/WispFlow
+.build/debug/Voxa
 ```
 
 ## Verification
@@ -32,7 +32,7 @@ swift build
 
 ## Project Structure
 
-- `Sources/WispFlow/` - Main application source code
+- `Sources/Voxa/` - Main application source code
   - `main.swift` - Application entry point
   - `AppDelegate.swift` - App lifecycle management
   - `StatusBarController.swift` - Menu bar status item controller

@@ -167,7 +167,7 @@ final class DebugManager: ObservableObject {
         /// Formatted string for clipboard/export
         var formattedString: String {
             return """
-            WispFlow v\(appVersion) (Build \(buildNumber))
+            Voxa v\(appVersion) (Build \(buildNumber))
             macOS \(macOSVersion)
             Model: \(machineModel)
             Processor: \(processorInfo)
@@ -225,7 +225,7 @@ final class DebugManager: ObservableObject {
         didSet {
             UserDefaults.standard.set(isAutoSaveEnabled, forKey: Constants.autoSaveRecordingsKey)
             if isAutoSaveEnabled {
-                addLogEntry(category: .system, message: "Auto-save recordings enabled (saves to Documents/WispFlow/DebugRecordings)")
+                addLogEntry(category: .system, message: "Auto-save recordings enabled (saves to Documents/Voxa/DebugRecordings)")
             } else {
                 addLogEntry(category: .system, message: "Auto-save recordings disabled")
             }
@@ -484,7 +484,7 @@ final class DebugManager: ObservableObject {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
         let timestamp = formatter.string(from: Date())
-        return "WispFlow_Logs_\(timestamp).txt"
+        return "Voxa_Logs_\(timestamp).txt"
     }
     
     /// Generate content for log export including system info
@@ -511,8 +511,8 @@ final class DebugManager: ObservableObject {
     
     // MARK: - US-707: Reset All Settings
     
-    /// Reset all WispFlow settings to defaults
-    /// This removes all UserDefaults keys used by WispFlow
+    /// Reset all Voxa settings to defaults
+    /// This removes all UserDefaults keys used by Voxa
     func resetAllSettings() {
         print("[US-707] Resetting all settings to defaults...")
         

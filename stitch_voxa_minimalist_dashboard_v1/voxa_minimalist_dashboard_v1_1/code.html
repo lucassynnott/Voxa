@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Voxa Minimalist Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600&amp;family=Playfair+Display:ital,wght@0,400;0,600;1,400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#D97058", // Muted Terracotta
+                        "background-light": "#F9F8F6", // Warm Alabaster
+                        "background-dark": "#121212", // Soft Black
+                        "surface-light": "#FFFFFF",
+                        "surface-dark": "#1E1E1E",
+                        "text-light": "#2D2D2D",
+                        "text-dark": "#E0E0E0",
+                        "subtle-light": "#888888",
+                        "subtle-dark": "#A0A0A0",
+                        "line-light": "#E5E5E5",
+                        "line-dark": "#333333",
+                    },
+                    fontFamily: {
+                        sans: ["Manrope", "sans-serif"],
+                        display: ["Playfair Display", "serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.5rem",
+                    },
+                },
+            },
+        };
+    </script>
+<style>body {
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        .editorial-line {
+            height: 1px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark font-sans antialiased h-screen overflow-hidden flex selection:bg-primary selection:text-white">
+<aside class="w-20 lg:w-64 flex-shrink-0 border-r border-line-light dark:border-line-dark flex flex-col justify-between transition-all duration-300 bg-surface-light/50 dark:bg-surface-dark/50 backdrop-blur-sm">
+<div>
+<div class="h-24 flex items-center px-6 lg:px-8">
+<div class="flex items-center gap-4">
+<img alt="Voxa V Logo" class="h-8 w-8 object-contain dark:invert" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCN5XcbDhOiAO0rYJumx3_alsMmor711KYsFiRhqSpe4ipHdxVWouq-Ab5qgbKSOvvE1XqopGaTDn_liO5wIaHPv09Km4fl5HlM74PoZ_rL8s6wtZq4L8mk4a0ddSogZTFj66K3Br8nKhZwlZM5O7u5Vtj_D58PCKIV9wnh-2U3raK6jHrTTDNirVYDQ95AosI5UrM58JX10widfxtTpmXjFjxWmWPsBgPGZndJIxhPmoiUA5BxM1TigGQIeLq9McdSavOTWB1KunNW"/>
+<span class="font-display font-semibold text-xl tracking-wide hidden lg:block dark:text-white">Voxa</span>
+</div>
+</div>
+<nav class="mt-8 px-4 space-y-2">
+<a class="group flex items-center gap-4 px-4 py-3 rounded-lg bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary transition-colors" href="#">
+<span class="material-icons-round text-[20px]">home</span>
+<span class="font-medium text-sm hidden lg:block">Home</span>
+</a>
+<a class="group flex items-center gap-4 px-4 py-3 rounded-lg text-subtle-light dark:text-subtle-dark hover:bg-black/5 dark:hover:bg-white/5 hover:text-text-light dark:hover:text-text-dark transition-colors" href="#">
+<span class="material-icons-round text-[20px]">schedule</span>
+<span class="font-medium text-sm hidden lg:block">History</span>
+</a>
+<a class="group flex items-center gap-4 px-4 py-3 rounded-lg text-subtle-light dark:text-subtle-dark hover:bg-black/5 dark:hover:bg-white/5 hover:text-text-light dark:hover:text-text-dark transition-colors" href="#">
+<span class="material-icons-round text-[20px]">folder_copy</span>
+<span class="font-medium text-sm hidden lg:block">Snippets</span>
+</a>
+<a class="group flex items-center gap-4 px-4 py-3 rounded-lg text-subtle-light dark:text-subtle-dark hover:bg-black/5 dark:hover:bg-white/5 hover:text-text-light dark:hover:text-text-dark transition-colors" href="#">
+<span class="material-icons-round text-[20px]">book</span>
+<span class="font-medium text-sm hidden lg:block">Dictionary</span>
+</a>
+<a class="group flex items-center gap-4 px-4 py-3 rounded-lg text-subtle-light dark:text-subtle-dark hover:bg-black/5 dark:hover:bg-white/5 hover:text-text-light dark:hover:text-text-dark transition-colors" href="#">
+<span class="material-icons-round text-[20px]">settings</span>
+<span class="font-medium text-sm hidden lg:block">Settings</span>
+</a>
+</nav>
+</div>
+<div class="p-6 border-t border-line-light dark:border-line-dark">
+<button class="flex items-center gap-3 w-full text-subtle-light dark:text-subtle-dark hover:text-text-light dark:hover:text-text-dark transition-colors">
+<span class="material-icons-round text-[20px] transform rotate-180">logout</span>
+<span class="text-sm font-medium hidden lg:block">Collapse</span>
+</button>
+</div>
+</aside>
+<main class="flex-1 flex flex-col h-screen overflow-y-auto relative">
+<header class="w-full h-24 flex items-center justify-between px-10 lg:px-16 flex-shrink-0">
+<div class="hidden md:block text-xs font-medium uppercase tracking-widest text-subtle-light dark:text-subtle-dark">
+                Dashboard
+            </div>
+<div class="text-right">
+<p class="text-sm font-medium text-text-light dark:text-text-dark">Thursday, January 15</p>
+<div class="flex items-center justify-end gap-1 text-xs text-subtle-light dark:text-subtle-dark mt-1">
+<span class="w-2 h-2 rounded-full bg-green-500"></span>
+<span>System Active</span>
+</div>
+</div>
+</header>
+<div class="flex-1 px-10 lg:px-16 pb-12 max-w-7xl mx-auto w-full flex flex-col">
+<section class="mt-8 mb-16">
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-8">
+<div>
+<h1 class="font-display text-5xl lg:text-6xl text-text-light dark:text-text-dark mb-4 leading-tight">
+                            Good afternoon.
+                        </h1>
+<p class="text-lg text-subtle-light dark:text-subtle-dark font-light max-w-md">
+                            Ready to capture your thoughts? Your last session was 2 hours ago.
+                        </p>
+</div>
+<button class="group relative flex items-center justify-center gap-3 bg-primary hover:bg-opacity-90 text-white px-8 py-4 rounded-full shadow-lg shadow-primary/20 transition-all transform hover:-translate-y-1">
+<span class="material-icons-round animate-pulse text-white/80">mic</span>
+<span class="font-medium tracking-wide">Start Recording</span>
+<span class="text-xs bg-white/20 px-2 py-0.5 rounded text-white/90">⌘ R</span>
+</button>
+</div>
+</section>
+<div class="w-full h-px bg-line-light dark:bg-line-dark mb-12"></div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-12 h-full">
+<div class="lg:col-span-8 flex flex-col">
+<div class="flex items-center justify-between mb-8">
+<h2 class="font-display text-2xl text-text-light dark:text-text-dark italic">Recent Transcriptions</h2>
+<a class="text-xs uppercase tracking-widest text-subtle-light dark:text-subtle-dark hover:text-primary transition-colors" href="#">View All</a>
+</div>
+<div class="flex flex-col gap-0">
+<div class="group py-6 border-b border-line-light dark:border-line-dark flex items-center justify-between hover:bg-black/[0.02] dark:hover:bg-white/[0.02] -mx-4 px-4 rounded transition-colors cursor-pointer">
+<div class="flex items-center gap-6">
+<div class="w-10 h-10 rounded-full border border-line-light dark:border-line-dark flex items-center justify-center text-primary bg-background-light dark:bg-surface-dark group-hover:scale-105 transition-transform">
+<span class="material-icons-round text-lg">description</span>
+</div>
+<div>
+<h3 class="text-lg font-medium text-text-light dark:text-text-dark group-hover:text-primary transition-colors">Meeting Notes: Q4 Review</h3>
+<p class="text-sm text-subtle-light dark:text-subtle-dark mt-0.5">Automated cleanup enabled • 24 mins</p>
+</div>
+</div>
+<div class="text-right">
+<p class="text-sm text-text-light dark:text-text-dark">10:42 AM</p>
+<span class="text-xs text-subtle-light dark:text-subtle-dark">Today</span>
+</div>
+</div>
+<div class="group py-6 border-b border-line-light dark:border-line-dark flex items-center justify-between hover:bg-black/[0.02] dark:hover:bg-white/[0.02] -mx-4 px-4 rounded transition-colors cursor-pointer">
+<div class="flex items-center gap-6">
+<div class="w-10 h-10 rounded-full border border-line-light dark:border-line-dark flex items-center justify-center text-subtle-light dark:text-subtle-dark bg-background-light dark:bg-surface-dark group-hover:scale-105 transition-transform">
+<span class="material-icons-round text-lg">lightbulb</span>
+</div>
+<div>
+<h3 class="text-lg font-medium text-text-light dark:text-text-dark group-hover:text-primary transition-colors">Product Brainstorming</h3>
+<p class="text-sm text-subtle-light dark:text-subtle-dark mt-0.5">Raw recording • 5 mins</p>
+</div>
+</div>
+<div class="text-right">
+<p class="text-sm text-text-light dark:text-text-dark">Yesterday</p>
+<span class="text-xs text-subtle-light dark:text-subtle-dark">4:20 PM</span>
+</div>
+</div>
+<div class="group py-6 border-b border-line-light dark:border-line-dark flex items-center justify-between hover:bg-black/[0.02] dark:hover:bg-white/[0.02] -mx-4 px-4 rounded transition-colors cursor-pointer">
+<div class="flex items-center gap-6">
+<div class="w-10 h-10 rounded-full border border-line-light dark:border-line-dark flex items-center justify-center text-subtle-light dark:text-subtle-dark bg-background-light dark:bg-surface-dark group-hover:scale-105 transition-transform">
+<span class="material-icons-round text-lg">mail</span>
+</div>
+<div>
+<h3 class="text-lg font-medium text-text-light dark:text-text-dark group-hover:text-primary transition-colors">Draft Email to Client</h3>
+<p class="text-sm text-subtle-light dark:text-subtle-dark mt-0.5">Formatted text • 2 mins</p>
+</div>
+</div>
+<div class="text-right">
+<p class="text-sm text-text-light dark:text-text-dark">Jan 12</p>
+<span class="text-xs text-subtle-light dark:text-subtle-dark">11:05 AM</span>
+</div>
+</div>
+</div>
+</div>
+<div class="lg:col-span-4 pl-0 lg:pl-12 border-l-0 lg:border-l border-line-light dark:border-line-dark flex flex-col gap-12">
+<div>
+<h2 class="font-display text-2xl text-text-light dark:text-text-dark italic mb-8">Daily Insights</h2>
+<div class="space-y-8">
+<div>
+<p class="text-xs uppercase tracking-widest text-subtle-light dark:text-subtle-dark mb-2">Words Spoken</p>
+<div class="flex items-baseline gap-2">
+<span class="text-4xl font-light text-text-light dark:text-text-dark">1,240</span>
+<span class="text-green-600 text-sm font-medium">↑ 12%</span>
+</div>
+</div>
+<div class="w-full h-px bg-line-light dark:bg-line-dark"></div>
+<div>
+<p class="text-xs uppercase tracking-widest text-subtle-light dark:text-subtle-dark mb-2">Time Saved</p>
+<div class="flex items-baseline gap-2">
+<span class="text-4xl font-light text-text-light dark:text-text-dark">45m</span>
+<span class="text-subtle-light dark:text-subtle-dark text-sm">vs typing</span>
+</div>
+</div>
+</div>
+</div>
+<div>
+<h2 class="font-display text-2xl text-text-light dark:text-text-dark italic mb-6">Quick Tools</h2>
+<div class="space-y-3">
+<button class="w-full text-left p-4 border border-line-light dark:border-line-dark rounded hover:border-primary dark:hover:border-primary transition-colors flex items-center justify-between group">
+<span class="font-medium text-sm">AI Text Cleanup</span>
+<span class="material-icons-round text-subtle-light group-hover:text-primary text-sm">auto_fix_high</span>
+</button>
+<button class="w-full text-left p-4 border border-line-light dark:border-line-dark rounded hover:border-primary dark:hover:border-primary transition-colors flex items-center justify-between group">
+<span class="font-medium text-sm">Import Audio File</span>
+<span class="material-icons-round text-subtle-light group-hover:text-primary text-sm">upload_file</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+
+</body></html>

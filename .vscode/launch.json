@@ -19,6 +19,26 @@
             "target": "WispFlow",
             "configuration": "release",
             "preLaunchTask": "swift: Build Release WispFlow"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:WispFlow}",
+            "name": "Debug Voxa",
+            "target": "Voxa",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug Voxa"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:WispFlow}",
+            "name": "Release Voxa",
+            "target": "Voxa",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release Voxa"
         }
     ]
 }
