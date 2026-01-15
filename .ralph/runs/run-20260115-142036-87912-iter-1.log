@@ -1,0 +1,27 @@
+The working tree is clean.
+
+## Summary
+
+**US-801: Home Dashboard Header with Time-Based Greeting** is complete.
+
+### What was implemented:
+1. **Time-based greeting logic** - `greetingMessage` computed property returns:
+   - "Good morning." (before 12pm)
+   - "Good afternoon." (12pm-5pm)
+   - "Good evening." (after 5pm)
+
+2. **Playfair Display font equivalent** - Added `Font.Voxa.displayGreeting` (52pt serif) to the design system
+
+3. **Subtitle with last session info** - `lastSessionSubtitle` shows relative time since last transcription (e.g., "Ready to capture your thoughts? Your last session was 2 hours ago.")
+
+4. **DASHBOARD label** - Uppercase with `.tracking(4)` for wide letter-spacing
+
+5. **Date and System Active status** - Top-right shows current date ("Thursday, January 15") and "System Active" badge with green dot indicator
+
+### Verification:
+- `swift build` → PASS
+- Post-commit status: clean
+- Commit: `4326ecb feat(dashboard): add time-based greeting header with period (US-801)`
+
+### Remaining Stories:
+7 stories remain in Phase 11 (US-802 through US-808).
