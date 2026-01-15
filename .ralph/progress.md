@@ -4037,3 +4037,54 @@ Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260115-105838-46628-it
   - SwiftUI .sheet(item:) requires Identifiable conformance on the presented type
   - Tab-separated format is good for dictionary import/export (simple and human-readable)
 ---
+
+## [2026-01-15 12:15] - US-701: Create SettingsContentView for Main Window
+Thread: 
+Run: 20260115-115703-60368 (iteration 1)
+Run log: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260115-115703-60368-iter-1.log
+Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260115-115703-60368-iter-1.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: 62147f5 feat(US-701): SettingsContentView with 6 expandable sections in main window
+- Post-commit status: clean
+- Verification:
+  - Command: swift build -> PASS
+- Files changed:
+  - Sources/WispFlow/MainWindow.swift (modified - replaced placeholder with full settings view)
+- What was implemented:
+  - **SettingsContentView:** Complete settings display in main window sidebar with:
+    - ScrollView for smooth vertical scrolling
+    - Settings header with title and description
+    - 6 expandable sections using SettingsSectionView component
+  - **SettingsSectionView:** Reusable section container with:
+    - wispflowCard() styling on background
+    - Expandable/collapsible with smooth animation
+    - Section icon in accentLight rounded rectangle
+    - Title and description with chevron indicator
+    - Content area with divider when expanded
+  - **GeneralSettingsSummary:** App info row, hotkey display, permission badges (mic and accessibility)
+  - **AudioSettingsSummary:** Input device name, device count, calibration status
+  - **TranscriptionSettingsSummary:** Whisper model with ModelStatusIndicator badge, language with flag
+  - **TextCleanupSettingsSummary:** Cleanup toggle StatusPill, cleanup mode, post-processing MiniFeatureBadges
+  - **TextInsertionSettingsSummary:** Insertion method (Paste ⌘V), clipboard preservation toggle
+  - **DebugSettingsSummary:** Debug mode status, auto-save recordings, last recording info
+  - **Supporting components:**
+    - SettingsInfoRow: Icon + title + value display
+    - PermissionBadge: Circular badge showing granted/denied status with colors
+    - ModelStatusIndicator: Compact status badge for Whisper model state
+    - StatusPill: Pill-shaped enabled/disabled indicator
+    - MiniFeatureBadge: Small icon badge for enabled features
+    - SettingsOpenFullButton: Button to open detailed settings window
+- Acceptance Criteria verified:
+  - [x] Settings display in main window content area
+  - [x] All 6 sections visible with clear headers (General, Audio, Transcription, Text Cleanup, Text Insertion, Debug)
+  - [x] Consistent styling with other main window views (uses Color.Wispflow tokens, wispflowShadow, CornerRadius, Spacing)
+  - [x] Smooth scrolling for long content (ScrollView with animation)
+- **Learnings for future iterations:**
+  - Manager singletons use @MainActor and have static let shared property
+  - Use @StateObject for ObservableObject singletons in SwiftUI views
+  - AudioManager uses currentDevice and inputDevices, not selectedDevice/availableDevices
+  - TextCleanupManager uses selectedMode, not cleanupMode
+  - TextInserter does not have insertionMethod property; uses paste (⌘V) by default
+  - Swift 6 produces warnings for @MainActor static properties in nonisolated contexts
+---
