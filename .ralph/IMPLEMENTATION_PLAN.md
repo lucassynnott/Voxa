@@ -1902,8 +1902,8 @@ This plan implements a comprehensive overhaul of WispFlow's core systems based o
 
 ---
 
-### [ ] US-706: Migrate Text Insertion Settings Section
-**Status:** open
+### [x] US-706: Migrate Text Insertion Settings Section
+**Status:** complete
 **Priority:** medium
 **Estimated effort:** small
 **Depends on:** US-701
@@ -1911,13 +1911,56 @@ This plan implements a comprehensive overhaul of WispFlow's core systems based o
 **Description:** Move Text Insertion settings to integrated settings view.
 
 **Tasks:**
-- [ ] Show text insertion method options
-- [ ] Include clipboard preservation toggle
-- [ ] Display timing options if applicable
+- [x] Show text insertion method options
+- [x] Include clipboard preservation toggle
+- [x] Display timing options if applicable
 
 **Acceptance Criteria:**
-- [ ] Insertion method selection works
-- [ ] Clipboard preservation toggle functions
+- [x] Insertion method selection works
+- [x] Clipboard preservation toggle functions
+
+**Implementation Notes:**
+- Expanded `TextInsertionSettingsSummary` in `MainWindow.swift` from a summary view to a full settings section (same pattern as US-702, US-703, US-704, US-705)
+- Created five main sections within the Text Insertion settings:
+  1. **Insertion Method Section** (US-706 Task 1) with:
+     - `TextInsertionMethodCard` component showing Paste (⌘V) method
+     - Card displays method icon, title, description, and feature badges
+     - Radio-style selection indicator (currently only paste method is supported)
+     - "Active" status badge for selected method
+     - Info note explaining paste method is most reliable for all applications
+  2. **Clipboard Preservation Section** (US-706 Task 2) with:
+     - `TextInsertionToggleRow` component for preserve clipboard toggle
+     - Toggle bound to `textInserter.preserveClipboard` for persistence
+     - Status indicator showing clipboard restoration status with checkmark/X icon
+     - Color-coded background (green when enabled, gray when disabled)
+  3. **Timing Options Section** (US-706 Task 3) with:
+     - Only displayed when clipboard preservation is enabled
+     - Custom `TextInsertionDelaySlider` component with drag gesture
+     - Visual delay value badge showing current setting (e.g., "0.8 seconds")
+     - Gradient-filled track and draggable thumb
+     - Min/max labels (0.2s to 2.0s)
+     - Help text explaining when to increase delay
+  4. **Accessibility Permission Section** with:
+     - Permission status card with large icon (checkmark/X)
+     - "Permission Granted" or "Permission Not Granted" status text
+     - "Grant Access" button that opens System Settings (when not granted)
+     - Success message animation when permission is granted
+     - Step-by-step instructions using `TextInsertionInstructionRow` components
+  5. **How It Works Section** with:
+     - Numbered steps showing text insertion flow using `TextInsertionFeatureRow`
+     - Dynamic step 3 text changes based on clipboard preservation setting
+     - Shows restore delay value when preservation is enabled
+- Created supporting components (prefixed with `TextInsertion` to avoid naming conflicts):
+  - `TextInsertionMethodCard` - card-based method selection with hover effects
+  - `TextInsertionToggleRow` - toggle row for settings with icon, title, description
+  - `TextInsertionDelaySlider` - custom slider with gradient fill and drag gesture
+  - `TextInsertionInstructionRow` - numbered instruction steps for permission setup
+  - `TextInsertionFeatureRow` - feature row for how-it-works section
+- All components use existing design system: `Color.Wispflow`, `Font.Wispflow`, `Spacing`, `CornerRadius`, `WispflowAnimation`
+- Uses `@StateObject` with `TextInserter.shared` and `PermissionManager.shared` singletons
+- Permission grant callback shows animated success message for 3 seconds
+- All toggle changes logged with `[US-706]` prefix for debugging
+- Verified via `swift build` - typecheck passes
 
 ---
 

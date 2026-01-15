@@ -6611,42 +6611,584 @@ struct TextCleanupPreviewText: View {
     }
 }
 
-// MARK: - Text Insertion Settings Summary (US-701)
+// MARK: - Text Insertion Settings Summary (US-701, US-706)
 
-/// Summary view for Text Insertion settings section
+/// Full Text Insertion settings section migrated from SettingsWindow
+/// US-706: Migrate Text Insertion Settings Section to integrated settings view
 struct TextInsertionSettingsSummary: View {
     @StateObject private var textInserter = TextInserter.shared
+    @StateObject private var permissionManager = PermissionManager.shared
+    @State private var showPermissionGrantedMessage = false
     
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.lg) {
-            // Insertion method - using paste (⌘V) by default
-            SettingsInfoRow(
-                icon: "keyboard.badge.ellipsis",
-                title: "Insertion Method",
-                value: "Paste (⌘V)"
+        VStack(alignment: .leading, spacing: Spacing.xl) {
+            // MARK: - Insertion Method Section (US-706 Task 1)
+            insertionMethodSection
+            
+            Divider()
+                .background(Color.Wispflow.border)
+            
+            // MARK: - Clipboard Preservation Section (US-706 Task 2)
+            clipboardPreservationSection
+            
+            Divider()
+                .background(Color.Wispflow.border)
+            
+            // MARK: - Timing Options Section (US-706 Task 3)
+            if textInserter.preserveClipboard {
+                timingOptionsSection
+                
+                Divider()
+                    .background(Color.Wispflow.border)
+            }
+            
+            // MARK: - Accessibility Permission Section
+            accessibilityPermissionSection
+            
+            Divider()
+                .background(Color.Wispflow.border)
+            
+            // MARK: - How It Works Section
+            howItWorksSection
+        }
+        .onAppear {
+            // Set up callback to show success message when permission is granted
+            textInserter.onPermissionGranted = {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    showPermissionGrantedMessage = true
+                }
+                // Hide the message after 3 seconds
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        showPermissionGrantedMessage = false
+                    }
+                }
+            }
+        }
+    }
+    
+    // MARK: - Insertion Method Section
+    
+    /// US-706 Task 1: Show text insertion method options
+    private var insertionMethodSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            // Section Header
+            HStack(spacing: Spacing.sm) {
+                Image(systemName: "keyboard.badge.ellipsis")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(Color.Wispflow.accent)
+                Text("Insertion Method")
+                    .font(Font.Wispflow.headline)
+                    .foregroundColor(Color.Wispflow.textPrimary)
+            }
+            
+            Text("Choose how transcribed text is inserted into your applications.")
+                .font(Font.Wispflow.caption)
+                .foregroundColor(Color.Wispflow.textSecondary)
+            
+            // Method selection card
+            TextInsertionMethodCard(
+                isSelected: true, // Only paste method is currently supported
+                icon: "doc.on.clipboard",
+                title: "Paste (⌘V)",
+                description: "Copies text to clipboard and simulates Cmd+V paste. Works in all applications.",
+                features: ["Universal compatibility", "Works in all apps", "Reliable insertion"]
             )
             
-            // Clipboard preservation
-            HStack(spacing: Spacing.md) {
-                Image(systemName: "doc.on.clipboard")
-                    .font(.system(size: 14, weight: .medium))
+            // Note about other methods
+            HStack(spacing: Spacing.sm) {
+                Image(systemName: "info.circle.fill")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(Color.Wispflow.info)
+                Text("The paste method is the most reliable and works across all applications.")
+                    .font(Font.Wispflow.small)
                     .foregroundColor(Color.Wispflow.textSecondary)
-                    .frame(width: 20)
-                
+            }
+            .padding(Spacing.sm)
+            .background(Color.Wispflow.infoLight.opacity(0.3))
+            .cornerRadius(CornerRadius.small)
+        }
+    }
+    
+    // MARK: - Clipboard Preservation Section
+    
+    /// US-706 Task 2: Include clipboard preservation toggle
+    private var clipboardPreservationSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            // Section Header
+            HStack(spacing: Spacing.sm) {
+                Image(systemName: "doc.on.clipboard.fill")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(Color.Wispflow.accent)
                 Text("Clipboard Preservation")
-                    .font(Font.Wispflow.body)
+                    .font(Font.Wispflow.headline)
+                    .foregroundColor(Color.Wispflow.textPrimary)
+            }
+            
+            // Toggle row
+            TextInsertionToggleRow(
+                icon: "arrow.uturn.backward",
+                title: "Preserve Clipboard Contents",
+                description: "Automatically restore the original clipboard contents after text insertion.",
+                isOn: $textInserter.preserveClipboard
+            )
+            
+            // Status indicator
+            HStack(spacing: Spacing.sm) {
+                Image(systemName: textInserter.preserveClipboard ? "checkmark.circle.fill" : "xmark.circle.fill")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(textInserter.preserveClipboard ? Color.Wispflow.success : Color.Wispflow.textTertiary)
+                
+                Text(textInserter.preserveClipboard ? "Your clipboard will be restored after insertion" : "Clipboard will not be restored")
+                    .font(Font.Wispflow.small)
+                    .foregroundColor(textInserter.preserveClipboard ? Color.Wispflow.success : Color.Wispflow.textSecondary)
+            }
+            .padding(Spacing.sm)
+            .background(textInserter.preserveClipboard ? Color.Wispflow.successLight.opacity(0.3) : Color.Wispflow.border.opacity(0.2))
+            .cornerRadius(CornerRadius.small)
+        }
+    }
+    
+    // MARK: - Timing Options Section
+    
+    /// US-706 Task 3: Display timing options
+    private var timingOptionsSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            // Section Header
+            HStack(spacing: Spacing.sm) {
+                Image(systemName: "clock.fill")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(Color.Wispflow.accent)
+                Text("Timing Options")
+                    .font(Font.Wispflow.headline)
+                    .foregroundColor(Color.Wispflow.textPrimary)
+            }
+            
+            Text("Configure the delay before restoring clipboard contents.")
+                .font(Font.Wispflow.caption)
+                .foregroundColor(Color.Wispflow.textSecondary)
+            
+            // Delay slider with visual display
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                HStack {
+                    Text("Restore Delay")
+                        .font(Font.Wispflow.body)
+                        .foregroundColor(Color.Wispflow.textPrimary)
+                    
+                    Spacer()
+                    
+                    // Formatted delay value badge
+                    Text(String(format: "%.1f seconds", textInserter.clipboardRestoreDelay))
+                        .font(Font.Wispflow.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(Color.Wispflow.accent)
+                        .padding(.horizontal, Spacing.sm)
+                        .padding(.vertical, Spacing.xs)
+                        .background(Color.Wispflow.accentLight)
+                        .cornerRadius(CornerRadius.small)
+                }
+                
+                // Custom slider
+                TextInsertionDelaySlider(value: $textInserter.clipboardRestoreDelay)
+                
+                // Slider labels
+                HStack {
+                    Text("0.2s")
+                        .font(Font.Wispflow.small)
+                        .foregroundColor(Color.Wispflow.textTertiary)
+                    Spacer()
+                    Text("2.0s")
+                        .font(Font.Wispflow.small)
+                        .foregroundColor(Color.Wispflow.textTertiary)
+                }
+            }
+            .padding(Spacing.md)
+            .background(Color.Wispflow.surface)
+            .cornerRadius(CornerRadius.medium)
+            .overlay(
+                RoundedRectangle(cornerRadius: CornerRadius.medium)
+                    .stroke(Color.Wispflow.border, lineWidth: 1)
+            )
+            
+            // Help text
+            HStack(spacing: Spacing.sm) {
+                Image(systemName: "lightbulb.fill")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(Color.Wispflow.warning)
+                Text("Increase the delay if inserted text gets cut off. The default 0.8s works for most applications.")
+                    .font(Font.Wispflow.small)
                     .foregroundColor(Color.Wispflow.textSecondary)
+            }
+            .padding(Spacing.sm)
+            .background(Color.Wispflow.warningLight.opacity(0.3))
+            .cornerRadius(CornerRadius.small)
+        }
+    }
+    
+    // MARK: - Accessibility Permission Section
+    
+    private var accessibilityPermissionSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            // Section Header
+            HStack(spacing: Spacing.sm) {
+                Image(systemName: "hand.raised.fill")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(Color.Wispflow.accent)
+                Text("Accessibility Permission")
+                    .font(Font.Wispflow.headline)
+                    .foregroundColor(Color.Wispflow.textPrimary)
+            }
+            
+            Text("Required for simulating keyboard shortcuts to paste text.")
+                .font(Font.Wispflow.caption)
+                .foregroundColor(Color.Wispflow.textSecondary)
+            
+            // Permission status card
+            HStack(spacing: Spacing.md) {
+                // Status icon
+                ZStack {
+                    Circle()
+                        .fill(textInserter.hasAccessibilityPermission ? Color.Wispflow.successLight : Color.Wispflow.errorLight)
+                        .frame(width: 40, height: 40)
+                    
+                    Image(systemName: textInserter.hasAccessibilityPermission ? "checkmark.circle.fill" : "xmark.circle.fill")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(textInserter.hasAccessibilityPermission ? Color.Wispflow.success : Color.Wispflow.error)
+                }
+                
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    Text(textInserter.hasAccessibilityPermission ? "Permission Granted" : "Permission Not Granted")
+                        .font(Font.Wispflow.body)
+                        .fontWeight(.semibold)
+                        .foregroundColor(textInserter.hasAccessibilityPermission ? Color.Wispflow.success : Color.Wispflow.error)
+                    
+                    Text(textInserter.hasAccessibilityPermission ? "Text insertion is ready to use" : "Grant permission to enable text insertion")
+                        .font(Font.Wispflow.small)
+                        .foregroundColor(Color.Wispflow.textSecondary)
+                }
                 
                 Spacer()
                 
-                StatusPill(
-                    text: textInserter.preserveClipboard ? "Enabled" : "Disabled",
-                    color: textInserter.preserveClipboard ? Color.Wispflow.success : Color.Wispflow.textTertiary
-                )
+                // Grant permission button (only shown when not granted)
+                if !textInserter.hasAccessibilityPermission {
+                    Button(action: {
+                        print("[US-706] Opening accessibility settings")
+                        _ = permissionManager.requestAccessibilityPermission()
+                    }) {
+                        HStack(spacing: Spacing.xs) {
+                            Image(systemName: "gear")
+                                .font(.system(size: 12, weight: .semibold))
+                            Text("Grant Access")
+                                .font(Font.Wispflow.caption)
+                                .fontWeight(.semibold)
+                        }
+                        .padding(.horizontal, Spacing.md)
+                        .padding(.vertical, Spacing.sm)
+                        .foregroundColor(.white)
+                        .background(Color.Wispflow.accent)
+                        .cornerRadius(CornerRadius.small)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
+            }
+            .padding(Spacing.md)
+            .background(textInserter.hasAccessibilityPermission ? Color.Wispflow.successLight.opacity(0.2) : Color.Wispflow.errorLight.opacity(0.2))
+            .cornerRadius(CornerRadius.medium)
+            .overlay(
+                RoundedRectangle(cornerRadius: CornerRadius.medium)
+                    .stroke(textInserter.hasAccessibilityPermission ? Color.Wispflow.success.opacity(0.3) : Color.Wispflow.error.opacity(0.3), lineWidth: 1)
+            )
+            
+            // Success message when permission is granted
+            if showPermissionGrantedMessage {
+                HStack(spacing: Spacing.sm) {
+                    Image(systemName: "checkmark.seal.fill")
+                        .foregroundColor(Color.Wispflow.success)
+                    Text("Permission Granted!")
+                        .font(Font.Wispflow.caption)
+                        .foregroundColor(Color.Wispflow.success)
+                        .fontWeight(.semibold)
+                }
+                .padding(Spacing.sm)
+                .background(Color.Wispflow.successLight)
+                .cornerRadius(CornerRadius.small)
+                .transition(.opacity.combined(with: .scale))
             }
             
-            // Open full settings button
-            SettingsOpenFullButton()
+            // Instructions if not granted
+            if !textInserter.hasAccessibilityPermission {
+                VStack(alignment: .leading, spacing: Spacing.sm) {
+                    Text("How to grant permission:")
+                        .font(Font.Wispflow.caption)
+                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .fontWeight(.semibold)
+                    
+                    TextInsertionInstructionRow(number: 1, text: "Click \"Grant Access\" above to open System Settings")
+                    TextInsertionInstructionRow(number: 2, text: "Find WispFlow in the list and enable the toggle")
+                    TextInsertionInstructionRow(number: 3, text: "Return to WispFlow - permission will be detected automatically")
+                }
+                .padding(Spacing.md)
+                .background(Color.Wispflow.surface)
+                .cornerRadius(CornerRadius.small)
+            }
+        }
+    }
+    
+    // MARK: - How It Works Section
+    
+    private var howItWorksSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            // Section Header
+            HStack(spacing: Spacing.sm) {
+                Image(systemName: "questionmark.circle.fill")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(Color.Wispflow.accent)
+                Text("How Text Insertion Works")
+                    .font(Font.Wispflow.headline)
+                    .foregroundColor(Color.Wispflow.textPrimary)
+            }
+            
+            // Feature list
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                TextInsertionFeatureRow(icon: "1.circle.fill", text: "Transcribed text is copied to the clipboard", color: Color.Wispflow.accent)
+                TextInsertionFeatureRow(icon: "2.circle.fill", text: "Cmd+V keystroke is simulated to paste", color: Color.Wispflow.accent)
+                if textInserter.preserveClipboard {
+                    TextInsertionFeatureRow(icon: "3.circle.fill", text: "Original clipboard is restored after \(String(format: "%.1fs", textInserter.clipboardRestoreDelay))", color: Color.Wispflow.accent)
+                } else {
+                    TextInsertionFeatureRow(icon: "3.circle.fill", text: "Text remains on clipboard (preservation disabled)", color: Color.Wispflow.textTertiary)
+                }
+                TextInsertionFeatureRow(icon: "checkmark.circle.fill", text: "Works in any application with text input", color: Color.Wispflow.success)
+            }
+            .padding(Spacing.md)
+            .background(Color.Wispflow.surface)
+            .cornerRadius(CornerRadius.medium)
+            .overlay(
+                RoundedRectangle(cornerRadius: CornerRadius.medium)
+                    .stroke(Color.Wispflow.border, lineWidth: 1)
+            )
+        }
+    }
+}
+
+// MARK: - Text Insertion Method Card (US-706)
+
+/// Card component for displaying an insertion method option
+struct TextInsertionMethodCard: View {
+    let isSelected: Bool
+    let icon: String
+    let title: String
+    let description: String
+    let features: [String]
+    
+    @State private var isHovering = false
+    
+    var body: some View {
+        HStack(alignment: .top, spacing: Spacing.md) {
+            // Selection indicator
+            ZStack {
+                Circle()
+                    .stroke(isSelected ? Color.Wispflow.accent : Color.Wispflow.border, lineWidth: 2)
+                    .frame(width: 20, height: 20)
+                
+                if isSelected {
+                    Circle()
+                        .fill(Color.Wispflow.accent)
+                        .frame(width: 12, height: 12)
+                }
+            }
+            .padding(.top, 2)
+            
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                // Icon and title
+                HStack(spacing: Spacing.sm) {
+                    Image(systemName: icon)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(isSelected ? Color.Wispflow.accent : Color.Wispflow.textSecondary)
+                    
+                    Text(title)
+                        .font(Font.Wispflow.body)
+                        .fontWeight(.semibold)
+                        .foregroundColor(Color.Wispflow.textPrimary)
+                    
+                    if isSelected {
+                        Text("Active")
+                            .font(Font.Wispflow.small)
+                            .fontWeight(.semibold)
+                            .foregroundColor(Color.Wispflow.success)
+                            .padding(.horizontal, Spacing.sm)
+                            .padding(.vertical, Spacing.xs - 2)
+                            .background(Color.Wispflow.successLight)
+                            .cornerRadius(CornerRadius.small)
+                    }
+                }
+                
+                Text(description)
+                    .font(Font.Wispflow.caption)
+                    .foregroundColor(Color.Wispflow.textSecondary)
+                
+                // Features list
+                HStack(spacing: Spacing.md) {
+                    ForEach(features, id: \.self) { feature in
+                        HStack(spacing: Spacing.xs) {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(Color.Wispflow.success)
+                            Text(feature)
+                                .font(Font.Wispflow.small)
+                                .foregroundColor(Color.Wispflow.textSecondary)
+                        }
+                    }
+                }
+            }
+            
+            Spacer()
+        }
+        .padding(Spacing.md)
+        .background(isSelected ? Color.Wispflow.accentLight.opacity(0.3) : Color.Wispflow.surface)
+        .cornerRadius(CornerRadius.medium)
+        .overlay(
+            RoundedRectangle(cornerRadius: CornerRadius.medium)
+                .stroke(isSelected ? Color.Wispflow.accent.opacity(0.5) : Color.Wispflow.border, lineWidth: isSelected ? 2 : 1)
+        )
+        .scaleEffect(isHovering ? 1.01 : 1.0)
+        .animation(WispflowAnimation.quick, value: isHovering)
+        .onHover { hovering in
+            isHovering = hovering
+        }
+    }
+}
+
+// MARK: - Text Insertion Toggle Row (US-706)
+
+/// Toggle row component for text insertion settings
+struct TextInsertionToggleRow: View {
+    let icon: String
+    let title: String
+    let description: String
+    @Binding var isOn: Bool
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            Toggle(isOn: $isOn) {
+                HStack(spacing: Spacing.sm) {
+                    Image(systemName: icon)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(isOn ? Color.Wispflow.accent : Color.Wispflow.textSecondary)
+                        .frame(width: 20)
+                    
+                    Text(title)
+                        .font(Font.Wispflow.body)
+                        .foregroundColor(Color.Wispflow.textPrimary)
+                }
+            }
+            .toggleStyle(WispflowToggleStyle())
+            .onChange(of: isOn) { _, newValue in
+                print("[US-706] Text insertion toggle '\(title)' changed to: \(newValue)")
+            }
+            
+            Text(description)
+                .font(Font.Wispflow.small)
+                .foregroundColor(Color.Wispflow.textSecondary)
+                .padding(.leading, Spacing.xxl + Spacing.md)
+        }
+    }
+}
+
+// MARK: - Text Insertion Delay Slider (US-706)
+
+/// Custom slider for clipboard restore delay
+struct TextInsertionDelaySlider: View {
+    @Binding var value: Double
+    
+    private let minValue: Double = 0.2
+    private let maxValue: Double = 2.0
+    
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .leading) {
+                // Track background
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.Wispflow.border)
+                    .frame(height: 8)
+                
+                // Filled portion
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.Wispflow.accent.opacity(0.7), Color.Wispflow.accent],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(width: CGFloat((value - minValue) / (maxValue - minValue)) * geometry.size.width, height: 8)
+                
+                // Thumb
+                Circle()
+                    .fill(Color.white)
+                    .frame(width: 20, height: 20)
+                    .shadow(color: Color.black.opacity(0.2), radius: 2, x: 0, y: 1)
+                    .overlay(
+                        Circle()
+                            .stroke(Color.Wispflow.accent, lineWidth: 2)
+                    )
+                    .offset(x: CGFloat((value - minValue) / (maxValue - minValue)) * (geometry.size.width - 20))
+                    .gesture(
+                        DragGesture()
+                            .onChanged { gesture in
+                                let newValue = minValue + (maxValue - minValue) * Double(gesture.location.x / geometry.size.width)
+                                value = min(max(newValue, minValue), maxValue)
+                                // Round to nearest 0.1
+                                value = round(value * 10) / 10
+                            }
+                    )
+            }
+        }
+        .frame(height: 20)
+    }
+}
+
+// MARK: - Text Insertion Instruction Row (US-706)
+
+/// Instruction row with number for text insertion setup
+struct TextInsertionInstructionRow: View {
+    let number: Int
+    let text: String
+    
+    var body: some View {
+        HStack(alignment: .top, spacing: Spacing.sm) {
+            Text("\(number).")
+                .font(Font.Wispflow.caption)
+                .foregroundColor(Color.Wispflow.accent)
+                .fontWeight(.semibold)
+                .frame(width: 16, alignment: .trailing)
+            
+            Text(text)
+                .font(Font.Wispflow.caption)
+                .foregroundColor(Color.Wispflow.textSecondary)
+        }
+    }
+}
+
+// MARK: - Text Insertion Feature Row (US-706)
+
+/// Feature row component for how-it-works section
+struct TextInsertionFeatureRow: View {
+    let icon: String
+    let text: String
+    let color: Color
+    
+    var body: some View {
+        HStack(spacing: Spacing.sm) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(color)
+                .frame(width: 20)
+            
+            Text(text)
+                .font(Font.Wispflow.body)
+                .foregroundColor(Color.Wispflow.textPrimary)
+            
+            Spacer()
         }
     }
 }
