@@ -1,0 +1,18 @@
+## Summary
+
+**US-701: Create SettingsContentView for Main Window** is complete.
+
+**What was implemented:**
+- `SettingsContentView` in `MainWindow.swift` displaying all 6 settings sections (General, Audio, Transcription, Text Cleanup, Text Insertion, Debug) in the main window content area
+- Expandable/collapsible `SettingsSectionView` container with icons, titles, and descriptions
+- Summary views for each section showing key status information using managers' shared singletons
+- Supporting components: `SettingsInfoRow`, `PermissionBadge`, `ModelStatusIndicator`, `StatusPill`, `MiniFeatureBadge`, `SettingsOpenFullButton`
+- Consistent styling using Color.Wispflow design tokens and wispflowCard() modifier
+- Smooth scrolling via ScrollView
+
+**Verification:**
+- `swift build` → PASS
+
+**Commits:**
+- `62147f5` feat(US-701): SettingsContentView with 6 expandable sections in main window
+- `d15f89a` docs: add progress log for US-701 SettingsContentView

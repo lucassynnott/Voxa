@@ -1,0 +1,30 @@
+There are still unchecked stories in the PRD (US-702 through US-709), so we should NOT output the completion signal.
+
+Let me provide a summary:
+
+## Summary
+
+I successfully completed **US-701: Create SettingsContentView for Main Window**. 
+
+### What was implemented:
+- **SettingsContentView** with a full ScrollView layout displaying all settings in the main window content area
+- **SettingsSectionView** - a reusable expandable/collapsible section component with wispflowCard() styling
+- **6 settings sections** organized with clear headers:
+  - General (hotkey, permissions, app info)
+  - Audio (input device, device count, calibration)
+  - Transcription (Whisper model, language)
+  - Text Cleanup (cleanup toggle, mode, post-processing)
+  - Text Insertion (method, clipboard preservation)
+  - Debug (debug mode, auto-save, last recording)
+- **Supporting components**: SettingsInfoRow, PermissionBadge, ModelStatusIndicator, StatusPill, MiniFeatureBadge, SettingsOpenFullButton
+
+### Fixed build errors:
+- Changed `audioManager.selectedDevice` to `audioManager.currentDevice`
+- Changed `audioManager.availableDevices` to `audioManager.inputDevices`
+- Changed `textCleanupManager.cleanupMode` to `textCleanupManager.selectedMode`
+- Replaced `textInserter.insertionMethod.displayName` with static `"Paste (⌘V)"` string
+
+### Verification:
+- `swift build` passes successfully
+- Git commit: `62147f5 feat(US-701): SettingsContentView with 6 expandable sections in main window`
+- Working tree is clean
