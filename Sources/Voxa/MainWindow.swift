@@ -399,6 +399,10 @@ struct NavigationItemRow: View {
 struct HomeContentView: View {
     @StateObject private var statsManager = UsageStatsManager.shared
     @State private var hoveredQuickAction: QuickAction?
+    /// US-805: Hover state for Quick Tools buttons
+    @State private var hoveredQuickTool: QuickToolAction?
+    /// US-805: State for audio import file picker
+    @State private var showAudioImportPicker = false
     
     /// US-802: Recording state for Start Recording button
     @State private var isRecording = false
@@ -430,6 +434,9 @@ struct HomeContentView: View {
                         
                         // MARK: - Quick Actions
                         quickActionsSection
+                        
+                        // MARK: - US-805: Quick Tools Section
+                        quickToolsSection
                         
                         // MARK: - US-803: Recent Transcriptions List
                         recentTranscriptionsSection
@@ -1545,11 +1552,11 @@ struct QuickToolButton: View {
         case .aiTextCleanup:
             // Navigate to Settings -> Text Cleanup
             print("[US-805] QuickTool: AI Text Cleanup tapped - navigating to Text Cleanup settings")
-            NotificationCenter.default.post(name: .navigateToTextCleanupSettings, object: nil)
+            NotificationCenter.default.post(name: .navigateToTextCleanup, object: nil)
         case .importAudio:
             // Show file picker for audio import
             print("[US-805] QuickTool: Import Audio tapped - showing file picker")
-            NotificationCenter.default.post(name: .showAudioImportPicker, object: nil)
+            NotificationCenter.default.post(name: .openAudioImport, object: nil)
         }
     }
 }
