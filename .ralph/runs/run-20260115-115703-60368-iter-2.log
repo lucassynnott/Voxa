@@ -1,0 +1,25 @@
+There are still 7 unchecked stories remaining in the PRD, so I should **not** output the completion signal. The task for US-702 is complete.
+
+## Summary
+
+Successfully completed **US-702: Migrate General Settings Section**. The implementation:
+
+1. **App Info Header**: Added WispFlow logo using `waveform.circle.fill` SF Symbol with gradient styling, version display badge from Bundle info, and app description/tagline.
+
+2. **Link Buttons**: Created `GeneralSettingsLinkButton` component with GitHub, Website, and Support links that open in the default browser with hover effects.
+
+3. **Global Hotkey Configuration**: Created `GeneralSettingsHotkeyRecorder` component with full recording UI, pulsing animation, keyboard event capture via NSEvent monitor, system shortcut conflict detection, modifier validation, and reset button.
+
+4. **Startup Options**: Added Launch at Login toggle using SMAppService with error handling.
+
+5. **Permissions Section**: Created `GeneralSettingsPermissionRow` component for Microphone and Accessibility permissions with visual status indicators and grant buttons.
+
+All acceptance criteria verified:
+- ✅ App info displays correctly
+- ✅ Hotkey recording works  
+- ✅ Startup toggle functions
+- ✅ All links open correctly
+
+**Commits**:
+- `94ecaa9` feat(US-702): Migrate General Settings Section to integrated settings view
+- `ef91405` docs: add progress log for US-702 Migrate General Settings Section

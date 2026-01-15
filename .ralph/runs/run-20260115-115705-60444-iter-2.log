@@ -1,0 +1,27 @@
+There are still 7 unchecked stories remaining in the PRD. The task is complete for US-702 specifically, but I should not output the completion signal since there are still unchecked stories.
+
+Let me provide a summary:
+
+## Summary
+
+**US-702: Migrate General Settings Section** has been completed successfully.
+
+**What was implemented:**
+- Full General Settings section migrated from the separate SettingsWindow to the integrated MainWindow SettingsContentView
+- App info header with WispFlow logo (SF Symbol), version display, and description
+- GitHub, Website, and Support link buttons that open in default browser
+- Global Hotkey configuration with full recording UI, including:
+  - Pulsing animation during recording
+  - System shortcut conflict detection
+  - Escape to cancel, Reset to default
+- Startup options with Launch at Login toggle using SMAppService
+- Permissions section showing Microphone and Accessibility status with grant buttons
+
+**Verification:**
+- `swift build` → PASS
+
+**Commits:**
+- `94ecaa9 feat(US-702): Migrate General Settings Section to integrated settings view` (from previous iteration)
+- `2e0768d docs: add progress log for US-702 Migrate General Settings Section`
+
+**Post-commit status:** clean (all changes committed)
