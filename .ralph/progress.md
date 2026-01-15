@@ -4560,3 +4560,25 @@ Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260115-115700-60282-it
   - Always check git log --oneline | grep "US-XXX" to detect prior completions
   - Progress.md already contained detailed implementation notes from prior run
 ---
+
+## [2026-01-15 12:55] - US-704: Migrate Transcription Settings Section (Verification Run)
+Thread: 
+Run: 20260115-115707-60521 (iteration 4)
+Run log: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260115-115707-60521-iter-4.log
+Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260115-115707-60521-iter-4.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: none - implementation already complete from parallel run (commit 57d7c57)
+- Post-commit status: clean
+- Verification:
+  - Command: `swift build` -> PASS
+- Files changed:
+  - .ralph/progress.md (this progress entry only)
+- What was verified:
+  - Confirmed US-704 was already fully implemented and all acceptance criteria met:
+    - Model selection works with download progress (TranscriptionModelCard, TranscriptionProgressBar)
+    - Language selection persists (bound to WhisperManager.selectedLanguage via UserDefaults)
+    - Tradeoff info displayed (tradeoffInfoSection with TranscriptionTradeoffRow)
+- **Learnings:**
+  - US-704 was completed in parallel run 20260115-115705-60444 iteration 4
+---

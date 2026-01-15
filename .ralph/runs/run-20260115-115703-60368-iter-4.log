@@ -1,0 +1,18 @@
+## Summary
+
+**US-704: Migrate Transcription Settings Section** has been verified as complete.
+
+The implementation was already finished in a parallel run (commit `57d7c57`) and includes:
+
+1. **Whisper model size picker** - Card-based `TranscriptionModelCard` components for Tiny, Base, Small, and Medium models with size/speed/accuracy specs
+2. **Model download progress** - `TranscriptionProgressBar` with gradient fill and shimmer effect during downloads
+3. **Language selection dropdown** - `TranscriptionLanguagePicker` supporting 12 languages with flags, persisting via `WhisperManager.selectedLanguage`
+4. **Quality/speed tradeoff info** - `TranscriptionTradeoffRow` components with dynamic highlighting based on selected model
+
+**Verification:**
+- `swift build` → PASS
+- All acceptance criteria met
+- Commit: `e14bc74 docs: add progress log for US-704 verification run`
+- Post-commit status: clean
+
+**Remaining stories:** US-705, US-706, US-707, US-708, US-709
