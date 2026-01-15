@@ -1,0 +1,27 @@
+All tasks for US-707 are complete:
+
+## Summary
+
+Successfully completed **US-707: Migrate Debug Settings Section** with the following implementations:
+
+### Tasks Completed:
+1. **Log Level Selector** - Added `LogLevelPicker` and `LogLevelRow` components with 4 log levels (Verbose, Info, Warning, Error), each with icon, description, and radio selection indicator. Bound to `DebugManager.selectedLogLevel` for persistence via UserDefaults.
+
+2. **Export Logs Button** - Added `exportLogs()` method in `DebugManager` using `NSSavePanel` for user-selected export location. Export file includes formatted header with system info and all log entries.
+
+3. **Open Recordings Folder Button** - Button always visible in Debug Tools section, triggers `AudioExporter.shared.openDebugRecordingsFolder()` to open `Documents/WispFlow/DebugRecordings/` in Finder.
+
+4. **System Info Display** - Created `SystemInfoCard` and `SystemInfoRow` components showing App Version, macOS Version, Machine Model, Processor, and Memory. Added Copy button to copy info to clipboard.
+
+5. **Reset All Settings Option** - Added `resetAllSettings()` method clearing all WispFlow UserDefaults keys. Reset button triggers confirmation alert before executing.
+
+### Files Modified:
+- `Sources/WispFlow/DebugManager.swift` - Added `ExportError` enum, `exportLogs()`, fixed error handling
+- `Sources/WispFlow/SettingsWindow.swift` - Added `LogLevelPicker`, `LogLevelRow`, `SystemInfoCard`, `SystemInfoRow` components
+- `Sources/WispFlow/MainWindow.swift` - Already had `DebugSettingsSummary` implemented
+- `.ralph/IMPLEMENTATION_PLAN.md` - Marked US-707 complete with implementation notes
+
+### Verification:
+- `swift build` → PASS
+- Commit: `9e44fe1 docs: add progress log entry for US-707 completion`
+- Post-commit status: clean

@@ -1,0 +1,26 @@
+There are still two unchecked stories (US-708 and US-709). Per the task instructions, the completion signal should only be output when **all stories** in the PRD are complete. Since US-708 and US-709 remain unchecked, I should end normally without the completion signal.
+
+Let me summarize the work completed for US-707:
+
+## Summary
+
+I successfully implemented **US-707: Migrate Debug Settings Section** by:
+
+1. **Expanded `DebugSettingsSummary`** in `MainWindow.swift` from a simple summary view to a full settings section with 6 subsections:
+   - Debug Mode toggle with sub-options
+   - Log Level selector (5 levels: Verbose, Debug, Info, Warning, Error)
+   - Debug Actions (Export Logs, Open Recordings Folder, Export Audio, Playback)
+   - System Info display (App Version, Build Number, macOS Version, Model, Memory)
+   - Last Recording section with waveform visualization
+   - Reset All Settings with confirmation dialog
+
+2. **Added supporting components** to both `MainWindow.swift` and `SettingsWindow.swift`:
+   - `DebugLogLevel` enum, `DebugLogLevelPicker`, `DebugLogLevelRow`
+   - `DebugSettingsToggleRow`, `DebugSystemInfoRow`, `DebugRecordingMetric`
+   - `DebugCompactWaveformView`, `LogLevelPicker`, `SystemInfoCard`
+
+3. **Fixed a build error** in `DebugManager.swift` where `Result<URL, String>` was invalid (String doesn't conform to Error), replaced with custom `ExportError` enum.
+
+4. **Verified the build** passes with `swift build`.
+
+**Commit:** `120d633 feat(settings): migrate debug settings to integrated view (US-707)`

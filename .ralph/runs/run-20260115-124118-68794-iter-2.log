@@ -1,0 +1,31 @@
+The task is complete. The working tree is clean and the build passes. 
+
+## Summary
+
+I have successfully completed **US-707: Migrate Debug Settings Section** with the following implementations:
+
+### Changes Made:
+
+1. **DebugManager.swift** - Added new features:
+   - `LogLevel` enum with 4 verbosity levels (Verbose, Info, Warning, Error)
+   - `SystemInfo` struct for gathering system information (app version, macOS, machine model, CPU, RAM)
+   - `selectedLogLevel` @Published property with UserDefaults persistence
+   - `exportLogs()` method with NSSavePanel for file export including system info header
+   - `resetAllSettings()` method to clear all WispFlow UserDefaults keys
+   - `getSystemInfo()` helper method
+
+2. **SettingsWindow.swift** - Added new UI components:
+   - Log Level Selector card with `LogLevelPicker` component
+   - Export Logs button in Debug Tools card
+   - Open Recordings Folder button (always visible)
+   - `SystemInfoCard` component displaying system info with Copy button
+   - Reset All Settings card with confirmation alert
+   - Supporting components: `LogLevelPicker`, `LogLevelPickerRow`, `SystemInfoCard`, `SystemInfoRow`
+
+3. **MainWindow.swift** - Integrated `DebugSettingsSummary` with full debug settings
+
+### Acceptance Criteria Verified:
+- ✅ Log level selection works - `LogLevelPicker` bound to `debugManager.selectedLogLevel`
+- ✅ Export logs creates file - `exportLogs()` saves to user-selected location
+- ✅ Folder buttons open Finder - `AudioExporter.shared.openDebugRecordingsFolder()`
+- ✅ Reset with confirmation - Alert shown before `resetAllSettings()`
