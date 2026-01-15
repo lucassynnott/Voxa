@@ -703,4 +703,6 @@ extension ToastManager {
 
 extension Notification.Name {
     static let openSettings = Notification.Name("Voxa.openSettings")
+    /// US-802: Notification to toggle recording from Start Recording button
+    static let toggleRecording = Notification.Name("Voxa.toggleRecording")
 }
