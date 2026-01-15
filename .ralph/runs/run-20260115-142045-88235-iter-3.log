@@ -1,0 +1,18 @@
+## Summary
+
+**US-803: Recent Transcriptions List** has been verified as complete.
+
+### What was verified:
+- ✅ Section header with Playfair Display italic (`Font.Voxa.sectionHeaderItalic`)
+- ✅ View All link navigating to History via `.navigateToHistory` notification
+- ✅ `RecentTranscriptionItem` component with icon, title, subtitle, timestamp
+- ✅ Hover states: title color changes to accent, background highlight
+- ✅ Shows last 3-5 transcriptions (up to 5 from recentEntries)
+- ✅ Empty state when no transcriptions with waveform icon and hotkey hint
+- ✅ Build passes successfully (`swift build`)
+
+### Commits:
+- `d472e51` feat(US-803): Fix Recent Transcriptions List - remove duplicate RecentTranscriptionItem
+- `f0efec8` docs: add progress log entry for US-803 verification (run-20260115-142045-88235-iter-3)
+
+### Post-commit status: clean

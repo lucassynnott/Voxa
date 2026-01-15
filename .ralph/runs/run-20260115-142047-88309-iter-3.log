@@ -1,0 +1,23 @@
+US-803: Recent Transcriptions List is complete. Here's a summary:
+
+## Summary
+
+**US-803: Recent Transcriptions List** has been successfully verified and documented. 
+
+### Implementation Details:
+- **Section Header**: Uses `Font.Voxa.sectionHeaderItalic` (serif italic 18pt) for "Recent Transcriptions" title
+- **View All Link**: Button in header that posts `.navigateToHistory` notification to navigate to History tab
+- **RecentTranscriptionItem Component**: Displays icon, title (derived from text), subtitle (word count + duration), and relative timestamp
+- **Hover States**: Title color changes from textPrimary to accent color, background highlights on hover with smooth animation
+- **Empty State**: Shows centered message with icon and hotkey hint when no transcriptions exist
+- **Data Connection**: Uses `UsageStatsManager.shared.recentEntries` to display last 5 transcriptions
+
+### Verification:
+- `swift build` → PASS (Build complete!)
+- All acceptance criteria verified complete
+
+### Commit:
+- `be5bf77 docs: add remaining run logs`
+- Post-commit status: clean
+
+**Note**: 4 stories remain uncomplete in the PRD (US-805, US-806, US-807, US-808), so COMPLETE signal is not output.

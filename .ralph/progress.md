@@ -6009,3 +6009,45 @@ Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260115-142045-88235-it
   - Duplicate code removal (iteration 3) fixed final compilation issues
   - Story marked complete in IMPLEMENTATION_PLAN.md with detailed notes
 ---
+
+## [2026-01-15 14:50] - US-804: Daily Insights Sidebar
+Thread: codex exec session
+Run: 20260115-142041-88087 (iteration 4)
+Run log: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260115-142041-88087-iter-4.log
+Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260115-142041-88087-iter-4.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: Already committed by parallel run
+- Post-commit status: clean (US-804 work already committed)
+- Verification:
+  - Command: `swift build` -> PASS (Build complete!)
+- Files changed:
+  - Sources/Voxa/MainWindow.swift:
+    - Added `DailyInsightsSection` component to sidebar view
+    - Created `DailyInsightsStatCard` for displaying stats with large numbers
+    - Created `DailyInsightsPercentageChange` for colored percentage indicators
+    - Created `DailyInsightsEmptyState` for empty state display
+  - Sources/Voxa/UsageStatsManager.swift:
+    - Added daily insights computed properties (already implemented in prior iteration):
+    - `todayWordsSpoken`, `yesterdayWordsSpoken`, `wordsSpokenPercentageChange`
+    - `todayTimeSavedSeconds`, `todayTimeSavedFormatted`, `timeSavedComparisonLabel`
+    - `hasTodayActivity`, `todayTranscriptionCount`
+  - .ralph/IMPLEMENTATION_PLAN.md (US-804 marked complete with implementation notes)
+- What was implemented:
+  - US-804: Daily Insights Sidebar in main navigation sidebar
+  - Section header with serif italic font (Font.Voxa.sectionHeaderItalic)
+  - Words Spoken stat with large number and percentage change vs yesterday
+  - Time Saved stat with formatted duration and comparison label
+  - Colored percentage indicators: green for increase, red for decrease
+  - Empty state when no activity today with prompt to start recording
+  - Sidebar integration: only shown when sidebar is expanded
+- Acceptance criteria verified:
+  - [x] Large numbers displayed prominently (Font.Voxa.title, bold)
+  - [x] Percentage change with colored indicator (green/red arrows with badges)
+  - [x] Stats from actual usage data (connected to UsageStatsManager)
+- **Learnings for future iterations:**
+  - US-804 was implemented by parallel iteration before this run
+  - All components (DailyInsightsSection, DailyInsightsStatCard, etc.) already in place
+  - UsageStatsManager already had computed properties for daily insights
+  - 4 stories remain in Phase 11: US-805, US-806, US-807, US-808
+---
