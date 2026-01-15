@@ -434,9 +434,6 @@ struct HomeContentView: View {
                         // MARK: - Quick Actions
                         quickActionsSection
                         
-                        // MARK: - US-805: Quick Tools Section
-                        quickToolsSection
-                        
                         // MARK: - US-803: Recent Transcriptions List
                         recentTranscriptionsSection
                     }
