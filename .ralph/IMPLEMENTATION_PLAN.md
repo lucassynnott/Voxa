@@ -1791,8 +1791,8 @@ This plan implements a comprehensive overhaul of WispFlow's core systems based o
 
 ---
 
-### [ ] US-704: Migrate Transcription Settings Section
-**Status:** open
+### [x] US-704: Migrate Transcription Settings Section
+**Status:** complete
 **Priority:** high
 **Estimated effort:** small
 **Depends on:** US-701
@@ -1800,15 +1800,50 @@ This plan implements a comprehensive overhaul of WispFlow's core systems based o
 **Description:** Move Transcription settings (model, language) to integrated settings view.
 
 **Tasks:**
-- [ ] Show Whisper model size picker
-- [ ] Display model download progress
-- [ ] Include language selection dropdown
-- [ ] Show quality/speed tradeoff info
+- [x] Show Whisper model size picker
+- [x] Display model download progress
+- [x] Include language selection dropdown
+- [x] Show quality/speed tradeoff info
 
 **Acceptance Criteria:**
-- [ ] Model selection works with download progress
-- [ ] Language selection persists
-- [ ] Tradeoff info displayed
+- [x] Model selection works with download progress
+- [x] Language selection persists
+- [x] Tradeoff info displayed
+
+**Implementation Notes:**
+- Expanded `TranscriptionSettingsSummary` in `MainWindow.swift` from a summary view to a full settings section (same pattern as US-702, US-703)
+- Created four main sections within the Transcription settings:
+  1. **Model Selection Section** with:
+     - Card-based model picker using `TranscriptionModelCard` components for Tiny, Base, Small, Medium models
+     - Each card shows model name, download size, speed indicator, and accuracy rating
+     - Visual selection indicator (radio-style circles)
+     - Status badges ("Active" for loaded model, "Downloaded" for cached models)
+  2. **Model Actions Section** with:
+     - `TranscriptionProgressBar` gradient progress bar during model downloads
+     - Progress percentage display with animated shimmer effect
+     - Download/Load, Retry, and Delete action buttons
+     - Error handling with alert dialogs showing detailed error messages
+  3. **Language Selection Section** with:
+     - `TranscriptionLanguagePicker` dropdown component with flags for 12 languages
+     - Auto-detect recommended for mixed-language content
+     - `TranscriptionLanguageRow` items with flags, checkmarks, and "Recommended" badge
+     - Language selection bound to `WhisperManager.selectedLanguage` for persistence
+  4. **Quality vs Speed Tradeoff Section** with:
+     - `TranscriptionTradeoffRow` components showing recommendations for each model tier
+     - Dynamic highlighting based on currently selected model
+     - Checkmark indicator for active model category
+- Created supporting components (prefixed with `Transcription` to avoid naming conflicts):
+  - `TranscriptionModelCard` - card-based model selection with hover effects
+  - `TranscriptionModelBadge` - status badges for Active/Downloaded
+  - `TranscriptionModelSpec` - small spec indicators (size, speed, accuracy)
+  - `TranscriptionProgressBar` - gradient progress bar with shimmer effect
+  - `TranscriptionLanguagePicker` - language dropdown with flags
+  - `TranscriptionLanguageRow` - individual language row items
+  - `TranscriptionTradeoffRow` - quality/speed tradeoff info rows
+- All components use existing design system: `Color.Wispflow`, `Font.Wispflow`, `Spacing`, `CornerRadius`, `WispflowAnimation`
+- Model selection triggers `WhisperManager.selectModel()` async method
+- Language selection bound via `$whisperManager.selectedLanguage` for two-way persistence
+- Verified via `swift build` - typecheck passes
 
 ---
 
