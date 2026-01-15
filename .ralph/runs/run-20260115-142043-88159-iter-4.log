@@ -1,0 +1,34 @@
+US-805 has been successfully completed. Here's a summary of what was implemented:
+
+## Summary
+
+**US-805: Quick Tools Section** has been completed with the following changes:
+
+1. **Created `QuickToolAction` enum** in MainWindow.swift with two cases:
+   - `aiTextCleanup` - for AI Text Cleanup feature
+   - `importAudio` - for Import Audio feature
+
+2. **Created `QuickToolButton` component** with:
+   - Bordered button style with 1px border
+   - Icon on left, title/description text, and chevron on right
+   - Hover states where border and icon turn terracotta color (`Color.Voxa.accent`)
+   - Smooth animations via `VoxaAnimation.quick`
+
+3. **Added `quickToolsSection`** to `HomeContentView`:
+   - Section header uses `Font.Voxa.sectionHeaderItalic` (serif italic 18pt)
+   - Two tool buttons displayed horizontally
+
+4. **Connected button actions** via NotificationCenter:
+   - AI Text Cleanup → Posts `.navigateToTextCleanup` → Navigates to Settings tab
+   - Import Audio → Posts `.openAudioImport` → Shows file picker for audio files
+
+5. **Added notification names** to ToastView.swift:
+   - `.audioFileSelected` for audio file selection callback
+
+**Commits:**
+- `63af19a` feat(US-805): Add Quick Tools Section with AI Text Cleanup and Import Audio buttons
+- `f8e8e96` docs: add progress log entry for US-805 verification
+
+**Verification:** `swift build` passes successfully.
+
+There are still 3 uncompleted stories in the PRD (US-806, US-807, US-808), so the completion signal is not emitted.

@@ -248,41 +248,28 @@ struct MainWindowView: View {
     // MARK: - Sidebar Header
     
     /// App branding/logo area at top of sidebar
+    /// US-806: Updated sidebar header with minimalist styling
     private var sidebarHeader: some View {
         HStack(spacing: Spacing.md) {
-            // App icon
-            ZStack {
-                RoundedRectangle(cornerRadius: CornerRadius.small)
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.Voxa.accent.opacity(0.9), Color.Voxa.accent],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 36, height: 36)
-                
-                Image(systemName: "waveform.and.mic")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(.white)
-            }
+            // US-806: App icon - simple monochrome style that inverts in dark mode
+            Image(systemName: "v.circle.fill")
+                .font(.system(size: 32, weight: .medium))
+                .foregroundColor(Color.Voxa.textPrimary)
             
             if !isSidebarCollapsed {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Voxa")
-                        .font(Font.Voxa.headline)
-                        .foregroundColor(Color.Voxa.textPrimary)
-                    
-                    Text("Voice to Text")
-                        .font(Font.Voxa.small)
-                        .foregroundColor(Color.Voxa.textSecondary)
-                }
-                .transition(.opacity.combined(with: .move(edge: .leading)))
+                // US-806: App name with larger display font
+                Text("Voxa")
+                    .font(.system(size: 20, weight: .semibold, design: .default))
+                    .tracking(0.5)
+                    .foregroundColor(Color.Voxa.textPrimary)
+                    .transition(.opacity.combined(with: .move(edge: .leading)))
             }
             
             Spacer()
         }
-        .padding(Spacing.lg)
+        // US-806: Fixed header height to match design (~96px / 6rem)
+        .frame(height: 96)
+        .padding(.horizontal, isSidebarCollapsed ? Spacing.lg : Spacing.xl)
         .animation(VoxaAnimation.smooth, value: isSidebarCollapsed)
     }
     
@@ -371,6 +358,7 @@ struct MainWindowView: View {
 // MARK: - Navigation Item Row
 
 /// Single navigation item in the sidebar
+/// US-806: Redesigned navigation items with terracotta highlight for active item
 struct NavigationItemRow: View {
     let item: NavigationItem
     let isSelected: Bool
@@ -380,21 +368,43 @@ struct NavigationItemRow: View {
     
     @State private var isHovering = false
     
+    // US-806: Icon color based on selection and hover state
+    private var iconColor: Color {
+        if isSelected {
+            return Color.Voxa.accent // Terracotta for active
+        } else if isHovering {
+            return Color.Voxa.textPrimary // Darker on hover
+        } else {
+            return Color.Voxa.textSecondary // Muted for inactive
+        }
+    }
+    
+    // US-806: Text color based on selection and hover state
+    private var textColor: Color {
+        if isSelected {
+            return Color.Voxa.accent // Terracotta for active
+        } else if isHovering {
+            return Color.Voxa.textPrimary // Darker on hover
+        } else {
+            return Color.Voxa.textSecondary // Muted for inactive
+        }
+    }
+    
     var body: some View {
         Button(action: onSelect) {
             HStack(spacing: Spacing.md) {
-                // Icon
+                // US-806: Icon with updated color logic
                 Image(systemName: isSelected ? item.iconName : item.iconNameInactive)
-                    .font(.system(size: 18, weight: isSelected ? .semibold : .regular))
-                    .foregroundColor(isSelected ? Color.Voxa.accent : Color.Voxa.textSecondary)
+                    .font(.system(size: 18, weight: isSelected ? .medium : .regular))
+                    .foregroundColor(iconColor)
                     .frame(width: 24, height: 24)
                 
                 // Label (hidden when collapsed)
                 if !isCollapsed {
                     Text(item.displayName)
                         .font(Font.Voxa.body)
-                        .fontWeight(isSelected ? .semibold : .regular)
-                        .foregroundColor(isSelected ? Color.Voxa.textPrimary : Color.Voxa.textSecondary)
+                        .fontWeight(isSelected ? .medium : .regular)
+                        .foregroundColor(textColor)
                         .transition(.opacity.combined(with: .move(edge: .leading)))
                 }
                 
@@ -402,35 +412,23 @@ struct NavigationItemRow: View {
                     Spacer()
                 }
             }
-            .padding(.horizontal, isCollapsed ? Spacing.md : Spacing.md)
-            .padding(.vertical, Spacing.sm + 2)
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.sm + 4)
             .frame(maxWidth: .infinity, alignment: isCollapsed ? .center : .leading)
             .background(
                 ZStack {
-                    // Selected indicator - left accent bar
+                    // US-806: Terracotta background highlight for selected item (bg-primary/10)
                     if isSelected {
                         RoundedRectangle(cornerRadius: CornerRadius.small)
-                            .fill(Color.Voxa.accentLight)
+                            .fill(Color.Voxa.accent.opacity(0.10))
                             .matchedGeometryEffect(id: "selectedBackground", in: animationNamespace)
                     }
                     
-                    // Hover highlight
+                    // US-806: Subtle hover highlight (bg-black/5 in light mode, bg-white/5 in dark mode)
                     if isHovering && !isSelected {
                         RoundedRectangle(cornerRadius: CornerRadius.small)
-                            .fill(Color.Voxa.border.opacity(0.4))
+                            .fill(Color.Voxa.textPrimary.opacity(0.05))
                     }
-                }
-            )
-            .overlay(
-                // Left accent indicator for selected item
-                HStack {
-                    if isSelected {
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(Color.Voxa.accent)
-                            .frame(width: 3)
-                            .transition(.opacity)
-                    }
-                    Spacer()
                 }
             )
             .cornerRadius(CornerRadius.small)
