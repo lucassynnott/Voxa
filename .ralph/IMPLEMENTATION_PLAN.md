@@ -2167,6 +2167,10 @@ This plan implements a comprehensive overhaul of WispFlow's core systems based o
   - Subscribes to `.recordingStateChanged` notification to update `isRecording` state
   - Button label changes to "Stop Recording" when recording
   - Button color changes to `Color.Voxa.error` (red) when recording
+- **Iteration 2 fix**: Added `.recordingStateChanged` notification posting in `StatusBarController.swift`:
+  - Added notification post in `toggleRecording()` method
+  - Added notification post in `setRecordingState()` method
+  - This ensures HomeContentView's Start Recording button updates when recording state changes
 - Verified via `swift build` - typecheck passes
 
 ---
