@@ -4168,3 +4168,57 @@ Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260115-115700-60282-it
   - Use `git show <hash> --stat` to see what was changed in a commit
   - Multiple parallel runs can complete the same story
 ---
+## [2026-01-15 12:XX] - US-702: Migrate General Settings Section
+Thread: 
+Run: 20260115-115703-60368 (iteration 2)
+Run log: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260115-115703-60368-iter-2.log
+Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260115-115703-60368-iter-2.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: 94ecaa9 feat(US-702): Migrate General Settings Section to integrated settings view
+- Post-commit status: clean
+- Verification:
+  - Command: swift build -> PASS
+- Files changed:
+  - Sources/WispFlow/MainWindow.swift
+  - .ralph/IMPLEMENTATION_PLAN.md
+- What was implemented:
+  - Expanded `GeneralSettingsSummary` from a summary view to a full settings section
+  - **App Info Header (Task 1):**
+    - WispFlow logo using waveform.circle.fill SF Symbol with gradient styling
+    - Version display badge (from Bundle.main.infoDictionary)
+    - App description/tagline
+  - **Link Buttons (Task 2):**
+    - Created `GeneralSettingsLinkButton` component
+    - GitHub, Website, Support links that open in default browser
+    - Hover effects with color and background transitions
+  - **Global Hotkey Configuration (Task 3):**
+    - Created `GeneralSettingsHotkeyRecorder` component
+    - Full hotkey recording UI with pulsing animation indicator
+    - Keyboard event capture via local NSEvent monitor
+    - System shortcut conflict detection with alert dialog
+    - Modifier key validation (requires at least one modifier)
+    - Escape key to cancel recording
+    - Reset to default button
+  - **Startup Options (Task 4):**
+    - Launch at Login toggle using SMAppService.mainApp
+    - Error handling with toggle revert on failure
+    - Descriptive help text
+  - **Permissions Section:**
+    - Created `GeneralSettingsPermissionRow` component
+    - Microphone and Accessibility permission status rows
+    - Visual status indicators (green checkmark / red X)
+    - Grant permission buttons that trigger system dialogs
+  - Added `import ServiceManagement` to MainWindow.swift
+  - All components maintain existing bindings to HotkeyManager.shared and PermissionManager.shared
+- Acceptance Criteria verified:
+  - [x] App info displays correctly (icon, version, description)
+  - [x] Hotkey recording works (capture, validation, conflict detection)
+  - [x] Startup toggle functions (SMAppService integration)
+  - [x] All links open correctly (NSWorkspace.shared.open)
+- **Learnings for future iterations:**
+  - SMAppService requires `import ServiceManagement`
+  - NSEvent.addLocalMonitorForEvents can capture keyboard events in the current app
+  - HotkeyManager.checkForConflicts() detects common system shortcut conflicts
+  - PermissionManager.shared provides centralized permission status tracking
+---
