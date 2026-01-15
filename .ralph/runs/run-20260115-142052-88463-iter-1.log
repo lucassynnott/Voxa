@@ -1,19 +1,24 @@
-[2026-01-15 14:20:52] Starting US-801: Home Dashboard Header with Time-Based Greeting
-[2026-01-15 14:21:00] Read guardrails.md - core signs reviewed
-[2026-01-15 14:21:05] Read errors.log - no blocking issues
-[2026-01-15 14:21:10] Read IMPLEMENTATION_PLAN.md - US-801 section found
-[2026-01-15 14:21:15] Read AGENTS.md - build command: swift build
-[2026-01-15 14:21:30] Audited Sources/Voxa/MainWindow.swift - HomeContentView implementation
-[2026-01-15 14:21:45] Audited Sources/Voxa/DesignSystem.swift - displayGreeting font exists
-[2026-01-15 14:22:00] Verified US-801 implementation already present in codebase
-[2026-01-15 14:22:10] Found commit: 4326ecb feat(dashboard): add time-based greeting header with period (US-801)
-[2026-01-15 14:22:30] Running verification: swift build
-[2026-01-15 14:22:35] Build PASSED (0.13s)
-[2026-01-15 14:22:40] Working tree clean - no changes needed
-[2026-01-15 14:23:00] Verified acceptance criteria:
-  - [x] Greeting changes based on time of day
-  - [x] Subtitle shows last session time
-  - [x] Header layout matches design
+**Summary:**
+
+US-801: Home Dashboard Header with Time-Based Greeting has been verified as complete.
+
+**Implementation Details:**
+- Time-based greeting shows "Good morning.", "Good afternoon.", or "Good evening." based on hour (<12, 12-17, >17)
+- Subtitle displays "Ready to capture your thoughts? Your last session was X ago." (or fallback text when no previous sessions)
+- Header includes DASHBOARD label (uppercase, letter spacing 4pt), date formatted as "Thursday, January 15", and System Active status indicator with green dot
+- Uses `Font.Voxa.displayGreeting` (52pt system serif) for the editorial, Playfair Display-inspired aesthetic
+
+**Commits:**
+- `4326ecb` - feat(dashboard): add time-based greeting header with period (US-801)
+- `f4ba705` - docs: add progress log entry for US-801 completion
+- `674aaef` - docs: add run log and summary for US-801 verification
+
+**Verification:**
+- `swift build` → PASS (0.13s)
+- Working tree → clean
+
+7 stories remain in Phase 11 (US-802 through US-808). The PRD is not yet complete.
+ Header layout matches design
 [2026-01-15 14:23:30] Updated progress.md with run entry
 [2026-01-15 14:23:45] Created run summary: run-20260115-142052-88463-iter-1.md
 [2026-01-15 14:24:00] Committed documentation: f4ba705

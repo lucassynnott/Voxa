@@ -1,0 +1,22 @@
+## Summary
+
+**US-801: Home Dashboard Header with Time-Based Greeting** was already fully implemented and committed by parallel agents (commit `4326ecb`). I verified the implementation:
+
+✅ **All Tasks Complete:**
+- Time-based greeting logic (morning <12pm, afternoon 12-5pm, evening >5pm)
+- Playfair Display-style serif font for greeting (~52pt via `Font.Voxa.displayGreeting`)
+- Subtitle with last session info (relative time formatting)
+- DASHBOARD label (uppercase, tracking-widest)
+- Date and System Active status in top-right
+
+✅ **All Acceptance Criteria Met:**
+- Greeting changes based on time of day
+- Subtitle shows last session time
+- Header layout matches design
+
+✅ **Verification:**
+- `swift build` passes
+- Working tree is clean
+- Progress entry added (commit `da5ad57`)
+
+**Note:** There are 7 remaining stories in Phase 11 (US-802 through US-808) so the PRD is not yet complete.
