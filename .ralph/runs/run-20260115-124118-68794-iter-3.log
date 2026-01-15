@@ -1,0 +1,24 @@
+## Summary
+
+**US-708: Remove Separate Settings Window** has been completed and verified.
+
+### What was done:
+1. **SettingsWindow.swift deleted entirely** - The entire file was removed since all settings are now integrated into the main window
+2. **SettingsOpenFullButton removed** from MainWindow.swift - No longer needed
+3. **AppDelegate.openSettings()** updated to call `openMainWindow(initialNavItem: .settings)` instead of opening a separate settings window
+4. **MainWindowView** already listens for `.openSettings` notification and navigates to Settings tab
+5. **MainWindowController.showMainWindow(initialNavItem:)** posts notification when window already exists to trigger navigation
+
+### Acceptance Criteria Verified:
+- ✅ No separate settings window opens (SettingsWindowController class and file removed)
+- ✅ Menu bar Settings opens main window with Settings selected (via notification + initialNavItem)
+- ✅ No orphaned code remains (all references updated, build passes)
+
+### Commits:
+- `921fea8` - feat(settings): remove separate settings window (US-708)
+- `985b1f2` - docs: add progress log entry for US-708 completion
+- `98e61a7` - docs: mark US-708 tasks complete in implementation plan
+- `55664eb` - docs: add verification run log for US-708 completion
+- `8f95fb9` - docs: add progress log entry for US-708 verification run
+
+**Note:** There is still one remaining story (US-709: Settings Section Navigation) with status "open" in the IMPLEMENTATION_PLAN.md, so the PRD is not yet complete.

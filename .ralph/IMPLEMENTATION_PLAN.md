@@ -2051,8 +2051,8 @@ This plan implements a comprehensive overhaul of WispFlow's core systems based o
 
 ---
 
-### [ ] US-709: Settings Section Navigation
-**Status:** open
+### [x] US-709: Settings Section Navigation
+**Status:** complete
 **Priority:** low
 **Estimated effort:** small
 **Depends on:** US-701
@@ -2060,10 +2060,26 @@ This plan implements a comprehensive overhaul of WispFlow's core systems based o
 **Description:** Add quick navigation to settings sections.
 
 **Tasks:**
-- [ ] Add section jump buttons at top of settings view
-- [ ] Implement smooth scroll to section
-- [ ] Consider collapsible sections
+- [x] Add section jump buttons at top of settings view
+- [x] Implement smooth scroll to section
+- [x] Consider collapsible sections (already implemented via SettingsSectionView)
 
 **Acceptance Criteria:**
-- [ ] Section links scroll to correct section
-- [ ] Smooth scroll animation
+- [x] Section links scroll to correct section
+- [x] Smooth scroll animation
+
+**Implementation Notes:**
+- Created `SettingsSection` enum with 6 cases (general, audio, transcription, textCleanup, textInsertion, debug)
+- Each section has `displayName`, `icon`, and `description` properties for consistent UI
+- Added `ScrollViewReader` wrapper around settings ScrollView for programmatic scrolling
+- Created `sectionNavigationBar()` component showing "Jump to Section" label with horizontal scrollable buttons
+- Created `SettingsSectionNavButton` component with:
+  - Section icon and display name
+  - Active state highlighting (coral background with white text)
+  - Hover effects (accentLight background, scale 1.02)
+  - Tooltip help text
+- Each `SettingsSectionView` now has `.id(SettingsSection.xxx)` for scroll targeting
+- `scrollToSection()` method uses `.easeInOut(duration: 0.4)` animation for smooth scrolling
+- Updates `activeSection` state to highlight currently navigated section
+- Collapsible sections already implemented in `SettingsSectionView` via expand/collapse toggle
+- Verified via `swift build` - typecheck passes

@@ -3598,72 +3598,156 @@ struct DictionaryExampleRow: View {
     }
 }
 
+// MARK: - Settings Section Enum (US-709)
+
+/// Section identifiers for settings navigation
+/// US-709: Settings Section Navigation
+enum SettingsSection: String, CaseIterable, Identifiable {
+    case general = "general"
+    case audio = "audio"
+    case transcription = "transcription"
+    case textCleanup = "textCleanup"
+    case textInsertion = "textInsertion"
+    case debug = "debug"
+    
+    var id: String { rawValue }
+    
+    /// Display name for the section
+    var displayName: String {
+        switch self {
+        case .general:
+            return "General"
+        case .audio:
+            return "Audio"
+        case .transcription:
+            return "Transcription"
+        case .textCleanup:
+            return "Text Cleanup"
+        case .textInsertion:
+            return "Text Insertion"
+        case .debug:
+            return "Debug"
+        }
+    }
+    
+    /// SF Symbol icon for the section
+    var icon: String {
+        switch self {
+        case .general:
+            return "gear"
+        case .audio:
+            return "speaker.wave.2"
+        case .transcription:
+            return "waveform"
+        case .textCleanup:
+            return "text.badge.checkmark"
+        case .textInsertion:
+            return "doc.on.clipboard"
+        case .debug:
+            return "ladybug"
+        }
+    }
+    
+    /// Brief description of the section
+    var description: String {
+        switch self {
+        case .general:
+            return "App information, global hotkey, startup options, and permissions"
+        case .audio:
+            return "Input device selection, audio preview, and sensitivity settings"
+        case .transcription:
+            return "Whisper model selection and language preferences"
+        case .textCleanup:
+            return "AI-powered text cleanup and post-processing options"
+        case .textInsertion:
+            return "How transcribed text is inserted into your applications"
+        case .debug:
+            return "Debug tools, logging, and audio export options"
+        }
+    }
+}
+
 /// Settings content view that displays all settings in the main window content area
 /// US-701: Create SettingsContentView for Main Window
+/// US-709: Settings Section Navigation - Added section jump buttons and smooth scrolling
 struct SettingsContentView: View {
+    /// Currently active/visible section for highlighting navigation
+    @State private var activeSection: SettingsSection = .general
+    
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: Spacing.xl) {
-                // MARK: - Header
-                settingsHeader
-                
-                // MARK: - General Section
-                SettingsSectionView(
-                    title: "General",
-                    icon: "gear",
-                    description: "App information, global hotkey, startup options, and permissions"
-                ) {
-                    GeneralSettingsSummary()
+        ScrollViewReader { scrollProxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: Spacing.xl) {
+                    // MARK: - Header with Navigation
+                    settingsHeader
+                    
+                    // MARK: - Section Navigation Bar (US-709)
+                    sectionNavigationBar(scrollProxy: scrollProxy)
+                    
+                    // MARK: - General Section
+                    SettingsSectionView(
+                        title: SettingsSection.general.displayName,
+                        icon: SettingsSection.general.icon,
+                        description: SettingsSection.general.description
+                    ) {
+                        GeneralSettingsSummary()
+                    }
+                    .id(SettingsSection.general)
+                    
+                    // MARK: - Audio Section
+                    SettingsSectionView(
+                        title: SettingsSection.audio.displayName,
+                        icon: SettingsSection.audio.icon,
+                        description: SettingsSection.audio.description
+                    ) {
+                        AudioSettingsSummary()
+                    }
+                    .id(SettingsSection.audio)
+                    
+                    // MARK: - Transcription Section
+                    SettingsSectionView(
+                        title: SettingsSection.transcription.displayName,
+                        icon: SettingsSection.transcription.icon,
+                        description: SettingsSection.transcription.description
+                    ) {
+                        TranscriptionSettingsSummary()
+                    }
+                    .id(SettingsSection.transcription)
+                    
+                    // MARK: - Text Cleanup Section
+                    SettingsSectionView(
+                        title: SettingsSection.textCleanup.displayName,
+                        icon: SettingsSection.textCleanup.icon,
+                        description: SettingsSection.textCleanup.description
+                    ) {
+                        TextCleanupSettingsSummary()
+                    }
+                    .id(SettingsSection.textCleanup)
+                    
+                    // MARK: - Text Insertion Section
+                    SettingsSectionView(
+                        title: SettingsSection.textInsertion.displayName,
+                        icon: SettingsSection.textInsertion.icon,
+                        description: SettingsSection.textInsertion.description
+                    ) {
+                        TextInsertionSettingsSummary()
+                    }
+                    .id(SettingsSection.textInsertion)
+                    
+                    // MARK: - Debug Section
+                    SettingsSectionView(
+                        title: SettingsSection.debug.displayName,
+                        icon: SettingsSection.debug.icon,
+                        description: SettingsSection.debug.description
+                    ) {
+                        DebugSettingsSummary()
+                    }
+                    .id(SettingsSection.debug)
+                    
+                    Spacer(minLength: Spacing.xxl)
                 }
-                
-                // MARK: - Audio Section
-                SettingsSectionView(
-                    title: "Audio",
-                    icon: "speaker.wave.2",
-                    description: "Input device selection, audio preview, and sensitivity settings"
-                ) {
-                    AudioSettingsSummary()
-                }
-                
-                // MARK: - Transcription Section
-                SettingsSectionView(
-                    title: "Transcription",
-                    icon: "waveform",
-                    description: "Whisper model selection and language preferences"
-                ) {
-                    TranscriptionSettingsSummary()
-                }
-                
-                // MARK: - Text Cleanup Section
-                SettingsSectionView(
-                    title: "Text Cleanup",
-                    icon: "text.badge.checkmark",
-                    description: "AI-powered text cleanup and post-processing options"
-                ) {
-                    TextCleanupSettingsSummary()
-                }
-                
-                // MARK: - Text Insertion Section
-                SettingsSectionView(
-                    title: "Text Insertion",
-                    icon: "doc.on.clipboard",
-                    description: "How transcribed text is inserted into your applications"
-                ) {
-                    TextInsertionSettingsSummary()
-                }
-                
-                // MARK: - Debug Section
-                SettingsSectionView(
-                    title: "Debug",
-                    icon: "ladybug",
-                    description: "Debug tools, logging, and audio export options"
-                ) {
-                    DebugSettingsSummary()
-                }
-                
-                Spacer(minLength: Spacing.xxl)
+                .padding(Spacing.xl)
             }
-            .padding(Spacing.xl)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.Wispflow.background)
@@ -3681,6 +3765,97 @@ struct SettingsContentView: View {
                 .font(Font.Wispflow.body)
                 .foregroundColor(Color.Wispflow.textSecondary)
         }
+    }
+    
+    // MARK: - Section Navigation Bar (US-709)
+    
+    /// Navigation bar with section jump buttons
+    /// US-709: Add section jump buttons at top of settings view
+    private func sectionNavigationBar(scrollProxy: ScrollViewProxy) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Text("Jump to Section")
+                .font(Font.Wispflow.caption)
+                .foregroundColor(Color.Wispflow.textTertiary)
+            
+            // Horizontal scrollable section buttons
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Spacing.sm) {
+                    ForEach(SettingsSection.allCases) { section in
+                        SettingsSectionNavButton(
+                            section: section,
+                            isActive: activeSection == section,
+                            onTap: {
+                                scrollToSection(section, using: scrollProxy)
+                            }
+                        )
+                    }
+                }
+                .padding(.horizontal, 1) // Prevent clipping of button shadows
+            }
+        }
+        .padding(Spacing.md)
+        .background(Color.Wispflow.surface)
+        .cornerRadius(CornerRadius.medium)
+        .wispflowShadow(.subtle)
+    }
+    
+    // MARK: - Scroll to Section (US-709)
+    
+    /// Scrolls to the specified section with smooth animation
+    /// US-709: Implement smooth scroll to section
+    private func scrollToSection(_ section: SettingsSection, using proxy: ScrollViewProxy) {
+        // Update active section for visual feedback
+        withAnimation(WispflowAnimation.smooth) {
+            activeSection = section
+        }
+        
+        // Perform smooth scroll to section
+        withAnimation(.easeInOut(duration: 0.4)) {
+            proxy.scrollTo(section, anchor: .top)
+        }
+        
+        print("[US-709] Scrolled to section: \(section.displayName)")
+    }
+}
+
+// MARK: - Settings Section Nav Button (US-709)
+
+/// Navigation button for quickly jumping to a settings section
+/// US-709: Section navigation button component
+struct SettingsSectionNavButton: View {
+    let section: SettingsSection
+    let isActive: Bool
+    let onTap: () -> Void
+    
+    @State private var isHovering = false
+    
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: Spacing.xs) {
+                Image(systemName: section.icon)
+                    .font(.system(size: 12, weight: .medium))
+                
+                Text(section.displayName)
+                    .font(Font.Wispflow.caption)
+                    .fontWeight(.medium)
+            }
+            .foregroundColor(isActive ? .white : (isHovering ? Color.Wispflow.accent : Color.Wispflow.textSecondary))
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.sm)
+            .background(
+                RoundedRectangle(cornerRadius: CornerRadius.small)
+                    .fill(isActive ? Color.Wispflow.accent : (isHovering ? Color.Wispflow.accentLight : Color.Wispflow.border.opacity(0.3)))
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PlainButtonStyle())
+        .scaleEffect(isHovering ? 1.02 : 1.0)
+        .animation(WispflowAnimation.quick, value: isHovering)
+        .animation(WispflowAnimation.quick, value: isActive)
+        .onHover { hovering in
+            isHovering = hovering
+        }
+        .help("Jump to \(section.displayName)")
     }
 }
 
