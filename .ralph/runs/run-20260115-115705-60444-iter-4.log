@@ -1,0 +1,19 @@
+**Summary of US-704 Implementation:**
+
+Successfully migrated the Transcription Settings Section to the integrated settings view in `MainWindow.swift`. The implementation includes:
+
+1. **Whisper Model Size Picker**: Card-based selection for Tiny, Base, Small, and Medium models with visual specs (size, speed, accuracy) and status badges (Active/Downloaded)
+
+2. **Model Download Progress**: Gradient progress bar with shimmer effect showing download percentage during model downloads
+
+3. **Language Selection Dropdown**: 12 language options (including Auto-Detect) with flag emojis, checkmarks, and "Recommended" badge, bound to WhisperManager for persistence
+
+4. **Quality/Speed Tradeoff Info**: Dynamic section showing recommendations for each model tier with highlighting based on currently selected model
+
+**Verification:** `swift build` passes ✓
+
+**Commits:**
+- `57d7c57` feat(US-704): Migrate Transcription Settings Section to integrated settings view
+- `82c03cf` docs: add progress log for US-704
+
+**Post-commit status:** clean (all changes committed)
