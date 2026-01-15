@@ -1,0 +1,25 @@
+## Summary
+
+US-634: Transcription History View has been verified as complete. The implementation was already done in a previous iteration (commit `d6eea7a`) and includes:
+
+**Data Model Changes (`UsageStatsManager.swift`):**
+- Extended `TranscriptionEntry` with `fullText` field for complete transcription text
+- Added migration decoder for backward compatibility with existing entries
+- Enhanced `removeEntry()` to update totals when entries are deleted
+- Added `searchEntries(query:)` for real-time search filtering
+- Added `groupEntriesByDate(_:)` for date category grouping
+- Created `DateCategory` enum: Today, Yesterday, This Week, This Month, Older
+
+**UI Implementation (`MainWindow.swift`):**
+- Full `HistoryContentView` with header, search bar, and grouped list
+- `HistoryEntryCard` component with expand/collapse, copy, delete functionality
+- Real-time search with highlighted matches using AttributedString
+- Empty state and no-results state views
+- Smooth animations for filtering and transitions
+
+**Verification:**
+- Build passes: `swift build` ✅
+- Post-commit status: clean ✅
+- Commit: `2a76daf docs: add progress log for US-634 verification run`
+
+**Remaining stories:** US-635 (Snippets Library View) and US-636 (Custom Dictionary View) are still open.

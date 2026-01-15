@@ -3853,3 +3853,77 @@ Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260115-104318-43714-it
   - US-635: Snippets Library View (open)
   - US-636: Custom Dictionary View (open)
 ---
+
+## [2026-01-15 11:11] - US-635: Snippets Library View
+Thread: 
+Run: 20260115-105838-46628 (iteration 3)
+Run log: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260115-105838-46628-iter-3.log
+Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260115-105838-46628-iter-3.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: pending
+- Post-commit status: pending
+- Verification:
+  - Command: swift build -> PASS
+- Files changed:
+  - Sources/WispFlow/SnippetsManager.swift (new)
+  - Sources/WispFlow/MainWindow.swift (modified)
+  - .ralph/IMPLEMENTATION_PLAN.md (updated)
+- What was implemented:
+  - **SnippetsManager.swift:** Complete snippet management singleton
+    - Snippet data model: id, title, content, optional shortcut, createdAt, updatedAt
+    - Computed properties: wordCount, characterCount, contentPreview, relativeDateString
+    - copyToClipboard() method for easy clipboard access
+  - **SnippetsManager operations:**
+    - createSnippet() - creates and inserts at beginning
+    - updateSnippet() - updates by ID, re-sorts to top
+    - deleteSnippet() - removes by ID or reference
+    - searchSnippets() - filters by title or content
+    - isShortcutInUse() - validates shortcut uniqueness
+    - Persists to UserDefaults, max capacity 100 snippets
+  - **SnippetsContentView:** Full snippets library UI
+    - Header with title, view toggle (grid/list), New Snippet button, search bar, count badge
+    - Grid view with LazyVGrid adaptive columns
+    - List view with LazyVStack
+    - Empty state with Create First Snippet button
+    - No results state with Clear Search button
+  - **SnippetCard (grid view):**
+    - Title with shortcut badge (keyboard icon)
+    - Content preview with show more/less toggle
+    - Copy, Edit, Delete action buttons on hover
+    - Word/character count, Updated X metadata
+    - Hover shadow and scale effects
+    - Search query highlighting
+  - **SnippetListRow (list view):**
+    - Icon, title, shortcut badge, word count, updated date
+    - Expandable content on click
+    - Copy, Edit, Delete, Expand/Collapse buttons
+    - Hover effects with shadow
+    - Search query highlighting
+  - **CreateSnippetSheet:**
+    - Title and Content fields with focus management
+    - Collapsible keyboard shortcut section
+    - Shortcut validation (checks for duplicates)
+    - Cancel and Create buttons
+  - **EditSnippetSheet:**
+    - Pre-populated fields
+    - Collapsible shortcut section showing current value
+    - Shortcut validation excluding current snippet
+    - Created/Updated metadata
+    - Save Changes button disabled until changes made
+  - Delete confirmation alert
+- Acceptance Criteria verified:
+  - [x] Snippets displayed in grid/list
+  - [x] Create, edit, delete all functional
+  - [x] Quick copy works
+  - [x] Search filters snippets
+  - [x] Empty state shows creation prompt
+- **Learnings for future iterations:**
+  - @StateObject for singleton managers ensures proper initialization
+  - .sheet(item:) with Identifiable enables type-safe sheet presentation
+  - LazyVGrid with GridItem(.adaptive) creates responsive grid layouts
+  - TextEditor requires scrollContentBackground(.hidden) for custom backgrounds
+  - FocusState enables automatic focus management in forms
+  - Shortcut validation should exclude current item when editing
+---
+

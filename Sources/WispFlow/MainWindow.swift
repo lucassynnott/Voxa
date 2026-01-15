@@ -1387,26 +1387,1152 @@ struct HistoryEntryCard: View {
     }
 }
 
-// MARK: - Placeholder Content Views
+// MARK: - US-635: Snippets Library View
 
-/// Snippets view placeholder (to be implemented in US-635)
+/// Full snippets library view with create, edit, delete, copy, and search
+/// US-635: Save and reuse frequently used text snippets
 struct SnippetsContentView: View {
+    @StateObject private var snippetsManager = SnippetsManager.shared
+    
+    /// Search query for filtering snippets
+    @State private var searchQuery: String = ""
+    
+    /// Whether to show create snippet sheet
+    @State private var showCreateSheet = false
+    
+    /// Snippet currently being edited (nil means no edit in progress)
+    @State private var snippetBeingEdited: Snippet?
+    
+    /// Snippet pending deletion (for confirmation dialog)
+    @State private var snippetToDelete: Snippet?
+    
+    /// Whether to show delete confirmation dialog
+    @State private var showDeleteConfirmation = false
+    
+    /// Display mode: grid or list
+    @State private var isGridView = true
+    
+    /// Filtered snippets based on search query
+    private var filteredSnippets: [Snippet] {
+        snippetsManager.searchSnippets(query: searchQuery)
+    }
+    
     var body: some View {
-        VStack(spacing: Spacing.lg) {
-            Image(systemName: "doc.on.clipboard.fill")
-                .font(.system(size: 48, weight: .light))
-                .foregroundColor(Color.Wispflow.accent.opacity(0.5))
+        VStack(spacing: 0) {
+            // MARK: - Header with search and actions
+            snippetsHeader
             
-            Text("Snippets")
-                .font(Font.Wispflow.largeTitle)
-                .foregroundColor(Color.Wispflow.textPrimary)
+            Divider()
+                .background(Color.Wispflow.border)
             
-            Text("Save and reuse text snippets")
-                .font(Font.Wispflow.body)
-                .foregroundColor(Color.Wispflow.textSecondary)
+            // MARK: - Content
+            if snippetsManager.isEmpty {
+                // Empty state when no snippets
+                emptySnippetsState
+            } else if filteredSnippets.isEmpty {
+                // No results for search
+                noSearchResultsState
+            } else {
+                // Snippets grid/list
+                snippetsContent
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.Wispflow.background)
+        .sheet(isPresented: $showCreateSheet) {
+            CreateSnippetSheet(onSave: { title, content, shortcut in
+                snippetsManager.createSnippet(title: title, content: content, shortcut: shortcut)
+            })
+        }
+        .sheet(item: $snippetBeingEdited) { snippet in
+            EditSnippetSheet(
+                snippet: snippet,
+                onSave: { title, content, shortcut in
+                    snippetsManager.updateSnippet(id: snippet.id, title: title, content: content, shortcut: shortcut)
+                }
+            )
+        }
+        .alert("Delete Snippet?", isPresented: $showDeleteConfirmation, presenting: snippetToDelete) { snippet in
+            Button("Delete", role: .destructive) {
+                withAnimation(WispflowAnimation.smooth) {
+                    snippetsManager.deleteSnippet(snippet)
+                }
+                snippetToDelete = nil
+            }
+            Button("Cancel", role: .cancel) {
+                snippetToDelete = nil
+            }
+        } message: { snippet in
+            Text("Are you sure you want to delete \"\(snippet.title)\"? This action cannot be undone.")
+        }
+    }
+    
+    // MARK: - Header
+    
+    private var snippetsHeader: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack {
+                Text("Snippets Library")
+                    .font(Font.Wispflow.largeTitle)
+                    .foregroundColor(Color.Wispflow.textPrimary)
+                
+                Spacer()
+                
+                // View toggle (grid/list)
+                HStack(spacing: Spacing.xs) {
+                    Button(action: {
+                        withAnimation(WispflowAnimation.quick) {
+                            isGridView = true
+                        }
+                    }) {
+                        Image(systemName: "square.grid.2x2")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(isGridView ? Color.Wispflow.accent : Color.Wispflow.textTertiary)
+                            .frame(width: 28, height: 28)
+                            .background(isGridView ? Color.Wispflow.accentLight : Color.clear)
+                            .cornerRadius(CornerRadius.small)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .help("Grid view")
+                    
+                    Button(action: {
+                        withAnimation(WispflowAnimation.quick) {
+                            isGridView = false
+                        }
+                    }) {
+                        Image(systemName: "list.bullet")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(!isGridView ? Color.Wispflow.accent : Color.Wispflow.textTertiary)
+                            .frame(width: 28, height: 28)
+                            .background(!isGridView ? Color.Wispflow.accentLight : Color.clear)
+                            .cornerRadius(CornerRadius.small)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .help("List view")
+                }
+                .padding(2)
+                .background(Color.Wispflow.surfaceSecondary)
+                .cornerRadius(CornerRadius.small)
+                
+                // Create new snippet button
+                Button(action: {
+                    showCreateSheet = true
+                }) {
+                    HStack(spacing: Spacing.xs) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("New Snippet")
+                            .font(Font.Wispflow.body)
+                            .fontWeight(.medium)
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, Spacing.md)
+                    .padding(.vertical, Spacing.sm)
+                    .background(Color.Wispflow.accent)
+                    .cornerRadius(CornerRadius.small)
+                }
+                .buttonStyle(InteractiveScaleStyle())
+                .disabled(snippetsManager.isAtCapacity)
+                .opacity(snippetsManager.isAtCapacity ? 0.5 : 1.0)
+                .help(snippetsManager.isAtCapacity ? "Maximum snippets reached" : "Create new snippet")
+            }
+            
+            HStack(spacing: Spacing.md) {
+                // Search bar
+                HStack(spacing: Spacing.sm) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(Color.Wispflow.textTertiary)
+                    
+                    TextField("Search snippets...", text: $searchQuery)
+                        .textFieldStyle(.plain)
+                        .font(Font.Wispflow.body)
+                        .foregroundColor(Color.Wispflow.textPrimary)
+                    
+                    if !searchQuery.isEmpty {
+                        Button(action: {
+                            withAnimation(WispflowAnimation.quick) {
+                                searchQuery = ""
+                            }
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(Color.Wispflow.textTertiary)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                }
+                .padding(.horizontal, Spacing.md)
+                .padding(.vertical, Spacing.sm)
+                .background(Color.Wispflow.surface)
+                .cornerRadius(CornerRadius.small)
+                .overlay(
+                    RoundedRectangle(cornerRadius: CornerRadius.small)
+                        .stroke(Color.Wispflow.border, lineWidth: 1)
+                )
+                
+                Spacer()
+                
+                // Snippet count badge
+                if !snippetsManager.isEmpty {
+                    Text("\(snippetsManager.count) \(snippetsManager.count == 1 ? "snippet" : "snippets")")
+                        .font(Font.Wispflow.caption)
+                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .padding(.horizontal, Spacing.sm)
+                        .padding(.vertical, Spacing.xs)
+                        .background(Color.Wispflow.surfaceSecondary)
+                        .cornerRadius(CornerRadius.small)
+                }
+            }
+        }
+        .padding(Spacing.xl)
+    }
+    
+    // MARK: - Empty State
+    
+    private var emptySnippetsState: some View {
+        VStack(spacing: Spacing.lg) {
+            Spacer()
+            
+            ZStack {
+                Circle()
+                    .fill(Color.Wispflow.accentLight)
+                    .frame(width: 100, height: 100)
+                
+                Image(systemName: "doc.on.clipboard")
+                    .font(.system(size: 44, weight: .light))
+                    .foregroundColor(Color.Wispflow.accent)
+            }
+            
+            VStack(spacing: Spacing.sm) {
+                Text("No snippets yet")
+                    .font(Font.Wispflow.headline)
+                    .foregroundColor(Color.Wispflow.textPrimary)
+                
+                Text("Create your first snippet to save frequently used text.\nYou can assign keyboard shortcuts for quick access.")
+                    .font(Font.Wispflow.body)
+                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
+            
+            Button(action: {
+                showCreateSheet = true
+            }) {
+                HStack(spacing: Spacing.sm) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 16, weight: .medium))
+                    Text("Create First Snippet")
+                        .fontWeight(.medium)
+                }
+                .font(Font.Wispflow.body)
+                .foregroundColor(.white)
+                .padding(.horizontal, Spacing.lg)
+                .padding(.vertical, Spacing.md)
+                .background(Color.Wispflow.accent)
+                .cornerRadius(CornerRadius.small)
+            }
+            .buttonStyle(InteractiveScaleStyle())
+            .padding(.top, Spacing.md)
+            
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(Spacing.xl)
+    }
+    
+    // MARK: - No Search Results State
+    
+    private var noSearchResultsState: some View {
+        VStack(spacing: Spacing.lg) {
+            Spacer()
+            
+            ZStack {
+                Circle()
+                    .fill(Color.Wispflow.surfaceSecondary)
+                    .frame(width: 80, height: 80)
+                
+                Image(systemName: "doc.text.magnifyingglass")
+                    .font(.system(size: 36, weight: .light))
+                    .foregroundColor(Color.Wispflow.textTertiary)
+            }
+            
+            VStack(spacing: Spacing.sm) {
+                Text("No snippets found")
+                    .font(Font.Wispflow.headline)
+                    .foregroundColor(Color.Wispflow.textPrimary)
+                
+                Text("No snippets match \"\(searchQuery)\".\nTry a different search term.")
+                    .font(Font.Wispflow.body)
+                    .foregroundColor(Color.Wispflow.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
+            
+            Button(action: {
+                withAnimation(WispflowAnimation.quick) {
+                    searchQuery = ""
+                }
+            }) {
+                Text("Clear Search")
+                    .font(Font.Wispflow.body)
+                    .foregroundColor(Color.Wispflow.accent)
+            }
+            .buttonStyle(PlainButtonStyle())
+            
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(Spacing.xl)
+    }
+    
+    // MARK: - Snippets Content (Grid/List)
+    
+    private var snippetsContent: some View {
+        ScrollView {
+            if isGridView {
+                snippetsGrid
+            } else {
+                snippetsList
+            }
+        }
+        .animation(WispflowAnimation.smooth, value: filteredSnippets.count)
+    }
+    
+    // MARK: - Grid View
+    
+    private var snippetsGrid: some View {
+        LazyVGrid(columns: [
+            GridItem(.adaptive(minimum: 280, maximum: 400), spacing: Spacing.lg)
+        ], spacing: Spacing.lg) {
+            ForEach(filteredSnippets) { snippet in
+                SnippetCard(
+                    snippet: snippet,
+                    searchQuery: searchQuery,
+                    onCopy: {
+                        snippet.copyToClipboard()
+                        ToastManager.shared.showCopiedToClipboard()
+                    },
+                    onEdit: {
+                        snippetBeingEdited = snippet
+                    },
+                    onDelete: {
+                        snippetToDelete = snippet
+                        showDeleteConfirmation = true
+                    }
+                )
+                .transition(.asymmetric(
+                    insertion: .opacity.combined(with: .scale(scale: 0.95)),
+                    removal: .opacity.combined(with: .scale(scale: 0.95))
+                ))
+            }
+        }
+        .padding(Spacing.xl)
+    }
+    
+    // MARK: - List View
+    
+    private var snippetsList: some View {
+        LazyVStack(spacing: Spacing.md) {
+            ForEach(filteredSnippets) { snippet in
+                SnippetListRow(
+                    snippet: snippet,
+                    searchQuery: searchQuery,
+                    onCopy: {
+                        snippet.copyToClipboard()
+                        ToastManager.shared.showCopiedToClipboard()
+                    },
+                    onEdit: {
+                        snippetBeingEdited = snippet
+                    },
+                    onDelete: {
+                        snippetToDelete = snippet
+                        showDeleteConfirmation = true
+                    }
+                )
+                .transition(.asymmetric(
+                    insertion: .opacity.combined(with: .scale(scale: 0.98)),
+                    removal: .opacity.combined(with: .scale(scale: 0.98))
+                ))
+            }
+        }
+        .padding(Spacing.xl)
+    }
+}
+
+// MARK: - Snippet Card Component (Grid View)
+
+/// Individual snippet card for grid display
+struct SnippetCard: View {
+    let snippet: Snippet
+    let searchQuery: String
+    let onCopy: () -> Void
+    let onEdit: () -> Void
+    let onDelete: () -> Void
+    
+    @State private var isHovered = false
+    @State private var isExpanded = false
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            // Header row with title and shortcut
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    Text(highlightedText(snippet.title))
+                        .font(Font.Wispflow.headline)
+                        .foregroundColor(Color.Wispflow.textPrimary)
+                        .lineLimit(1)
+                    
+                    // Shortcut badge if assigned
+                    if let shortcut = snippet.shortcut, !shortcut.isEmpty {
+                        HStack(spacing: Spacing.xs) {
+                            Image(systemName: "keyboard")
+                                .font(.system(size: 10, weight: .medium))
+                            Text(shortcut)
+                                .font(Font.Wispflow.monoSmall)
+                        }
+                        .foregroundColor(Color.Wispflow.accent)
+                        .padding(.horizontal, Spacing.sm)
+                        .padding(.vertical, 2)
+                        .background(Color.Wispflow.accentLight)
+                        .cornerRadius(CornerRadius.small)
+                    }
+                }
+                
+                Spacer()
+                
+                // Action buttons (visible on hover)
+                HStack(spacing: Spacing.xs) {
+                    // Copy button
+                    Button(action: onCopy) {
+                        Image(systemName: "doc.on.doc")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(Color.Wispflow.textSecondary)
+                            .frame(width: 26, height: 26)
+                            .background(Color.Wispflow.surfaceSecondary)
+                            .cornerRadius(CornerRadius.small)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .help("Copy to clipboard")
+                    
+                    // Edit button
+                    Button(action: onEdit) {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(Color.Wispflow.textSecondary)
+                            .frame(width: 26, height: 26)
+                            .background(Color.Wispflow.surfaceSecondary)
+                            .cornerRadius(CornerRadius.small)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .help("Edit snippet")
+                    
+                    // Delete button
+                    Button(action: onDelete) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(Color.Wispflow.error)
+                            .frame(width: 26, height: 26)
+                            .background(Color.Wispflow.errorLight)
+                            .cornerRadius(CornerRadius.small)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .help("Delete snippet")
+                }
+                .opacity(isHovered ? 1 : 0)
+            }
+            
+            // Content preview or full content
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                if isExpanded {
+                    Text(highlightedText(snippet.content))
+                        .font(Font.Wispflow.body)
+                        .foregroundColor(Color.Wispflow.textPrimary)
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    Text(highlightedText(snippet.contentPreview))
+                        .font(Font.Wispflow.body)
+                        .foregroundColor(Color.Wispflow.textPrimary)
+                        .lineLimit(3)
+                }
+                
+                // Show more/less toggle
+                if snippet.content.count > 100 {
+                    Button(action: {
+                        withAnimation(WispflowAnimation.quick) {
+                            isExpanded.toggle()
+                        }
+                    }) {
+                        Text(isExpanded ? "Show less" : "Show more")
+                            .font(Font.Wispflow.small)
+                            .foregroundColor(Color.Wispflow.accent)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
+            }
+            
+            // Footer with metadata
+            HStack {
+                // Word/character count
+                Text("\(snippet.wordCount) words • \(snippet.characterCount) chars")
+                    .font(Font.Wispflow.small)
+                    .foregroundColor(Color.Wispflow.textTertiary)
+                
+                Spacer()
+                
+                // Last updated
+                Text("Updated \(snippet.updatedRelativeString)")
+                    .font(Font.Wispflow.small)
+                    .foregroundColor(Color.Wispflow.textTertiary)
+            }
+        }
+        .padding(Spacing.lg)
+        .background(Color.Wispflow.surface)
+        .cornerRadius(CornerRadius.medium)
+        .wispflowShadow(isHovered ? .card : .subtle)
+        .scaleEffect(isHovered ? 1.01 : 1.0)
+        .contentShape(Rectangle())
+        .onHover { hovering in
+            withAnimation(WispflowAnimation.quick) {
+                isHovered = hovering
+            }
+        }
+    }
+    
+    /// Highlight search query matches in text
+    private func highlightedText(_ text: String) -> AttributedString {
+        guard !searchQuery.isEmpty else {
+            return AttributedString(text)
+        }
+        
+        var attributedString = AttributedString(text)
+        let lowercasedText = text.lowercased()
+        let lowercasedQuery = searchQuery.lowercased()
+        
+        var searchStartIndex = lowercasedText.startIndex
+        while let range = lowercasedText.range(of: lowercasedQuery, range: searchStartIndex..<lowercasedText.endIndex) {
+            let lowerBound = text.distance(from: text.startIndex, to: range.lowerBound)
+            let upperBound = text.distance(from: text.startIndex, to: range.upperBound)
+            
+            if let attrRange = Range(NSRange(location: lowerBound, length: upperBound - lowerBound), in: attributedString) {
+                attributedString[attrRange].backgroundColor = Color.Wispflow.warningLight
+                attributedString[attrRange].foregroundColor = Color.Wispflow.textPrimary
+            }
+            
+            searchStartIndex = range.upperBound
+        }
+        
+        return attributedString
+    }
+}
+
+// MARK: - Snippet List Row Component (List View)
+
+/// Individual snippet row for list display
+struct SnippetListRow: View {
+    let snippet: Snippet
+    let searchQuery: String
+    let onCopy: () -> Void
+    let onEdit: () -> Void
+    let onDelete: () -> Void
+    
+    @State private var isHovered = false
+    @State private var isExpanded = false
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            // Main row content
+            HStack(alignment: .center, spacing: Spacing.md) {
+                // Icon
+                ZStack {
+                    RoundedRectangle(cornerRadius: CornerRadius.small)
+                        .fill(Color.Wispflow.accentLight)
+                        .frame(width: 40, height: 40)
+                    
+                    Image(systemName: "doc.text")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(Color.Wispflow.accent)
+                }
+                
+                // Title and shortcut
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    Text(highlightedText(snippet.title))
+                        .font(Font.Wispflow.body)
+                        .fontWeight(.semibold)
+                        .foregroundColor(Color.Wispflow.textPrimary)
+                        .lineLimit(1)
+                    
+                    HStack(spacing: Spacing.sm) {
+                        // Shortcut badge
+                        if let shortcut = snippet.shortcut, !shortcut.isEmpty {
+                            HStack(spacing: Spacing.xs) {
+                                Image(systemName: "keyboard")
+                                    .font(.system(size: 9, weight: .medium))
+                                Text(shortcut)
+                                    .font(Font.Wispflow.monoSmall)
+                            }
+                            .foregroundColor(Color.Wispflow.accent)
+                            .padding(.horizontal, Spacing.sm)
+                            .padding(.vertical, 2)
+                            .background(Color.Wispflow.accentLight)
+                            .cornerRadius(CornerRadius.small)
+                        }
+                        
+                        // Word count
+                        Text("\(snippet.wordCount) words")
+                            .font(Font.Wispflow.small)
+                            .foregroundColor(Color.Wispflow.textTertiary)
+                        
+                        // Updated date
+                        Text("• \(snippet.updatedRelativeString)")
+                            .font(Font.Wispflow.small)
+                            .foregroundColor(Color.Wispflow.textTertiary)
+                    }
+                }
+                
+                Spacer()
+                
+                // Action buttons
+                HStack(spacing: Spacing.xs) {
+                    // Copy button
+                    Button(action: onCopy) {
+                        Image(systemName: "doc.on.doc")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(Color.Wispflow.textSecondary)
+                            .frame(width: 28, height: 28)
+                            .background(Color.Wispflow.surfaceSecondary)
+                            .cornerRadius(CornerRadius.small)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .help("Copy to clipboard")
+                    
+                    // Edit button
+                    Button(action: onEdit) {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(Color.Wispflow.textSecondary)
+                            .frame(width: 28, height: 28)
+                            .background(Color.Wispflow.surfaceSecondary)
+                            .cornerRadius(CornerRadius.small)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .help("Edit snippet")
+                    
+                    // Delete button
+                    Button(action: onDelete) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(Color.Wispflow.error)
+                            .frame(width: 28, height: 28)
+                            .background(Color.Wispflow.errorLight)
+                            .cornerRadius(CornerRadius.small)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .help("Delete snippet")
+                    
+                    // Expand/collapse button
+                    Button(action: {
+                        withAnimation(WispflowAnimation.quick) {
+                            isExpanded.toggle()
+                        }
+                    }) {
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(Color.Wispflow.textTertiary)
+                            .frame(width: 28, height: 28)
+                            .background(Color.Wispflow.surfaceSecondary)
+                            .cornerRadius(CornerRadius.small)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .help(isExpanded ? "Collapse" : "Expand")
+                }
+                .opacity(isHovered || isExpanded ? 1 : 0.5)
+            }
+            
+            // Expanded content preview
+            if isExpanded {
+                Text(highlightedText(snippet.content))
+                    .font(Font.Wispflow.body)
+                    .foregroundColor(Color.Wispflow.textPrimary)
+                    .textSelection(.enabled)
+                    .padding(.leading, 40 + Spacing.md) // Align with title
+                    .padding(.top, Spacing.sm)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(Spacing.md)
+        .background(Color.Wispflow.surface)
+        .cornerRadius(CornerRadius.medium)
+        .wispflowShadow(isHovered ? .card : .subtle)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            withAnimation(WispflowAnimation.quick) {
+                isExpanded.toggle()
+            }
+        }
+        .onHover { hovering in
+            withAnimation(WispflowAnimation.quick) {
+                isHovered = hovering
+            }
+        }
+    }
+    
+    /// Highlight search query matches in text
+    private func highlightedText(_ text: String) -> AttributedString {
+        guard !searchQuery.isEmpty else {
+            return AttributedString(text)
+        }
+        
+        var attributedString = AttributedString(text)
+        let lowercasedText = text.lowercased()
+        let lowercasedQuery = searchQuery.lowercased()
+        
+        var searchStartIndex = lowercasedText.startIndex
+        while let range = lowercasedText.range(of: lowercasedQuery, range: searchStartIndex..<lowercasedText.endIndex) {
+            let lowerBound = text.distance(from: text.startIndex, to: range.lowerBound)
+            let upperBound = text.distance(from: text.startIndex, to: range.upperBound)
+            
+            if let attrRange = Range(NSRange(location: lowerBound, length: upperBound - lowerBound), in: attributedString) {
+                attributedString[attrRange].backgroundColor = Color.Wispflow.warningLight
+                attributedString[attrRange].foregroundColor = Color.Wispflow.textPrimary
+            }
+            
+            searchStartIndex = range.upperBound
+        }
+        
+        return attributedString
+    }
+}
+
+// MARK: - Create Snippet Sheet
+
+/// Sheet for creating a new snippet
+struct CreateSnippetSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let onSave: (String, String, String?) -> Void
+    
+    @State private var title: String = ""
+    @State private var content: String = ""
+    @State private var shortcut: String = ""
+    @State private var showShortcutField = false
+    @State private var shortcutError: String?
+    
+    @FocusState private var focusedField: Field?
+    
+    enum Field {
+        case title, content, shortcut
+    }
+    
+    private var isValid: Bool {
+        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        shortcutError == nil
+    }
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Text("New Snippet")
+                    .font(Font.Wispflow.title)
+                    .foregroundColor(Color.Wispflow.textPrimary)
+                
+                Spacer()
+                
+                Button(action: { dismiss() }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .frame(width: 28, height: 28)
+                        .background(Color.Wispflow.surfaceSecondary)
+                        .cornerRadius(CornerRadius.small)
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+            .padding(Spacing.lg)
+            .background(Color.Wispflow.surface)
+            
+            Divider()
+            
+            ScrollView {
+                VStack(alignment: .leading, spacing: Spacing.lg) {
+                    // Title field
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        Text("Title")
+                            .font(Font.Wispflow.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(Color.Wispflow.textSecondary)
+                        
+                        TextField("Enter snippet title...", text: $title)
+                            .textFieldStyle(.plain)
+                            .font(Font.Wispflow.body)
+                            .foregroundColor(Color.Wispflow.textPrimary)
+                            .padding(Spacing.md)
+                            .background(Color.Wispflow.surfaceSecondary)
+                            .cornerRadius(CornerRadius.small)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: CornerRadius.small)
+                                    .stroke(Color.Wispflow.border, lineWidth: 1)
+                            )
+                            .focused($focusedField, equals: .title)
+                    }
+                    
+                    // Content field
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        Text("Content")
+                            .font(Font.Wispflow.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(Color.Wispflow.textSecondary)
+                        
+                        TextEditor(text: $content)
+                            .font(Font.Wispflow.body)
+                            .foregroundColor(Color.Wispflow.textPrimary)
+                            .scrollContentBackground(.hidden)
+                            .padding(Spacing.sm)
+                            .frame(minHeight: 150, maxHeight: 300)
+                            .background(Color.Wispflow.surfaceSecondary)
+                            .cornerRadius(CornerRadius.small)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: CornerRadius.small)
+                                    .stroke(Color.Wispflow.border, lineWidth: 1)
+                            )
+                            .focused($focusedField, equals: .content)
+                        
+                        Text("Tip: You can paste formatted text or multiple paragraphs")
+                            .font(Font.Wispflow.small)
+                            .foregroundColor(Color.Wispflow.textTertiary)
+                    }
+                    
+                    // Optional shortcut field
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        Button(action: {
+                            withAnimation(WispflowAnimation.quick) {
+                                showShortcutField.toggle()
+                            }
+                        }) {
+                            HStack(spacing: Spacing.sm) {
+                                Image(systemName: showShortcutField ? "chevron.down" : "chevron.right")
+                                    .font(.system(size: 10, weight: .semibold))
+                                Image(systemName: "keyboard")
+                                    .font(.system(size: 14, weight: .medium))
+                                Text("Add Keyboard Shortcut (Optional)")
+                                    .font(Font.Wispflow.body)
+                            }
+                            .foregroundColor(Color.Wispflow.textSecondary)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        
+                        if showShortcutField {
+                            VStack(alignment: .leading, spacing: Spacing.sm) {
+                                TextField("e.g., !sig, //email, @reply", text: $shortcut)
+                                    .textFieldStyle(.plain)
+                                    .font(Font.Wispflow.mono)
+                                    .foregroundColor(Color.Wispflow.textPrimary)
+                                    .padding(Spacing.md)
+                                    .background(Color.Wispflow.surfaceSecondary)
+                                    .cornerRadius(CornerRadius.small)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: CornerRadius.small)
+                                            .stroke(shortcutError != nil ? Color.Wispflow.error : Color.Wispflow.border, lineWidth: 1)
+                                    )
+                                    .focused($focusedField, equals: .shortcut)
+                                    .onChange(of: shortcut) { _, newValue in
+                                        validateShortcut(newValue)
+                                    }
+                                
+                                if let error = shortcutError {
+                                    Text(error)
+                                        .font(Font.Wispflow.small)
+                                        .foregroundColor(Color.Wispflow.error)
+                                } else {
+                                    Text("Type this shortcut text to quickly insert the snippet")
+                                        .font(Font.Wispflow.small)
+                                        .foregroundColor(Color.Wispflow.textTertiary)
+                                }
+                            }
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                        }
+                    }
+                }
+                .padding(Spacing.lg)
+            }
+            .background(Color.Wispflow.background)
+            
+            Divider()
+            
+            // Footer with action buttons
+            HStack {
+                Button("Cancel") {
+                    dismiss()
+                }
+                .buttonStyle(WispflowButtonStyle(variant: .secondary))
+                
+                Spacer()
+                
+                Button("Create Snippet") {
+                    let trimmedShortcut = shortcut.trimmingCharacters(in: .whitespacesAndNewlines)
+                    onSave(
+                        title.trimmingCharacters(in: .whitespacesAndNewlines),
+                        content.trimmingCharacters(in: .whitespacesAndNewlines),
+                        trimmedShortcut.isEmpty ? nil : trimmedShortcut
+                    )
+                    dismiss()
+                }
+                .buttonStyle(WispflowButtonStyle(variant: .primary))
+                .disabled(!isValid)
+            }
+            .padding(Spacing.lg)
+            .background(Color.Wispflow.surface)
+        }
+        .frame(width: 500, height: 550)
+        .background(Color.Wispflow.background)
+        .onAppear {
+            focusedField = .title
+        }
+    }
+    
+    private func validateShortcut(_ value: String) {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            shortcutError = nil
+        } else if SnippetsManager.shared.isShortcutInUse(trimmed) {
+            shortcutError = "This shortcut is already in use"
+        } else {
+            shortcutError = nil
+        }
+    }
+}
+
+// MARK: - Edit Snippet Sheet
+
+/// Sheet for editing an existing snippet
+struct EditSnippetSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let snippet: Snippet
+    let onSave: (String, String, String?) -> Void
+    
+    @State private var title: String = ""
+    @State private var content: String = ""
+    @State private var shortcut: String = ""
+    @State private var showShortcutField = false
+    @State private var shortcutError: String?
+    
+    @FocusState private var focusedField: Field?
+    
+    enum Field {
+        case title, content, shortcut
+    }
+    
+    private var isValid: Bool {
+        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        shortcutError == nil
+    }
+    
+    private var hasChanges: Bool {
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedContent = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedShortcut = shortcut.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        return trimmedTitle != snippet.title ||
+               trimmedContent != snippet.content ||
+               trimmedShortcut != (snippet.shortcut ?? "")
+    }
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Text("Edit Snippet")
+                    .font(Font.Wispflow.title)
+                    .foregroundColor(Color.Wispflow.textPrimary)
+                
+                Spacer()
+                
+                Button(action: { dismiss() }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(Color.Wispflow.textSecondary)
+                        .frame(width: 28, height: 28)
+                        .background(Color.Wispflow.surfaceSecondary)
+                        .cornerRadius(CornerRadius.small)
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+            .padding(Spacing.lg)
+            .background(Color.Wispflow.surface)
+            
+            Divider()
+            
+            ScrollView {
+                VStack(alignment: .leading, spacing: Spacing.lg) {
+                    // Title field
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        Text("Title")
+                            .font(Font.Wispflow.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(Color.Wispflow.textSecondary)
+                        
+                        TextField("Enter snippet title...", text: $title)
+                            .textFieldStyle(.plain)
+                            .font(Font.Wispflow.body)
+                            .foregroundColor(Color.Wispflow.textPrimary)
+                            .padding(Spacing.md)
+                            .background(Color.Wispflow.surfaceSecondary)
+                            .cornerRadius(CornerRadius.small)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: CornerRadius.small)
+                                    .stroke(Color.Wispflow.border, lineWidth: 1)
+                            )
+                            .focused($focusedField, equals: .title)
+                    }
+                    
+                    // Content field
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        Text("Content")
+                            .font(Font.Wispflow.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(Color.Wispflow.textSecondary)
+                        
+                        TextEditor(text: $content)
+                            .font(Font.Wispflow.body)
+                            .foregroundColor(Color.Wispflow.textPrimary)
+                            .scrollContentBackground(.hidden)
+                            .padding(Spacing.sm)
+                            .frame(minHeight: 150, maxHeight: 300)
+                            .background(Color.Wispflow.surfaceSecondary)
+                            .cornerRadius(CornerRadius.small)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: CornerRadius.small)
+                                    .stroke(Color.Wispflow.border, lineWidth: 1)
+                            )
+                            .focused($focusedField, equals: .content)
+                    }
+                    
+                    // Shortcut field
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        Button(action: {
+                            withAnimation(WispflowAnimation.quick) {
+                                showShortcutField.toggle()
+                            }
+                        }) {
+                            HStack(spacing: Spacing.sm) {
+                                Image(systemName: showShortcutField ? "chevron.down" : "chevron.right")
+                                    .font(.system(size: 10, weight: .semibold))
+                                Image(systemName: "keyboard")
+                                    .font(.system(size: 14, weight: .medium))
+                                Text("Keyboard Shortcut")
+                                    .font(Font.Wispflow.body)
+                                
+                                if snippet.shortcut != nil && !snippet.shortcut!.isEmpty {
+                                    Text("(\(snippet.shortcut!))")
+                                        .font(Font.Wispflow.mono)
+                                        .foregroundColor(Color.Wispflow.accent)
+                                }
+                            }
+                            .foregroundColor(Color.Wispflow.textSecondary)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        
+                        if showShortcutField {
+                            VStack(alignment: .leading, spacing: Spacing.sm) {
+                                TextField("e.g., !sig, //email, @reply", text: $shortcut)
+                                    .textFieldStyle(.plain)
+                                    .font(Font.Wispflow.mono)
+                                    .foregroundColor(Color.Wispflow.textPrimary)
+                                    .padding(Spacing.md)
+                                    .background(Color.Wispflow.surfaceSecondary)
+                                    .cornerRadius(CornerRadius.small)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: CornerRadius.small)
+                                            .stroke(shortcutError != nil ? Color.Wispflow.error : Color.Wispflow.border, lineWidth: 1)
+                                    )
+                                    .focused($focusedField, equals: .shortcut)
+                                    .onChange(of: shortcut) { _, newValue in
+                                        validateShortcut(newValue)
+                                    }
+                                
+                                if let error = shortcutError {
+                                    Text(error)
+                                        .font(Font.Wispflow.small)
+                                        .foregroundColor(Color.Wispflow.error)
+                                } else {
+                                    Text("Leave empty to remove shortcut")
+                                        .font(Font.Wispflow.small)
+                                        .foregroundColor(Color.Wispflow.textTertiary)
+                                }
+                            }
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                        }
+                    }
+                    
+                    // Metadata
+                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                        Text("Created: \(formatDate(snippet.createdAt))")
+                            .font(Font.Wispflow.small)
+                            .foregroundColor(Color.Wispflow.textTertiary)
+                        Text("Last updated: \(formatDate(snippet.updatedAt))")
+                            .font(Font.Wispflow.small)
+                            .foregroundColor(Color.Wispflow.textTertiary)
+                    }
+                    .padding(.top, Spacing.md)
+                }
+                .padding(Spacing.lg)
+            }
+            .background(Color.Wispflow.background)
+            
+            Divider()
+            
+            // Footer with action buttons
+            HStack {
+                Button("Cancel") {
+                    dismiss()
+                }
+                .buttonStyle(WispflowButtonStyle(variant: .secondary))
+                
+                Spacer()
+                
+                Button("Save Changes") {
+                    let trimmedShortcut = shortcut.trimmingCharacters(in: .whitespacesAndNewlines)
+                    onSave(
+                        title.trimmingCharacters(in: .whitespacesAndNewlines),
+                        content.trimmingCharacters(in: .whitespacesAndNewlines),
+                        trimmedShortcut.isEmpty ? "" : trimmedShortcut // Empty string to remove shortcut
+                    )
+                    dismiss()
+                }
+                .buttonStyle(WispflowButtonStyle(variant: .primary))
+                .disabled(!isValid || !hasChanges)
+            }
+            .padding(Spacing.lg)
+            .background(Color.Wispflow.surface)
+        }
+        .frame(width: 500, height: 580)
+        .background(Color.Wispflow.background)
+        .onAppear {
+            // Initialize with existing values
+            title = snippet.title
+            content = snippet.content
+            shortcut = snippet.shortcut ?? ""
+            showShortcutField = snippet.shortcut != nil && !snippet.shortcut!.isEmpty
+        }
+    }
+    
+    private func validateShortcut(_ value: String) {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            shortcutError = nil
+        } else if SnippetsManager.shared.isShortcutInUse(trimmed, excludingSnippetId: snippet.id) {
+            shortcutError = "This shortcut is already in use"
+        } else {
+            shortcutError = nil
+        }
+    }
+    
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
     }
 }
 

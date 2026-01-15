@@ -1496,8 +1496,8 @@ This plan implements a comprehensive overhaul of WispFlow's core systems based o
 
 ---
 
-### [ ] US-635: Snippets Library View
-**Status:** open
+### [x] US-635: Snippets Library View
+**Status:** complete
 **Priority:** medium
 **Estimated effort:** medium
 **Depends on:** US-632
@@ -1505,21 +1505,69 @@ This plan implements a comprehensive overhaul of WispFlow's core systems based o
 **Description:** Save and reuse frequently used text snippets.
 
 **Tasks:**
-- [ ] Create data model for snippets (title, content, shortcut)
-- [ ] Build grid or list view of saved snippets
-- [ ] Add create new snippet UI (title + content)
-- [ ] Implement inline editing for existing snippets
-- [ ] Add delete with confirmation
-- [ ] Add quick copy button on each snippet
-- [ ] Optional keyboard shortcut assignment per snippet
-- [ ] Add search/filter by title or content
+- [x] Create data model for snippets (title, content, shortcut)
+- [x] Build grid or list view of saved snippets
+- [x] Add create new snippet UI (title + content)
+- [x] Implement inline editing for existing snippets
+- [x] Add delete with confirmation
+- [x] Add quick copy button on each snippet
+- [x] Optional keyboard shortcut assignment per snippet
+- [x] Add search/filter by title or content
 
 **Acceptance Criteria:**
-- [ ] Snippets displayed in grid/list
-- [ ] Create, edit, delete all functional
-- [ ] Quick copy works
-- [ ] Search filters snippets
-- [ ] Empty state shows creation prompt
+- [x] Snippets displayed in grid/list
+- [x] Create, edit, delete all functional
+- [x] Quick copy works
+- [x] Search filters snippets
+- [x] Empty state shows creation prompt
+
+**Implementation Notes:**
+- Created `SnippetsManager.swift` singleton for snippet storage and management:
+  - `Snippet` data model with id, title, content, optional shortcut, createdAt, updatedAt
+  - Word count and character count computed properties
+  - Content preview (first 100 characters)
+  - Relative date strings for display
+  - Copy to clipboard helper method
+- SnippetsManager provides full CRUD operations:
+  - `createSnippet()` - creates new snippet, inserts at beginning
+  - `updateSnippet()` - updates by ID, moves to top on update
+  - `deleteSnippet()` - deletes by ID or reference
+  - `searchSnippets()` - filters by title or content
+  - `isShortcutInUse()` - validates shortcut uniqueness
+  - Persists to UserDefaults with JSON encoding
+  - Maximum capacity of 100 snippets
+- Comprehensive `SnippetsContentView` in `MainWindow.swift`:
+  - **Header Section:** Title "Snippets Library" with view toggle (grid/list), New Snippet button, search bar, snippet count badge
+  - **View Toggle:** Grid view (LazyVGrid with adaptive columns) and List view (LazyVStack)
+  - **Empty State:** Illustrated prompt with "Create First Snippet" button
+  - **No Results State:** "No snippets found" with clear search button
+- Created `SnippetCard` component for grid view:
+  - Title with shortcut badge (keyboard icon + shortcut text)
+  - Content preview with show more/less toggle
+  - Copy, Edit, Delete action buttons (visible on hover)
+  - Word/character count and "Updated X" metadata in footer
+  - Hover effects with shadow and scale
+  - Search query highlighting using AttributedString
+- Created `SnippetListRow` component for list view:
+  - Icon, title, shortcut badge, word count, updated date
+  - Expandable content on click
+  - Copy, Edit, Delete, Expand/Collapse action buttons
+  - Hover effects with shadow
+  - Search query highlighting
+- Created `CreateSnippetSheet` for new snippets:
+  - Title and Content fields with focus management
+  - Collapsible keyboard shortcut section
+  - Shortcut validation (checks for duplicates)
+  - Cancel and Create buttons
+- Created `EditSnippetSheet` for existing snippets:
+  - Pre-populated fields with existing values
+  - Collapsible keyboard shortcut section (shows current shortcut)
+  - Shortcut validation (excludes current snippet from duplicate check)
+  - Created/Updated metadata display
+  - Cancel and Save Changes buttons (disabled until changes made)
+- Delete confirmation alert prevents accidental deletion
+- All components use existing design system: `Color.Wispflow`, `Font.Wispflow`, `Spacing`, `CornerRadius`, `WispflowAnimation`
+- Verified via `swift build` - typecheck passes
 
 ---
 
