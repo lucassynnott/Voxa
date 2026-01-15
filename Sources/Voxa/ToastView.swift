@@ -707,4 +707,6 @@ extension Notification.Name {
     static let toggleRecording = Notification.Name("Voxa.toggleRecording")
     /// US-802: Notification posted when recording state changes (object: RecordingState)
     static let recordingStateChanged = Notification.Name("Voxa.recordingStateChanged")
+    /// US-803: Notification to navigate to history view
+    static let navigateToHistory = Notification.Name("Voxa.navigateToHistory")
 }
