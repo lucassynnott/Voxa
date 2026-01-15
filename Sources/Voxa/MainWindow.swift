@@ -407,6 +407,9 @@ struct HomeContentView: View {
     /// US-802: Pulse animation state for microphone icon
     @State private var isPulsing = false
     
+    /// US-805: Hover state for Quick Tools buttons
+    @State private var hoveredQuickTool: QuickToolAction?
+    
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.xl) {
@@ -834,6 +837,34 @@ struct HomeContentView: View {
                         onHover: { isHovering in
                             withAnimation(VoxaAnimation.quick) {
                                 hoveredQuickAction = isHovering ? action : nil
+                            }
+                        }
+                    )
+                }
+            }
+        }
+    }
+    
+    // MARK: - US-805: Quick Tools Section
+    
+    /// US-805: Quick Tools Section with bordered button components for AI Text Cleanup and Import Audio
+    /// Displays quick access buttons with italic header and hover states (border and icon turn terracotta)
+    private var quickToolsSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            // US-805: Section header with Playfair Display italic (matching Recent Transcriptions style)
+            Text("Quick Tools")
+                .font(Font.Voxa.sectionHeaderItalic)
+                .foregroundColor(Color.Voxa.textPrimary)
+            
+            // US-805: Two tool buttons displayed horizontally
+            HStack(spacing: Spacing.lg) {
+                ForEach(QuickToolAction.allCases) { tool in
+                    QuickToolButton(
+                        tool: tool,
+                        isHovered: hoveredQuickTool == tool,
+                        onHover: { isHovering in
+                            withAnimation(VoxaAnimation.quick) {
+                                hoveredQuickTool = isHovering ? tool : nil
                             }
                         }
                     )
