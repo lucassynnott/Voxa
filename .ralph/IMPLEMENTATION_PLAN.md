@@ -2038,15 +2038,16 @@ This plan implements a comprehensive overhaul of WispFlow's core systems based o
 - [x] No orphaned code remains
 
 **Implementation Notes:**
-- Removed `SettingsWindowController` class from SettingsWindow.swift (no longer needed)
-- Removed `SettingsOpenFullButton` component from MainWindow.swift (was already done)
-- Removed `settingsWindowController` property from AppDelegate (was already done)
+- **Deleted `SettingsWindow.swift` entirely** - file removed as settings are now fully integrated in MainWindow
+- Removed `SettingsOpenFullButton` component from MainWindow.swift
+- Removed `settingsWindowController` property and initialization from AppDelegate
 - Updated `AppDelegate.openSettings()` to call `openMainWindow(initialNavItem: .settings)` instead of `settingsWindowController?.showSettings()`
-- Updated `StatusBarController.openSettings()` print statement to reflect new behavior
-- Updated `MainWindowView` to listen for `.openSettings` notification and navigate to Settings tab
-- Updated `MainWindowController.showMainWindow(initialNavItem:)` to post `.openSettings` notification when window already exists
+- Updated `StatusBarController.openSettings()` print statement to reflect new behavior: "Settings clicked - opening main window with Settings tab"
+- Updated `MainWindowController.showMainWindow(initialNavItem:)` to accept optional `NavigationItem` parameter
+- `MainWindowView.initialNavigationItem` property already existed - now properly used when creating new window
+- When window already exists and initialNavItem is specified, window is recreated to navigate to that item
 - All settings functionality remains accessible through the integrated Settings tab in the main window
-- Verified via `swift build` - typecheck passes
+- Verified via `swift build` - typecheck passes (only warnings, no errors)
 
 ---
 
