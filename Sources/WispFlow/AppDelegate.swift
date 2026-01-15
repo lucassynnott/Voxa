@@ -711,9 +711,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         
-        // Store audio data for potential retry
+        // US-608: Store audio data for potential retry
         lastAudioData = audioData
         lastAudioSampleRate = sampleRate
+        
+        // US-608: Start buffer clear timer (30 seconds to allow retry)
+        startAudioBufferClearTimer()
         
         // Track transcription start time for debug
         transcriptionStartTime = Date()
@@ -821,6 +824,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         
         print("Retrying transcription with stored audio data...")
         processTranscription(audioData: audioData, sampleRate: lastAudioSampleRate)
+    }
+    
+    // MARK: - US-608: Audio Buffer Clear Timer
+    
+    /// Start timer to clear audio buffer after timeout (30 seconds)
+    /// This allows retry for that window, then clears memory
+    @MainActor
+    private func startAudioBufferClearTimer() {
+        // Invalidate any existing timer
+        stopAudioBufferClearTimer()
+        
+        // Create new timer
+        audioBufferClearTimer = Timer.scheduledTimer(
+            withTimeInterval: Self.audioBufferTimeoutSeconds,
+            repeats: false
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.clearAudioBuffer()
+            }
+        }
+        
+        print("[US-608] Audio buffer clear timer started (\(Self.audioBufferTimeoutSeconds)s)")
+    }
+    
+    /// Stop the audio buffer clear timer
+    @MainActor
+    private func stopAudioBufferClearTimer() {
+        audioBufferClearTimer?.invalidate()
+        audioBufferClearTimer = nil
+    }
+    
+    /// Clear the stored audio buffer
+    @MainActor
+    private func clearAudioBuffer() {
+        if lastAudioData != nil {
+            print("[US-608] Clearing audio buffer after timeout")
+            lastAudioData = nil
+        }
+        stopAudioBufferClearTimer()
     }
     
     @MainActor

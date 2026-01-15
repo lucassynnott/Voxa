@@ -8,6 +8,7 @@
     "Enhance hotkey system with customization and multiple modes",
     "Polish text insertion with smart punctuation and undo support",
     "Create premium, distinctive UI design system",
+    "Redesign main app window with sidebar navigation and dashboard layout",
     "Implement comprehensive error handling and logging",
     "Optimize performance for memory, startup, and battery"
   ],
@@ -34,7 +35,12 @@
     "Menu bar app (LSUIElement) - no dock icon",
     "Design philosophy: refined/professional, avoid generic AI aesthetics",
     "Typography first with personality, not Inter/Roboto/SF Pro",
-    "Bold color choices - NOT purple gradients or generic blue"
+    "Bold color choices - NOT purple gradients or generic blue",
+    "Main window uses sidebar navigation pattern (similar to Flow app)",
+    "Dashboard-style home view with user stats and quick actions",
+    "Card-based UI components with rounded corners and subtle shadows",
+    "Warm, inviting color palette with cream/off-white backgrounds",
+    "Icon-forward navigation with clear visual hierarchy"
   ],
   "dataModel": [
     { "entity": "AudioDevice", "fields": ["uid", "name", "isDefault", "calibration"] },
@@ -239,6 +245,98 @@
         "Document design tokens in code comments",
         "Example: Color.Wispflow.primary returns the primary brand color",
         "Negative case: Fallback to system colors if custom colors fail to load"
+      ]
+    },
+    {
+      "id": "US-632",
+      "title": "Main Window with Sidebar Navigation",
+      "status": "open",
+      "dependsOn": ["US-615"],
+      "description": "As a user, I want a modern main application window with sidebar navigation for easy access to all features.",
+      "acceptanceCriteria": [
+        "Create main window with fixed left sidebar (200-250px width)",
+        "Sidebar contains navigation items: Home, History, Snippets, Dictionary, Settings",
+        "Each nav item has distinctive icon and label",
+        "Active nav item has clear visual highlight (background color or accent indicator)",
+        "Sidebar has subtle separator or shadow from main content area",
+        "Navigation items have hover states with smooth transitions",
+        "Window remembers size and position across sessions",
+        "Minimum window size: 800x600px",
+        "Example: User clicks History in sidebar -> main content smoothly transitions to History view",
+        "Negative case: Window too small -> sidebar collapses to icons only"
+      ]
+    },
+    {
+      "id": "US-633",
+      "title": "Dashboard Home View",
+      "status": "open",
+      "dependsOn": ["US-632"],
+      "description": "As a user, I want a welcoming dashboard home view showing my activity and quick actions.",
+      "acceptanceCriteria": [
+        "Display personalized welcome message with user name or 'Welcome back'",
+        "Show usage statistics: streak days, total words transcribed, average WPM",
+        "Stats displayed in a clean horizontal row with icons",
+        "Include promotional/feature banner area (optional, for tips or updates)",
+        "Quick Actions section with card-based shortcuts (Start Recording, Recent, Settings)",
+        "Cards have icons, labels, and subtle shadows/borders",
+        "Cards have hover lift effect with shadow increase",
+        "Recent Activity timeline showing dated transcription entries",
+        "Each timeline entry shows timestamp and preview of transcribed text",
+        "Example: User opens app -> sees 'Welcome back, Lucas' -> 5 day streak, 16.4K words -> quick action cards",
+        "Negative case: No activity yet -> show onboarding prompt instead of empty state"
+      ]
+    },
+    {
+      "id": "US-634",
+      "title": "Transcription History View",
+      "status": "open",
+      "dependsOn": ["US-632"],
+      "description": "As a user, I want to browse and search my transcription history.",
+      "acceptanceCriteria": [
+        "List all past transcriptions with date, time, and text preview",
+        "Search bar at top to filter transcriptions",
+        "Click to expand full transcription text",
+        "Copy button on each entry",
+        "Delete option with confirmation",
+        "Group entries by date (Today, Yesterday, This Week, etc.)",
+        "Smooth list animations when filtering",
+        "Example: User searches 'meeting' -> filtered list shows matching transcriptions",
+        "Negative case: No history -> show empty state with 'No transcriptions yet' message"
+      ]
+    },
+    {
+      "id": "US-635",
+      "title": "Snippets Library View",
+      "status": "open",
+      "dependsOn": ["US-632"],
+      "description": "As a user, I want to save and reuse frequently used text snippets.",
+      "acceptanceCriteria": [
+        "Grid or list view of saved snippets",
+        "Create new snippet with title and content",
+        "Edit existing snippets inline",
+        "Delete snippets with confirmation",
+        "Quick copy button on each snippet",
+        "Optional keyboard shortcut assignment per snippet",
+        "Search/filter snippets by title or content",
+        "Example: User creates 'Email Signature' snippet -> saves -> can quickly copy it later",
+        "Negative case: No snippets -> show 'Create your first snippet' prompt"
+      ]
+    },
+    {
+      "id": "US-636",
+      "title": "Custom Dictionary View",
+      "status": "open",
+      "dependsOn": ["US-632"],
+      "description": "As a user, I want to manage custom words and phrases for better transcription accuracy.",
+      "acceptanceCriteria": [
+        "List of custom dictionary entries (technical terms, names, etc.)",
+        "Add new words with optional pronunciation hint",
+        "Edit and delete existing entries",
+        "Import/export dictionary as text file",
+        "Search functionality for large dictionaries",
+        "Show word count and last updated timestamp",
+        "Example: User adds 'WispFlow' to dictionary -> transcription recognizes it correctly",
+        "Negative case: Empty dictionary -> show explanation of feature benefits"
       ]
     },
     {

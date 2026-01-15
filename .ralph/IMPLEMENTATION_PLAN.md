@@ -1260,3 +1260,167 @@ This plan implements a comprehensive overhaul of WispFlow's core systems based o
 - Each option has its own toggle with descriptive text explaining what it does
 - All settings persisted via UserDefaults with dedicated keys
 - Verified via `swift build` - typecheck passes
+
+---
+
+## Phase 9: UI Redesign (from PRD v2)
+
+### US-615: Design System Foundation
+**Status:** open
+**Priority:** high
+**Estimated effort:** medium
+**Depends on:** none
+
+**Description:** Create a cohesive, distinctive design system for WispFlow that feels premium and memorable.
+
+**Tasks:**
+- [ ] Define distinctive color palette (NOT purple gradients, NOT generic blue)
+- [ ] Choose primary color: bold unexpected choice (deep coral, electric teal, warm amber)
+- [ ] Set background: rich dark (#0D0D0D range) or warm off-white (cream/ivory)
+- [ ] Define high-contrast accent color
+- [ ] Define semantic colors for success/warning/error
+- [ ] Select memorable display typography (NOT Inter, Roboto, SF Pro)
+- [ ] Define spacing scale (4px base, consistent rhythm)
+- [ ] Define corner radius philosophy (sharp/brutalist OR soft/organic)
+- [ ] Create SwiftUI Color.Wispflow and Font.Wispflow extensions
+- [ ] Document design tokens in code comments
+
+**Acceptance Criteria:**
+- [ ] Color.Wispflow.primary returns the primary brand color
+- [ ] Fallback to system colors if custom colors fail to load
+
+---
+
+### US-632: Main Window with Sidebar Navigation
+**Status:** open
+**Priority:** high
+**Estimated effort:** large
+**Depends on:** US-615
+
+**Description:** Create a modern main application window with sidebar navigation for easy access to all features.
+
+**Tasks:**
+- [ ] Create main window with fixed left sidebar (200-250px width)
+- [ ] Add navigation items: Home, History, Snippets, Dictionary, Settings
+- [ ] Design distinctive icon for each nav item
+- [ ] Implement active nav item highlight (background color or accent indicator)
+- [ ] Add subtle separator or shadow between sidebar and content
+- [ ] Implement hover states with smooth transitions
+- [ ] Save/restore window size and position across sessions
+- [ ] Set minimum window size: 800x600px
+- [ ] Implement sidebar collapse to icons when window too small
+
+**Acceptance Criteria:**
+- [ ] Sidebar contains 5 navigation items with icons and labels
+- [ ] Active nav item visually highlighted
+- [ ] Smooth transitions when switching views
+- [ ] Window state persists across sessions
+- [ ] Sidebar collapses gracefully on small windows
+
+---
+
+### US-633: Dashboard Home View
+**Status:** open
+**Priority:** high
+**Estimated effort:** large
+**Depends on:** US-632
+
+**Description:** Create a welcoming dashboard home view showing activity and quick actions.
+
+**Tasks:**
+- [ ] Display personalized welcome message ("Welcome back" or user name)
+- [ ] Show usage statistics: streak days, total words transcribed, average WPM
+- [ ] Design stats row with icons in clean horizontal layout
+- [ ] Add optional promotional/feature banner area
+- [ ] Create Quick Actions section with card-based shortcuts
+- [ ] Design cards with icons, labels, subtle shadows/borders
+- [ ] Implement hover lift effect on cards
+- [ ] Add Recent Activity timeline with dated transcription entries
+- [ ] Each timeline entry shows timestamp and text preview
+
+**Acceptance Criteria:**
+- [ ] Welcome message displayed at top
+- [ ] Usage stats visible (streak, words, WPM)
+- [ ] Quick action cards functional with hover effects
+- [ ] Recent activity shows dated entries
+- [ ] Empty state shows onboarding prompt
+
+---
+
+### US-634: Transcription History View
+**Status:** open
+**Priority:** medium
+**Estimated effort:** medium
+**Depends on:** US-632
+
+**Description:** Browse and search transcription history.
+
+**Tasks:**
+- [ ] Create data model for storing transcription history
+- [ ] List all past transcriptions with date, time, preview
+- [ ] Add search bar to filter transcriptions
+- [ ] Implement click-to-expand for full text
+- [ ] Add copy button on each entry
+- [ ] Add delete option with confirmation dialog
+- [ ] Group entries by date (Today, Yesterday, This Week, etc.)
+- [ ] Implement smooth list animations when filtering
+
+**Acceptance Criteria:**
+- [ ] Past transcriptions listed with date/time/preview
+- [ ] Search filters results in real-time
+- [ ] Copy and delete work correctly
+- [ ] Entries grouped by date
+- [ ] Empty state message when no history
+
+---
+
+### US-635: Snippets Library View
+**Status:** open
+**Priority:** medium
+**Estimated effort:** medium
+**Depends on:** US-632
+
+**Description:** Save and reuse frequently used text snippets.
+
+**Tasks:**
+- [ ] Create data model for snippets (title, content, shortcut)
+- [ ] Build grid or list view of saved snippets
+- [ ] Add create new snippet UI (title + content)
+- [ ] Implement inline editing for existing snippets
+- [ ] Add delete with confirmation
+- [ ] Add quick copy button on each snippet
+- [ ] Optional keyboard shortcut assignment per snippet
+- [ ] Add search/filter by title or content
+
+**Acceptance Criteria:**
+- [ ] Snippets displayed in grid/list
+- [ ] Create, edit, delete all functional
+- [ ] Quick copy works
+- [ ] Search filters snippets
+- [ ] Empty state shows creation prompt
+
+---
+
+### US-636: Custom Dictionary View
+**Status:** open
+**Priority:** low
+**Estimated effort:** medium
+**Depends on:** US-632
+
+**Description:** Manage custom words and phrases for better transcription accuracy.
+
+**Tasks:**
+- [ ] Create data model for dictionary entries (word, pronunciation hint)
+- [ ] Build list view of custom dictionary entries
+- [ ] Add new words with optional pronunciation hint
+- [ ] Implement edit and delete for entries
+- [ ] Add import/export dictionary as text file
+- [ ] Add search functionality for large dictionaries
+- [ ] Show word count and last updated timestamp
+
+**Acceptance Criteria:**
+- [ ] Dictionary entries listed
+- [ ] Add, edit, delete functional
+- [ ] Import/export works
+- [ ] Search filters dictionary
+- [ ] Empty state explains feature benefits

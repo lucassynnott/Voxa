@@ -3394,3 +3394,40 @@ Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-203422-21008-it
   - The UI card was already added by a parallel iteration
   - Always check git status early to understand what work remains
 ---
+## [2026-01-14 20:56] - US-607: Transcription Post-Processing (Verification)
+Thread: codex exec session
+Run: 20260114-203422-21447 (iteration 2)
+Run log: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-203422-21447-iter-2.log
+Run summary: /Users/lucasnolan/WispFlow/.ralph/runs/run-20260114-203422-21447-iter-2.md
+- Guardrails reviewed: yes
+- No-commit run: false
+- Commit: none (feature already committed by parallel runs: c3ca633, 0c280d7)
+- Post-commit status: clean
+- Verification:
+  - Command: `swift build` -> PASS (Build complete! 1.71s)
+- What was verified:
+  - US-607 implementation complete in TextCleanupManager.swift:
+    - autoCapitalizeFirstLetter @Published property with UserDefaults persistence
+    - addPeriodAtEnd @Published property with UserDefaults persistence
+    - trimWhitespace @Published property with UserDefaults persistence
+    - applyPostProcessing(_:) method applies options in order
+    - processText(_:) method combines cleanup + post-processing
+  - Settings UI in SettingsWindow.swift:
+    - "Post-Processing Options" card in Text Cleanup tab
+    - Three toggles with descriptive labels
+    - All options default to true for optimal UX
+  - PRD and Implementation Plan already updated by parallel runs
+- Acceptance Criteria verified:
+  - [x] Option to auto-capitalize first letter
+  - [x] Option to add period at end of sentences
+  - [x] Option to trim leading/trailing whitespace
+  - [x] Configurable in Settings
+- Files verified (no changes needed):
+  - Sources/WispFlow/TextCleanupManager.swift
+  - Sources/WispFlow/SettingsWindow.swift
+  - .ralph/IMPLEMENTATION_PLAN.md
+  - .agents/tasks/prd-wispflow-improvements-v2.md
+- **Learnings for future iterations:**
+  - Multiple parallel runs can complete the same story; later iterations verify completeness
+  - The US-607 feature was fully implemented across parallel runs before this iteration
+---

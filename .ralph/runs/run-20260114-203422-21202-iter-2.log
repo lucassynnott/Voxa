@@ -1,0 +1,3 @@
+The UI is already implemented! All the post-processing options (auto-capitalize, add period, trim whitespace) are already in the Settings UI under "Post-Processing" section. The build succeeded, which means everything is working.
+
+Let me now run the build again to make sure everything is clean:

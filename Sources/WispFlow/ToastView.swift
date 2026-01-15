@@ -550,6 +550,24 @@ extension ToastManager {
         )
     }
     
+    // MARK: - US-608: Retry Failed Transcriptions
+    
+    /// Show toast for transcription error with retry option
+    /// Called when transcription fails and audio buffer is available for retry
+    func showTranscriptionErrorWithRetry(
+        _ error: String? = nil,
+        onRetry: @escaping () -> Void
+    ) {
+        showError(
+            "Transcription Failed",
+            message: error ?? "An error occurred during transcription",
+            icon: "waveform.slash",
+            actionTitle: "Retry",
+            action: onRetry,
+            duration: 8.0  // Longer duration to give user time to decide
+        )
+    }
+    
     /// Show toast for model download complete
     func showModelDownloadComplete(modelName: String) {
         showSuccess(
