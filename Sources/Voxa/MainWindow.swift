@@ -814,119 +814,99 @@ struct HomeContentView: View {
         }
     }
     
-    // MARK: - Recent Activity Section
+    // MARK: - Recent Transcriptions Section (US-803)
     
+    /// US-803: Recent Transcriptions List with section header, View All link, and transcription items
     private var recentActivitySection: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            HStack {
-                Text("Recent Activity")
-                    .font(Font.Voxa.headline)
+            // MARK: - Section Header with Playfair Display Italic + View All Link
+            HStack(alignment: .center) {
+                // US-803: Section header with Playfair Display italic (sectionHeaderItalic)
+                Text("Recent Transcriptions")
+                    .font(Font.Voxa.sectionHeaderItalic)
                     .foregroundColor(Color.Voxa.textPrimary)
                 
                 Spacer()
                 
+                // US-803: View All link to navigate to History tab
                 if !statsManager.recentEntries.isEmpty {
-                    Text("\(statsManager.recentEntries.count) entries")
-                        .font(Font.Voxa.caption)
-                        .foregroundColor(Color.Voxa.textSecondary)
+                    Button(action: {
+                        // Navigate to history view
+                        NotificationCenter.default.post(name: .navigateToHistory, object: nil)
+                    }) {
+                        HStack(spacing: Spacing.xs) {
+                            Text("View All")
+                                .font(Font.Voxa.caption)
+                                .fontWeight(.medium)
+                            
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 10, weight: .semibold))
+                        }
+                        .foregroundColor(Color.Voxa.accent)
+                    }
+                    .buttonStyle(PlainButtonStyle())
                 }
             }
             
+            // MARK: - Transcription List or Empty State
             if statsManager.recentEntries.isEmpty {
-                // Empty state
-                emptyActivityState
+                // US-803: Empty state when no transcriptions
+                recentTranscriptionsEmptyState
             } else {
-                // Activity timeline
-                activityTimeline
+                // US-803: Show last 3-5 transcriptions (configurable, default 5)
+                recentTranscriptionsList
             }
         }
     }
     
-    /// Empty state for activity section
-    private var emptyActivityState: some View {
+    /// US-803: Empty state when no transcriptions
+    private var recentTranscriptionsEmptyState: some View {
         HStack {
             Spacer()
             VStack(spacing: Spacing.md) {
-                Image(systemName: "clock.badge.questionmark")
-                    .font(.system(size: 36, weight: .light))
-                    .foregroundColor(Color.Voxa.textTertiary)
-                
-                Text("No transcriptions yet")
-                    .font(Font.Voxa.body)
-                    .foregroundColor(Color.Voxa.textSecondary)
-                
-                Text("Your recent activity will appear here")
-                    .font(Font.Voxa.caption)
-                    .foregroundColor(Color.Voxa.textTertiary)
-            }
-            .padding(.vertical, Spacing.xxl)
-            Spacer()
-        }
-        .background(Color.Voxa.surfaceSecondary.opacity(0.5))
-        .cornerRadius(CornerRadius.medium)
-    }
-    
-    /// Activity timeline with dated entries
-    private var activityTimeline: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Group entries by date
-            ForEach(groupedEntries.keys.sorted(by: >), id: \.self) { date in
-                if let entries = groupedEntries[date] {
-                    // Date header
-                    dateHeader(for: date)
+                // Empty state icon
+                ZStack {
+                    Circle()
+                        .fill(Color.Voxa.surfaceSecondary)
+                        .frame(width: 64, height: 64)
                     
-                    // Entries for this date
-                    ForEach(entries) { entry in
-                        ActivityTimelineEntry(entry: entry)
-                    }
+                    Image(systemName: "waveform.badge.plus")
+                        .font(.system(size: 28, weight: .light))
+                        .foregroundColor(Color.Voxa.textTertiary)
+                }
+                
+                VStack(spacing: Spacing.xs) {
+                    Text("No transcriptions yet")
+                        .font(Font.Voxa.body)
+                        .fontWeight(.medium)
+                        .foregroundColor(Color.Voxa.textSecondary)
+                    
+                    Text("Press ⌘⇧Space to start your first recording")
+                        .font(Font.Voxa.caption)
+                        .foregroundColor(Color.Voxa.textTertiary)
                 }
             }
+            .padding(.vertical, Spacing.xl)
+            Spacer()
         }
-        .padding(Spacing.md)
         .background(Color.Voxa.surface)
         .cornerRadius(CornerRadius.medium)
         .voxaShadow(.subtle)
     }
     
-    /// Group entries by date
-    private var groupedEntries: [Date: [TranscriptionEntry]] {
-        let calendar = Calendar.current
-        var groups: [Date: [TranscriptionEntry]] = [:]
-        
-        for entry in statsManager.recentEntries {
-            let dateKey = calendar.startOfDay(for: entry.timestamp)
-            if groups[dateKey] == nil {
-                groups[dateKey] = []
+    /// US-803: List of recent transcriptions (3-5 items)
+    private var recentTranscriptionsList: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Show up to 5 recent transcriptions
+            let displayEntries = Array(statsManager.recentEntries.prefix(5))
+            
+            ForEach(Array(displayEntries.enumerated()), id: \.element.id) { index, entry in
+                RecentTranscriptionItem(entry: entry, isLast: index == displayEntries.count - 1)
             }
-            groups[dateKey]?.append(entry)
         }
-        
-        return groups
-    }
-    
-    /// Date header for activity timeline
-    private func dateHeader(for date: Date) -> some View {
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        let yesterday = calendar.date(byAdding: .day, value: -1, to: today)!
-        
-        let label: String
-        if calendar.isDate(date, inSameDayAs: today) {
-            label = "Today"
-        } else if calendar.isDate(date, inSameDayAs: yesterday) {
-            label = "Yesterday"
-        } else {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "EEEE, MMMM d"
-            label = formatter.string(from: date)
-        }
-        
-        return Text(label)
-            .font(Font.Voxa.caption)
-            .fontWeight(.semibold)
-            .foregroundColor(Color.Voxa.textSecondary)
-            .padding(.vertical, Spacing.sm)
-            .padding(.horizontal, Spacing.xs)
+        .background(Color.Voxa.surface)
+        .cornerRadius(CornerRadius.medium)
+        .voxaShadow(.subtle)
     }
     
     // MARK: - Helpers
