@@ -184,6 +184,11 @@ struct MainWindowView: View {
         .background(Color.Voxa.background)
         // US-032: Apply smooth transition when system appearance changes
         .appearanceTransition()
+        // US-036: Native macOS keyboard shortcuts for navigation
+        .modifier(NavigationKeyboardShortcuts(
+            selectedItem: $selectedItem,
+            isSidebarCollapsed: $isSidebarCollapsed
+        ))
     }
 
     // MARK: - Sidebar View
@@ -11537,6 +11542,88 @@ struct MiniFeatureBadge: View {
 }
 
 // US-708: SettingsOpenFullButton removed - settings now displayed directly in main window
+
+// MARK: - US-036: Navigation Keyboard Shortcuts
+
+/// ViewModifier to add macOS keyboard shortcuts for navigation
+/// Standard macOS pattern: ⌘1-5 for sidebar navigation, ⌘⇧S for sidebar toggle
+struct NavigationKeyboardShortcuts: ViewModifier {
+    @Binding var selectedItem: NavigationItem
+    @Binding var isSidebarCollapsed: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .background(
+                // Use focusable view to capture key events
+                KeyboardShortcutHandler(
+                    selectedItem: $selectedItem,
+                    isSidebarCollapsed: $isSidebarCollapsed
+                )
+            )
+    }
+}
+
+/// Internal view that handles keyboard events via NSEvent monitor
+private struct KeyboardShortcutHandler: NSViewRepresentable {
+    @Binding var selectedItem: NavigationItem
+    @Binding var isSidebarCollapsed: Bool
+
+    func makeNSView(context: Context) -> NSView {
+        let view = KeyCaptureView()
+        view.onKeyDown = { event in
+            handleKeyEvent(event)
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {}
+
+    private func handleKeyEvent(_ event: NSEvent) -> Bool {
+        // Check for ⌘ modifier
+        guard event.modifierFlags.contains(.command) else { return false }
+
+        // ⌘⇧S - Toggle sidebar
+        if event.modifierFlags.contains(.shift) && event.keyCode == 1 { // 's' key
+            withAnimation(VoxaAnimation.smooth) {
+                isSidebarCollapsed.toggle()
+            }
+            return true
+        }
+
+        // ⌘1-5 - Navigate to tabs
+        let newItem: NavigationItem?
+        switch event.keyCode {
+        case 18: newItem = .home      // '1' key
+        case 19: newItem = .history   // '2' key
+        case 20: newItem = .snippets  // '3' key
+        case 21: newItem = .dictionary // '4' key
+        case 23: newItem = .settings  // '5' key
+        default: newItem = nil
+        }
+
+        if let item = newItem {
+            withAnimation(VoxaAnimation.smooth) {
+                selectedItem = item
+            }
+            return true
+        }
+
+        return false
+    }
+}
+
+/// NSView subclass that captures key events
+private class KeyCaptureView: NSView {
+    var onKeyDown: ((NSEvent) -> Bool)?
+
+    override var acceptsFirstResponder: Bool { true }
+
+    override func keyDown(with event: NSEvent) {
+        if onKeyDown?(event) != true {
+            super.keyDown(with: event)
+        }
+    }
+}
 
 // MARK: - Main Window Controller
 
