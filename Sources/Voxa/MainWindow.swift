@@ -8692,6 +8692,71 @@ struct TextCleanupSettingsSummary: View {
                     description: "Convert straight quotes (\") to curly quotes (\u{201C}\u{201D})",
                     isOn: $textCleanupManager.useSmartQuotes
                 )
+
+                Divider()
+                    .background(Color.Voxa.border)
+
+                // US-025: Auto-punctuation toggle
+                TextCleanupToggleRow(
+                    icon: "ellipsis.curlybraces",
+                    title: "Auto-Punctuation",
+                    description: "Add punctuation based on speech pauses",
+                    isOn: $textCleanupManager.autoPunctuationEnabled
+                )
+
+                // US-025: Pause duration settings (shown when auto-punctuation is enabled)
+                if textCleanupManager.autoPunctuationEnabled {
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        // Comma pause threshold slider
+                        HStack {
+                            Image(systemName: "comma")
+                                .foregroundColor(Color.Voxa.textSecondary)
+                                .font(.system(size: 14))
+                                .frame(width: 20)
+                            Text("Comma pause:")
+                                .font(Font.Voxa.caption)
+                                .foregroundColor(Color.Voxa.textSecondary)
+                            Slider(
+                                value: $textCleanupManager.pauseForComma,
+                                in: 0.3...1.5,
+                                step: 0.1
+                            )
+                            .frame(maxWidth: 120)
+                            Text(String(format: "%.1fs", textCleanupManager.pauseForComma))
+                                .font(Font.Voxa.caption)
+                                .foregroundColor(Color.Voxa.textSecondary)
+                                .frame(width: 35)
+                        }
+
+                        // Period pause threshold slider
+                        HStack {
+                            Image(systemName: "period")
+                                .foregroundColor(Color.Voxa.textSecondary)
+                                .font(.system(size: 14))
+                                .frame(width: 20)
+                            Text("Period pause:")
+                                .font(Font.Voxa.caption)
+                                .foregroundColor(Color.Voxa.textSecondary)
+                            Slider(
+                                value: $textCleanupManager.pauseForPeriod,
+                                in: 0.8...3.0,
+                                step: 0.1
+                            )
+                            .frame(maxWidth: 120)
+                            Text(String(format: "%.1fs", textCleanupManager.pauseForPeriod))
+                                .font(Font.Voxa.caption)
+                                .foregroundColor(Color.Voxa.textSecondary)
+                                .frame(width: 35)
+                        }
+
+                        Text("Shorter pauses insert commas, longer pauses insert periods")
+                            .font(.system(size: 10))
+                            .foregroundColor(Color.Voxa.textSecondary)
+                            .opacity(0.8)
+                    }
+                    .padding(.leading, Spacing.lg)
+                    .padding(.top, Spacing.xs)
+                }
             }
             .padding(Spacing.md)
             .background(Color.Voxa.surface)

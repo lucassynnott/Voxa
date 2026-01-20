@@ -77,6 +77,10 @@ final class TextCleanupManager: ObservableObject {
         static let autoCapitalizeSentencesKey = "postProcessAutoCapitalizeSentences"
         // US-024: Smart quotes
         static let useSmartQuotesKey = "postProcessUseSmartQuotes"
+        // US-025: Auto-punctuation based on pauses
+        static let autoPunctuationEnabledKey = "postProcessAutoPunctuationEnabled"
+        static let pauseForCommaKey = "postProcessPauseForComma"
+        static let pauseForPeriodKey = "postProcessPauseForPeriod"
     }
     
     /// Common filler words and phrases to remove
@@ -205,6 +209,34 @@ final class TextCleanupManager: ObservableObject {
         }
     }
 
+    // MARK: - US-025: Auto-Punctuation Based on Pauses
+
+    /// Option to enable auto-punctuation based on speech pauses
+    /// When enabled, pauses between words/phrases can trigger punctuation insertion
+    @Published var autoPunctuationEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(autoPunctuationEnabled, forKey: Constants.autoPunctuationEnabledKey)
+        }
+    }
+
+    /// Pause duration threshold for comma insertion (in seconds)
+    /// Pauses longer than this but shorter than periodPause will insert a comma
+    /// Range: 0.3 - 1.5 seconds, default 0.5
+    @Published var pauseForComma: Double {
+        didSet {
+            UserDefaults.standard.set(pauseForComma, forKey: Constants.pauseForCommaKey)
+        }
+    }
+
+    /// Pause duration threshold for period insertion (in seconds)
+    /// Pauses longer than this will insert a period
+    /// Range: 0.8 - 3.0 seconds, default 1.2
+    @Published var pauseForPeriod: Double {
+        didSet {
+            UserDefaults.standard.set(pauseForPeriod, forKey: Constants.pauseForPeriodKey)
+        }
+    }
+
     // MARK: - Callbacks
     
     /// Called when cleanup completes
@@ -243,9 +275,15 @@ final class TextCleanupManager: ObservableObject {
         // US-024: Load smart quotes preference (default to false - opt-in feature)
         useSmartQuotes = UserDefaults.standard.object(forKey: Constants.useSmartQuotesKey) as? Bool ?? false
 
+        // US-025: Load auto-punctuation preferences (default to false - opt-in feature)
+        autoPunctuationEnabled = UserDefaults.standard.object(forKey: Constants.autoPunctuationEnabledKey) as? Bool ?? false
+        pauseForComma = UserDefaults.standard.object(forKey: Constants.pauseForCommaKey) as? Double ?? 0.5
+        pauseForPeriod = UserDefaults.standard.object(forKey: Constants.pauseForPeriodKey) as? Double ?? 1.2
+
         print("TextCleanupManager initialized with mode: \(selectedMode.rawValue), cleanup enabled: \(isCleanupEnabled)")
         print("TextCleanupManager: [US-607] Post-processing: capitalize=\(autoCapitalizeFirstLetter), period=\(addPeriodAtEnd), trim=\(trimWhitespace)")
         print("TextCleanupManager: [US-023] Auto-capitalize sentences: \(autoCapitalizeSentences)")
+        print("TextCleanupManager: [US-025] Auto-punctuation: enabled=\(autoPunctuationEnabled), comma=\(pauseForComma)s, period=\(pauseForPeriod)s")
     }
     
     // MARK: - Text Cleanup
@@ -688,6 +726,177 @@ final class TextCleanupManager: ObservableObject {
         return result
     }
 
+    // MARK: - US-025: Auto-Punctuation Based on Pauses
+
+    /// Word timing information for pause-based punctuation
+    struct WordTiming {
+        let word: String
+        let startTime: Double
+        let endTime: Double
+    }
+
+    /// Apply auto-punctuation based on word timings
+    /// This method inserts punctuation based on pause durations between words
+    /// - Parameters:
+    ///   - text: The transcribed text
+    ///   - wordTimings: Optional array of word timing information. If nil, uses pattern-based punctuation.
+    /// - Returns: Text with punctuation inserted at pause points
+    func applyAutoPunctuation(_ text: String, wordTimings: [WordTiming]? = nil) -> String {
+        guard autoPunctuationEnabled else {
+            return text
+        }
+
+        // If we have word timings, use pause-based punctuation
+        if let timings = wordTimings, !timings.isEmpty {
+            return applyTimingBasedPunctuation(text, wordTimings: timings)
+        }
+
+        // Otherwise, use pattern-based punctuation enhancement
+        return applyPatternBasedPunctuation(text)
+    }
+
+    /// Apply punctuation based on actual word timing/pause data
+    /// - Parameters:
+    ///   - text: The original text
+    ///   - wordTimings: Array of word timing information
+    /// - Returns: Text with pause-based punctuation
+    private func applyTimingBasedPunctuation(_ text: String, wordTimings: [WordTiming]) -> String {
+        guard wordTimings.count > 1 else {
+            return text
+        }
+
+        var result = ""
+        var textIndex = text.startIndex
+
+        for i in 0..<wordTimings.count {
+            let currentWord = wordTimings[i]
+
+            // Find and append the word from the original text
+            if let range = text.range(of: currentWord.word, range: textIndex..<text.endIndex, locale: nil) {
+                // Append any text before this word (spaces, etc.)
+                result += text[textIndex..<range.lowerBound]
+                result += text[range]
+                textIndex = range.upperBound
+
+                // Check if this is not the last word
+                if i < wordTimings.count - 1 {
+                    let nextWord = wordTimings[i + 1]
+                    let pauseDuration = nextWord.startTime - currentWord.endTime
+
+                    // Don't add punctuation if the word already ends with punctuation
+                    let lastChar = currentWord.word.last ?? Character(" ")
+                    let hasPunctuation = ".!?,;:".contains(lastChar)
+
+                    if !hasPunctuation && pauseDuration > 0 {
+                        // Insert punctuation based on pause duration
+                        if pauseDuration >= pauseForPeriod {
+                            // Long pause - likely end of sentence
+                            result += "."
+                        } else if pauseDuration >= pauseForComma {
+                            // Medium pause - likely a clause break
+                            result += ","
+                        }
+                    }
+                }
+            }
+        }
+
+        // Append any remaining text
+        if textIndex < text.endIndex {
+            result += text[textIndex...]
+        }
+
+        print("TextCleanupManager: [US-025] Applied timing-based punctuation: '\(text)' -> '\(result)'")
+        return result
+    }
+
+    /// Apply punctuation based on text patterns (when timing data is not available)
+    /// This provides intelligent punctuation at likely pause points based on linguistic patterns
+    /// - Parameter text: The text to process
+    /// - Returns: Text with enhanced punctuation
+    private func applyPatternBasedPunctuation(_ text: String) -> String {
+        var result = text
+
+        // Pattern 1: Add comma before coordinating conjunctions in longer clauses
+        // (but, and, or, yet, so, for, nor) when preceded by 4+ words
+        let conjunctionPattern = "([a-zA-Z]+(?:\\s+[a-zA-Z]+){3,})\\s+(but|and|or|yet|so|for|nor)\\s+"
+        if let regex = try? NSRegularExpression(pattern: conjunctionPattern, options: [.caseInsensitive]) {
+            let range = NSRange(location: 0, length: result.utf16.count)
+            let matches = regex.matches(in: result, options: [], range: range)
+
+            // Process matches in reverse to preserve indices
+            for match in matches.reversed() {
+                if let clauseRange = Range(match.range(at: 1), in: result) {
+                    // Check if the clause already ends with punctuation
+                    let clauseText = String(result[clauseRange])
+                    if let lastChar = clauseText.last, !".!?,;:".contains(lastChar) {
+                        // Insert comma after the clause (before the conjunction)
+                        let insertionPoint = clauseRange.upperBound
+                        result.insert(",", at: insertionPoint)
+                    }
+                }
+            }
+        }
+
+        // Pattern 2: Add comma after introductory phrases
+        // (However, Therefore, Meanwhile, Furthermore, Additionally, Nevertheless, Consequently)
+        let introPattern = "^(However|Therefore|Meanwhile|Furthermore|Additionally|Nevertheless|Consequently|Moreover|Indeed|Actually|Basically|Essentially|Ultimately)\\s+"
+        if let regex = try? NSRegularExpression(pattern: introPattern, options: [.caseInsensitive]) {
+            let range = NSRange(location: 0, length: result.utf16.count)
+            if let match = regex.firstMatch(in: result, options: [], range: range) {
+                if let wordRange = Range(match.range(at: 1), in: result) {
+                    let insertionPoint = wordRange.upperBound
+                    // Check if already has comma
+                    if insertionPoint < result.endIndex && result[insertionPoint] != "," {
+                        result.insert(",", at: insertionPoint)
+                    }
+                }
+            }
+        }
+
+        // Pattern 3: Add comma after subordinate clauses at the start
+        // (When..., If..., Although..., Because..., Since..., While..., After..., Before...)
+        let subordinatePattern = "^(When|If|Although|Because|Since|While|After|Before|Unless|Until|Whenever|Wherever|Whether)\\s+[^,\\.!?]+?(?=\\s+(?:I|you|we|they|he|she|it|the|a|an|this|that|there|here)\\s)"
+        if let regex = try? NSRegularExpression(pattern: subordinatePattern, options: [.caseInsensitive]) {
+            let range = NSRange(location: 0, length: result.utf16.count)
+            if let match = regex.firstMatch(in: result, options: [], range: range) {
+                if let fullRange = Range(match.range, in: result) {
+                    let insertionPoint = fullRange.upperBound
+                    // Check if already has comma
+                    if insertionPoint < result.endIndex && result[insertionPoint] != "," {
+                        result.insert(",", at: insertionPoint)
+                    }
+                }
+            }
+        }
+
+        // Pattern 4: Add period before certain sentence starters in run-on sentences
+        // (Then, So, And then, Next, Also, First, Second, Third, Finally)
+        // Only if they appear after 15+ characters without punctuation
+        let runOnPattern = "([a-zA-Z]{15,}[^.!?])\\s+(Then|And then|Next|Also|First|Second|Third|Finally)\\s+(?=[A-Z])"
+        if let regex = try? NSRegularExpression(pattern: runOnPattern, options: []) {
+            let range = NSRange(location: 0, length: result.utf16.count)
+            let matches = regex.matches(in: result, options: [], range: range)
+
+            for match in matches.reversed() {
+                if let precedingRange = Range(match.range(at: 1), in: result) {
+                    let precedingText = String(result[precedingRange])
+                    // Only add period if the preceding text doesn't end with punctuation
+                    if let lastChar = precedingText.last, !".!?,;:".contains(lastChar) {
+                        let insertionPoint = precedingRange.upperBound
+                        result.insert(".", at: insertionPoint)
+                    }
+                }
+            }
+        }
+
+        if result != text {
+            print("TextCleanupManager: [US-025] Applied pattern-based punctuation: '\(text)' -> '\(result)'")
+        }
+
+        return result
+    }
+
     /// Process text with both cleanup and post-processing
     /// This is the main entry point for full text processing
     /// - Parameter text: The raw transcribed text
@@ -695,10 +904,29 @@ final class TextCleanupManager: ObservableObject {
     func processText(_ text: String) async -> String {
         // First apply cleanup (if enabled)
         let cleanedText = await cleanupText(text)
-        
+
         // Then apply post-processing options (US-607)
         let processedText = applyPostProcessing(cleanedText)
-        
+
+        return processedText
+    }
+
+    /// Process text with word timing data for pause-based punctuation
+    /// This is the enhanced entry point that supports pause-based auto-punctuation
+    /// - Parameters:
+    ///   - text: The raw transcribed text
+    ///   - wordTimings: Optional array of word timing information from transcription
+    /// - Returns: Fully processed text with pause-based punctuation if timings provided
+    func processText(_ text: String, wordTimings: [WordTiming]? = nil) async -> String {
+        // First apply cleanup (if enabled)
+        var processedText = await cleanupText(text)
+
+        // Apply auto-punctuation (US-025) - uses timings if available, otherwise pattern-based
+        processedText = applyAutoPunctuation(processedText, wordTimings: wordTimings)
+
+        // Then apply other post-processing options (US-607)
+        processedText = applyPostProcessing(processedText)
+
         return processedText
     }
 }
