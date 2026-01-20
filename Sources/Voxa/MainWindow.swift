@@ -110,11 +110,11 @@ struct MainWindowView: View {
                     sidebarView
                         .frame(width: isSidebarCollapsed ? sidebarCollapsedWidth : sidebarExpandedWidth)
                     
-                    // MARK: - Subtle Separator
+                    // MARK: - Minimal Separator (US-035)
+                    // US-035: Reduced to very subtle visual divider for minimal chrome
                     Rectangle()
-                        .fill(Color.Voxa.border.opacity(0.5))
+                        .fill(Color.Voxa.border.opacity(0.15))
                         .frame(width: 1)
-                        .voxaShadow(.subtle)
                     
                     // MARK: - Main Content Area
                     contentView
@@ -195,9 +195,9 @@ struct MainWindowView: View {
             // App branding area
             sidebarHeader
             
-            // US-806: Increased spacing between header and nav items
+            // US-035: Reduced spacing for minimal chrome (was xl, now md)
             Spacer()
-                .frame(height: Spacing.xl)
+                .frame(height: Spacing.md)
             
             // Navigation items
             // US-806: Updated spacing between nav items for cleaner look
@@ -227,24 +227,18 @@ struct MainWindowView: View {
                     .padding(.bottom, Spacing.lg)
             }
             
-            // US-806: Border separator above collapse button
-            Rectangle()
-                .fill(Color.Voxa.border)
-                .frame(height: 1)
+            // US-035: Removed border separator for minimal chrome design
+            // Border was previously: Rectangle().fill(Color.Voxa.border).frame(height: 1)
             
             // Collapse toggle button
-            // US-806: Updated collapse button styling
+            // US-035: Reduced padding for minimal chrome
             collapseToggleButton
-                .padding(.horizontal, Spacing.lg)
-                .padding(.vertical, Spacing.lg)
+                .padding(.horizontal, Spacing.md)
+                .padding(.vertical, Spacing.md)
         }
         .frame(maxHeight: .infinity)
-        // US-806: Updated sidebar background - semi-transparent surface with blur effect
-        .background(
-            Color.Voxa.sidebarBackground
-                .opacity(0.5)
-        )
-        .background(.ultraThinMaterial)
+        // US-035: Simplified sidebar background for minimal chrome - removed blur effect
+        .background(Color.Voxa.sidebarBackground.opacity(0.7))
     }
     
     // MARK: - Sidebar Header
@@ -269,8 +263,8 @@ struct MainWindowView: View {
             
             Spacer()
         }
-        // US-806: Fixed header height to match design (~96px / 6rem)
-        .frame(height: 96)
+        // US-035: Reduced header height for minimal chrome (was 96px, now 72px)
+        .frame(height: 72)
         .padding(.horizontal, isSidebarCollapsed ? Spacing.lg : Spacing.xl)
         .animation(VoxaAnimation.smooth, value: isSidebarCollapsed)
     }
@@ -298,7 +292,7 @@ struct MainWindowView: View {
             }
             .padding(Spacing.sm)
             .frame(maxWidth: isSidebarCollapsed ? 44 : .infinity, alignment: isSidebarCollapsed ? .center : .leading)
-            .background(Color.Voxa.border.opacity(0.3))
+            // US-035: Removed background for minimal chrome - using transparent button
             .cornerRadius(CornerRadius.small)
         }
         .buttonStyle(PlainButtonStyle())
@@ -907,9 +901,9 @@ struct HomeContentView: View {
         .padding(Spacing.lg)
         .background(Color.Voxa.surface)
         .cornerRadius(CornerRadius.medium)
-        .voxaShadow(.subtle)
+        // US-035: Removed shadow for minimal chrome - banner is informational, not interactive
     }
-    
+
     // MARK: - Quick Actions Section
     
     private var quickActionsSection: some View {
@@ -1039,9 +1033,9 @@ struct HomeContentView: View {
         }
         .background(Color.Voxa.surface)
         .cornerRadius(CornerRadius.medium)
-        .voxaShadow(.subtle)
+        // US-035: Removed shadow for minimal chrome - empty state is informational
     }
-    
+
     /// US-803: List of recent transcriptions (3-5 items)
     private var recentTranscriptionsList: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -1054,9 +1048,9 @@ struct HomeContentView: View {
         }
         .background(Color.Voxa.surface)
         .cornerRadius(CornerRadius.medium)
-        .voxaShadow(.subtle)
+        // US-035: Removed shadow for minimal chrome - list items use hover state for interaction
     }
-    
+
     // MARK: - US-804: Daily Insights Sidebar
     
     /// US-804: Daily Insights Sidebar showing daily statistics (words spoken, time saved)
@@ -1108,12 +1102,12 @@ struct HomeContentView: View {
             .padding(Spacing.md)
             .background(Color.Voxa.surface)
             .cornerRadius(CornerRadius.medium)
-            .voxaShadow(.subtle)
-            
+            // US-035: Removed shadow for minimal chrome - insights are informational
+
             Spacer()
         }
     }
-    
+
     /// Calculate today's average WPM for Daily Insights
     private var todayAverageWPM: Double {
         let todayDuration = statsManager.todayRecordingDurationSeconds
@@ -1400,10 +1394,10 @@ struct StatCard: View {
                 .foregroundColor(Color.Voxa.textSecondary)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, Spacing.lg)
+        .padding(.vertical, Spacing.md)
         .background(Color.Voxa.surface)
-        .cornerRadius(CornerRadius.medium)
-        .voxaShadow(.subtle)
+        .cornerRadius(CornerRadius.small)
+        // US-035: Removed shadow for minimal chrome - stats are informational
     }
 }
 
@@ -1481,40 +1475,30 @@ struct QuickActionCard: View {
     
     var body: some View {
         Button(action: performAction) {
-            VStack(spacing: Spacing.md) {
-                // Icon
+            // US-035: Minimal chrome - simplified card with icon and label only
+            VStack(spacing: Spacing.sm) {
+                // Icon - slightly smaller for minimal design
                 ZStack {
                     RoundedRectangle(cornerRadius: CornerRadius.small)
-                        .fill(action.iconColor.opacity(isHovered ? 0.2 : 0.12))
-                        .frame(width: 48, height: 48)
-                    
+                        .fill(action.iconColor.opacity(isHovered ? 0.15 : 0.08))
+                        .frame(width: 40, height: 40)
+
                     Image(systemName: action.icon)
-                        .font(.system(size: 22, weight: .medium))
+                        .font(.system(size: 18, weight: .medium))
                         .foregroundColor(action.iconColor)
                 }
-                
-                // Label
+
+                // Label only - description removed for minimal chrome
                 Text(action.title)
-                    .font(Font.Voxa.body)
+                    .font(Font.Voxa.caption)
                     .fontWeight(.medium)
                     .foregroundColor(Color.Voxa.textPrimary)
-                
-                // Description
-                Text(action.description)
-                    .font(Font.Voxa.small)
-                    .foregroundColor(Color.Voxa.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, Spacing.lg)
-            .padding(.horizontal, Spacing.md)
-            .background(Color.Voxa.surface)
-            .cornerRadius(CornerRadius.medium)
-            // Hover lift effect: shadow and slight scale
-            .voxaShadow(isHovered ? .card : .subtle)
-            .scaleEffect(isHovered ? 1.02 : 1.0)
-            .offset(y: isHovered ? -2 : 0)
+            .padding(.vertical, Spacing.md)
+            .padding(.horizontal, Spacing.sm)
+            .background(isHovered ? Color.Voxa.surfaceSecondary.opacity(0.3) : Color.clear)
+            .cornerRadius(CornerRadius.small)
         }
         .buttonStyle(PlainButtonStyle())
         .onHover { hovering in
@@ -1591,41 +1575,31 @@ struct QuickToolButton: View {
     
     var body: some View {
         Button(action: performAction) {
-            HStack(spacing: Spacing.md) {
+            // US-035: Minimal chrome - compact tool button with icon and title only
+            HStack(spacing: Spacing.sm) {
                 // Icon - changes to terracotta on hover
                 Image(systemName: tool.icon)
-                    .font(.system(size: 18, weight: .medium))
+                    .font(.system(size: 16, weight: .medium))
                     .foregroundColor(isHovered ? Color.Voxa.accent : Color.Voxa.textSecondary)
-                
-                // Label and description
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(tool.title)
-                        .font(Font.Voxa.body)
-                        .fontWeight(.medium)
-                        .foregroundColor(Color.Voxa.textPrimary)
-                    
-                    Text(tool.description)
-                        .font(Font.Voxa.small)
-                        .foregroundColor(Color.Voxa.textSecondary)
-                }
-                
+
+                // Title only - description removed for minimal chrome
+                Text(tool.title)
+                    .font(Font.Voxa.body)
+                    .fontWeight(.medium)
+                    .foregroundColor(isHovered ? Color.Voxa.accent : Color.Voxa.textPrimary)
+
                 Spacer()
-                
-                // Chevron indicator
+
+                // Chevron indicator - only visible on hover
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(isHovered ? Color.Voxa.accent : Color.Voxa.textTertiary)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(Color.Voxa.accent)
+                    .opacity(isHovered ? 1 : 0)
             }
-            .padding(Spacing.lg)
-            .background(Color.Voxa.surface)
-            // US-805: Bordered button with hover state - border turns terracotta on hover
-            .overlay(
-                RoundedRectangle(cornerRadius: CornerRadius.medium)
-                    .stroke(isHovered ? Color.Voxa.accent : Color.Voxa.border, lineWidth: isHovered ? 1.5 : 1)
-            )
-            .cornerRadius(CornerRadius.medium)
-            // Subtle shadow on hover
-            .voxaShadow(isHovered ? .subtle : .subtle)
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.sm)
+            .background(isHovered ? Color.Voxa.surfaceSecondary.opacity(0.3) : Color.clear)
+            .cornerRadius(CornerRadius.small)
         }
         .buttonStyle(PlainButtonStyle())
         .onHover { hovering in
@@ -2298,8 +2272,11 @@ struct HistoryEntryCard: View {
         .padding(Spacing.lg)
         .background(Color.Voxa.surface)
         .cornerRadius(CornerRadius.medium)
-        .voxaShadow(isHovered ? .card : .subtle)
-        .scaleEffect(isHovered ? 1.005 : 1.0)
+        // US-035: Simplified hover effect for minimal chrome - no shadow/scale
+        .background(
+            RoundedRectangle(cornerRadius: CornerRadius.medium)
+                .fill(isHovered ? Color.Voxa.surfaceSecondary.opacity(0.3) : Color.clear)
+        )
         .contentShape(Rectangle())
         .onTapGesture {
             withAnimation(VoxaAnimation.quick) {
