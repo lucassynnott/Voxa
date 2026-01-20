@@ -242,16 +242,16 @@ final class HotkeyManager: ObservableObject {
         return !checkForConflicts(config).isEmpty
     }
     
-    /// Default hotkey: Cmd+Shift+Space (US-510)
+    /// Default hotkey: Option+Cmd+R (US-014)
     struct HotkeyConfiguration: Codable, Equatable {
         var keyCode: UInt16
         var modifierFlags: UInt
-        
+
         /// Get NSEvent.ModifierFlags from the stored UInt
         var modifiers: NSEvent.ModifierFlags {
             return NSEvent.ModifierFlags(rawValue: modifierFlags)
         }
-        
+
         /// Get CGEventFlags from the stored UInt (for CGEvent tap matching)
         var cgEventFlags: CGEventFlags {
             var flags = CGEventFlags()
@@ -262,22 +262,23 @@ final class HotkeyManager: ObservableObject {
             if nsFlags.contains(.control) { flags.insert(.maskControl) }
             return flags
         }
-        
+
         /// Create from NSEvent.ModifierFlags
         init(keyCode: UInt16, modifierFlags: NSEvent.ModifierFlags) {
             self.keyCode = keyCode
             self.modifierFlags = modifierFlags.rawValue
         }
-        
+
         /// Create from raw values
         init(keyCode: UInt16, modifierFlags: UInt) {
             self.keyCode = keyCode
             self.modifierFlags = modifierFlags
         }
-        
+
+        /// US-014: Default hotkey is Option+Command+R (⌥⌘R)
         static let defaultHotkey = HotkeyConfiguration(
-            keyCode: UInt16(kVK_Space),
-            modifierFlags: [.command, .shift]
+            keyCode: UInt16(kVK_ANSI_R),
+            modifierFlags: [.command, .option]
         )
         
         /// Human-readable string for the hotkey
@@ -366,7 +367,7 @@ final class HotkeyManager: ObservableObject {
             return config
         }
         
-        print("HotkeyManager: [US-510] Using default hotkey configuration (Cmd+Shift+Space)")
+        print("HotkeyManager: [US-014] Using default hotkey configuration (Option+Cmd+R)")
         return .defaultHotkey
     }
     

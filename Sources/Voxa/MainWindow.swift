@@ -691,10 +691,10 @@ struct HomeContentView: View {
         }
     }
     
-    /// US-802: Keyboard shortcut badge showing ⌘⇧Space
+    /// US-802: Keyboard shortcut badge showing ⌥⌘R
     private var shortcutBadge: some View {
         HStack(spacing: 2) {
-            Text("⌘⇧Space")
+            Text("⌥⌘R")
                 .font(Font.Voxa.monoSmall)
                 .foregroundColor(.white.opacity(0.8))
         }
@@ -842,7 +842,7 @@ struct HomeContentView: View {
                         .fontWeight(.medium)
                         .foregroundColor(Color.Voxa.textPrimary)
                     
-                    Text("Press ⌘⇧Space anywhere to start recording")
+                    Text("Press ⌥⌘R anywhere to start recording")
                         .font(Font.Voxa.caption)
                         .foregroundColor(Color.Voxa.textSecondary)
                 }
@@ -1027,7 +1027,7 @@ struct HomeContentView: View {
                         .fontWeight(.medium)
                         .foregroundColor(Color.Voxa.textSecondary)
                     
-                    Text("Press ⌘⇧Space to start your first recording")
+                    Text("Press ⌥⌘R to start your first recording")
                         .font(Font.Voxa.caption)
                         .foregroundColor(Color.Voxa.textTertiary)
                 }
@@ -1526,7 +1526,7 @@ struct QuickActionCard: View {
         case .newRecording:
             // Note: Recording is triggered via hotkey, show hint
             // Could post notification to show recording hint
-            print("QuickAction: New Recording tapped - use hotkey ⌘⇧Space")
+            print("QuickAction: New Recording tapped - use hotkey ⌥⌘R")
         case .viewHistory:
             // Navigate to history tab (would require coordination with parent)
             print("QuickAction: View History tapped")
@@ -2058,7 +2058,7 @@ struct HistoryContentView: View {
                     .font(Font.Voxa.headline)
                     .foregroundColor(Color.Voxa.textPrimary)
                 
-                Text("Your transcriptions will appear here after you record them.\nPress ⌘⇧Space to start recording.")
+                Text("Your transcriptions will appear here after you record them.\nPress ⌥⌘R to start recording.")
                     .font(Font.Voxa.body)
                     .foregroundColor(Color.Voxa.textSecondary)
                     .multilineTextAlignment(.center)

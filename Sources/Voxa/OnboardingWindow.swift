@@ -154,7 +154,7 @@ struct WelcomeView: View {
             FeatureRow(
                 icon: "mic.fill",
                 title: "Record with a Hotkey",
-                description: "Press ⌘⇧Space to start recording anywhere"
+                description: "Press ⌥⌘R to start recording anywhere"
             )
             
             FeatureRow(
@@ -1361,7 +1361,7 @@ struct HotkeyIntroductionView: View {
     
     // MARK: - Hotkey Display Card
     
-    /// Current hotkey displayed prominently (⌘⇧Space)
+    /// Current hotkey displayed prominently (⌥⌘R)
     private var hotkeyDisplayCard: some View {
         VStack(spacing: Spacing.md) {
             // Hotkey badge - large and prominent
@@ -1498,7 +1498,7 @@ struct HotkeyIntroductionView: View {
                 .font(.system(size: 12, weight: .medium))
                 .foregroundColor(Color.Voxa.warning)
             
-            Text("Tip: The default ⌘⇧Space works well for most users")
+            Text("Tip: The default ⌥⌘R works well for most users")
                 .font(Font.Voxa.caption)
                 .foregroundColor(Color.Voxa.textSecondary)
         }
@@ -1600,7 +1600,7 @@ struct OnboardingCompletionView: View {
             Spacer()
                 .frame(height: Spacing.xl)
             
-            // Brief recap of how to use: "Press ⌘⇧Space to start recording"
+            // Brief recap of how to use: "Press ⌥⌘R to start recording"
             hotkeyRecapCard
             
             Spacer()
@@ -1737,7 +1737,7 @@ struct OnboardingCompletionView: View {
     
     // MARK: - Hotkey Recap Card
     
-    /// Brief recap of how to use: "Press ⌘⇧Space to start recording"
+    /// Brief recap of how to use: "Press ⌥⌘R to start recording"
     private var hotkeyRecapCard: some View {
         VStack(spacing: Spacing.md) {
             // Instruction text
@@ -1916,7 +1916,7 @@ struct OnboardingHotkeyRecorder: View {
                 Button(action: {
                     hotkeyManager.resetToDefault()
                 }) {
-                    Text("Reset to Default (⌘⇧Space)")
+                    Text("Reset to Default (⌥⌘R)")
                         .font(Font.Voxa.caption)
                         .foregroundColor(Color.Voxa.accent)
                 }
