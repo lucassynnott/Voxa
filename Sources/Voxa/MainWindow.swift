@@ -8639,17 +8639,30 @@ struct TextCleanupSettingsSummary: View {
                 .foregroundColor(Color.Voxa.textSecondary)
             
             VStack(alignment: .leading, spacing: Spacing.md) {
-                // Auto-capitalize first letter toggle
+                // US-023: Auto-capitalize sentences toggle
                 TextCleanupToggleRow(
-                    icon: "textformat.abc",
-                    title: "Auto-Capitalize First Letter",
-                    description: "Automatically capitalize the first letter of transcription",
-                    isOn: $textCleanupManager.autoCapitalizeFirstLetter
+                    icon: "textformat.abc.dottedunderline",
+                    title: "Auto-Capitalize Sentences",
+                    description: "Capitalize the first letter of each sentence",
+                    isOn: $textCleanupManager.autoCapitalizeSentences
                 )
-                
+
                 Divider()
                     .background(Color.Voxa.border)
-                
+
+                // Auto-capitalize first letter toggle (only shown when sentences is disabled)
+                if !textCleanupManager.autoCapitalizeSentences {
+                    TextCleanupToggleRow(
+                        icon: "textformat.abc",
+                        title: "Auto-Capitalize First Letter",
+                        description: "Automatically capitalize the first letter of transcription",
+                        isOn: $textCleanupManager.autoCapitalizeFirstLetter
+                    )
+
+                    Divider()
+                        .background(Color.Voxa.border)
+                }
+
                 // Add period at end toggle
                 TextCleanupToggleRow(
                     icon: "text.append",
@@ -8657,10 +8670,10 @@ struct TextCleanupSettingsSummary: View {
                     description: "Add a period at the end if no ending punctuation exists",
                     isOn: $textCleanupManager.addPeriodAtEnd
                 )
-                
+
                 Divider()
                     .background(Color.Voxa.border)
-                
+
                 // Trim whitespace toggle
                 TextCleanupToggleRow(
                     icon: "scissors",
@@ -10046,6 +10059,7 @@ struct DebugSettingsSummary: View {
         TextCleanupManager.shared.autoCapitalizeFirstLetter = true
         TextCleanupManager.shared.addPeriodAtEnd = true
         TextCleanupManager.shared.trimWhitespace = true
+        TextCleanupManager.shared.autoCapitalizeSentences = true  // US-023
         
         // Reset text insertion settings
         TextInserter.shared.preserveClipboard = true

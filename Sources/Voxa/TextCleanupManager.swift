@@ -73,6 +73,8 @@ final class TextCleanupManager: ObservableObject {
         static let autoCapitalizeFirstLetterKey = "postProcessAutoCapitalizeFirstLetter"
         static let addPeriodAtEndKey = "postProcessAddPeriodAtEnd"
         static let trimWhitespaceKey = "postProcessTrimWhitespace"
+        // US-023: Auto-capitalize sentences
+        static let autoCapitalizeSentencesKey = "postProcessAutoCapitalizeSentences"
     }
     
     /// Common filler words and phrases to remove
@@ -180,7 +182,17 @@ final class TextCleanupManager: ObservableObject {
             UserDefaults.standard.set(trimWhitespace, forKey: Constants.trimWhitespaceKey)
         }
     }
-    
+
+    // MARK: - US-023: Auto-Capitalize Sentences
+
+    /// Option to auto-capitalize the first letter of each sentence
+    /// This capitalizes after sentence-ending punctuation (. ! ?) and the first letter of the text
+    @Published var autoCapitalizeSentences: Bool {
+        didSet {
+            UserDefaults.standard.set(autoCapitalizeSentences, forKey: Constants.autoCapitalizeSentencesKey)
+        }
+    }
+
     // MARK: - Callbacks
     
     /// Called when cleanup completes
@@ -212,9 +224,13 @@ final class TextCleanupManager: ObservableObject {
         autoCapitalizeFirstLetter = UserDefaults.standard.object(forKey: Constants.autoCapitalizeFirstLetterKey) as? Bool ?? true
         addPeriodAtEnd = UserDefaults.standard.object(forKey: Constants.addPeriodAtEndKey) as? Bool ?? true
         trimWhitespace = UserDefaults.standard.object(forKey: Constants.trimWhitespaceKey) as? Bool ?? true
-        
+
+        // US-023: Load auto-capitalize sentences preference (default to true)
+        autoCapitalizeSentences = UserDefaults.standard.object(forKey: Constants.autoCapitalizeSentencesKey) as? Bool ?? true
+
         print("TextCleanupManager initialized with mode: \(selectedMode.rawValue), cleanup enabled: \(isCleanupEnabled)")
         print("TextCleanupManager: [US-607] Post-processing: capitalize=\(autoCapitalizeFirstLetter), period=\(addPeriodAtEnd), trim=\(trimWhitespace)")
+        print("TextCleanupManager: [US-023] Auto-capitalize sentences: \(autoCapitalizeSentences)")
     }
     
     // MARK: - Text Cleanup
@@ -506,24 +522,29 @@ final class TextCleanupManager: ObservableObject {
     /// - Returns: Post-processed text
     func applyPostProcessing(_ text: String) -> String {
         var result = text
-        
+
         // Step 1: Trim whitespace (if enabled)
         if trimWhitespace {
             result = result.trimmingCharacters(in: .whitespacesAndNewlines)
         }
-        
+
         // Guard against empty text after trimming
         guard !result.isEmpty else {
             return result
         }
-        
-        // Step 2: Auto-capitalize first letter (if enabled)
-        if autoCapitalizeFirstLetter {
+
+        // Step 2: Auto-capitalize sentences (if enabled) - US-023
+        // This capitalizes first letter of text AND first letter after sentence-ending punctuation
+        if autoCapitalizeSentences {
+            result = capitalizeSentences(result)
+        }
+        // Step 2b: Auto-capitalize first letter only (if sentences not enabled but first letter is)
+        else if autoCapitalizeFirstLetter {
             if let firstChar = result.first, firstChar.isLetter && firstChar.isLowercase {
                 result = result.prefix(1).uppercased() + result.dropFirst()
             }
         }
-        
+
         // Step 3: Add period at end (if enabled and text doesn't already have ending punctuation)
         if addPeriodAtEnd {
             let lastChar = result.last!
@@ -532,9 +553,40 @@ final class TextCleanupManager: ObservableObject {
                 result = result + "."
             }
         }
-        
-        print("TextCleanupManager: [US-607] Post-processing applied (capitalize=\(autoCapitalizeFirstLetter), period=\(addPeriodAtEnd), trim=\(trimWhitespace)): '\(text)' -> '\(result)'")
-        
+
+        print("TextCleanupManager: [US-607/US-023] Post-processing applied (capitalizeSentences=\(autoCapitalizeSentences), capitalizeFirst=\(autoCapitalizeFirstLetter), period=\(addPeriodAtEnd), trim=\(trimWhitespace)): '\(text)' -> '\(result)'")
+
+        return result
+    }
+
+    // MARK: - US-023: Sentence Capitalization
+
+    /// Capitalize the first letter of each sentence
+    /// - Parameter text: The text to capitalize
+    /// - Returns: Text with capitalized sentence starts
+    private func capitalizeSentences(_ text: String) -> String {
+        var result = text
+
+        // Capitalize first letter of text
+        if let firstChar = result.first, firstChar.isLetter && firstChar.isLowercase {
+            result = result.prefix(1).uppercased() + result.dropFirst()
+        }
+
+        // Capitalize after sentence-ending punctuation (. ! ?)
+        // Pattern matches: punctuation, whitespace(s), lowercase letter
+        if let regex = try? NSRegularExpression(pattern: "([.!?])\\s+([a-z])", options: []) {
+            let range = NSRange(location: 0, length: result.utf16.count)
+
+            // Find all matches and process from end to preserve indices
+            let matches = regex.matches(in: result, options: [], range: range)
+            for match in matches.reversed() {
+                if let letterRange = Range(match.range(at: 2), in: result) {
+                    let letter = String(result[letterRange]).uppercased()
+                    result = result.replacingCharacters(in: letterRange, with: letter)
+                }
+            }
+        }
+
         return result
     }
     
