@@ -6909,6 +6909,7 @@ struct TranscriptionModelCard: View {
     @State private var isHovering = false
     
     // Model metadata for quality/speed display
+    // US-007: Each model shows size and characteristics
     private var modelInfo: (size: String, speed: String, accuracy: String, icon: String) {
         switch model {
         case .tiny:
@@ -6919,6 +6920,8 @@ struct TranscriptionModelCard: View {
             return ("~460 MB", "Medium", "Great", "gauge.with.dots.needle.33percent")
         case .medium:
             return ("~1.5 GB", "Slower", "Best", "gauge.with.dots.needle.67percent")
+        case .large:
+            return ("~3 GB", "Slowest", "Professional", "gauge.with.dots.needle.100percent")
         }
     }
     

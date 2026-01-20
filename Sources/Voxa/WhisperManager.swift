@@ -75,32 +75,36 @@ final class WhisperManager: ObservableObject {
     }
     
     /// Available Whisper model sizes
+    /// US-007: All five WhisperKit model sizes available for selection
     enum ModelSize: String, CaseIterable, Identifiable {
         case tiny = "tiny"
         case base = "base"
         case small = "small"
         case medium = "medium"
-        
+        case large = "large"
+
         var id: String { rawValue }
-        
+
         var displayName: String {
             switch self {
             case .tiny: return "Tiny (~75MB, fastest)"
             case .base: return "Base (~145MB, fast)"
             case .small: return "Small (~485MB, balanced)"
             case .medium: return "Medium (~1.5GB, accurate)"
+            case .large: return "Large (~3GB, most accurate)"
             }
         }
-        
+
         var description: String {
             switch self {
             case .tiny: return "Fastest, lower accuracy. Good for quick notes."
             case .base: return "Fast with decent accuracy. Good balance for most uses."
             case .small: return "Good accuracy, moderate speed. Recommended for general use."
             case .medium: return "High accuracy, slower. Best for important transcriptions."
+            case .large: return "Highest accuracy, slowest. Best for professional transcriptions."
             }
         }
-        
+
         /// The model name pattern for WhisperKit
         var modelPattern: String {
             return "openai_whisper-\(rawValue)"
@@ -486,12 +490,14 @@ final class WhisperManager: ObservableObject {
     }
     
     /// Get estimated model size for display
+    /// US-007: Updated for all five model sizes
     private func getEstimatedSize() -> String {
         switch selectedModel {
         case .tiny: return "75MB"
         case .base: return "145MB"
         case .small: return "485MB"
         case .medium: return "1.5GB"
+        case .large: return "3GB"
         }
     }
     
