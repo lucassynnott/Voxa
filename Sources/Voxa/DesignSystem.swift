@@ -1307,3 +1307,254 @@ extension View {
         self.modifier(AppearanceTransitionModifier())
     }
 }
+
+// MARK: - US-033: Subtle State Change Animations
+
+/// US-033: Subtle recording indicator with smooth pulse animation
+/// Respects reduced motion accessibility preference
+struct RecordingPulseIndicator: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isPulsing = false
+
+    var size: CGFloat = 12
+    var color: Color = Color.Voxa.error
+
+    var body: some View {
+        ZStack {
+            // Outer pulse ring (hidden when reduce motion is enabled)
+            if !reduceMotion {
+                Circle()
+                    .stroke(color.opacity(0.4), lineWidth: 2)
+                    .frame(width: size * 1.8, height: size * 1.8)
+                    .scaleEffect(isPulsing ? 1.2 : 0.8)
+                    .opacity(isPulsing ? 0 : 0.6)
+            }
+
+            // Inner dot with subtle scale animation
+            Circle()
+                .fill(color)
+                .frame(width: size, height: size)
+                .scaleEffect(reduceMotion ? 1.0 : (isPulsing ? 1.1 : 0.95))
+                .opacity(reduceMotion ? 1.0 : (isPulsing ? 1.0 : 0.8))
+        }
+        .animation(
+            reduceMotion ? nil : .easeInOut(duration: 1.0).repeatForever(autoreverses: true),
+            value: isPulsing
+        )
+        .onAppear {
+            if !reduceMotion {
+                isPulsing = true
+            }
+        }
+    }
+}
+
+/// US-033: Subtle processing indicator with smooth animation
+/// Shows a gentle wave or static indicator based on reduced motion preference
+struct ProcessingIndicator: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isAnimating = false
+
+    var size: CGFloat = 24
+    var color: Color = Color.Voxa.accent
+    var label: String? = nil
+
+    var body: some View {
+        HStack(spacing: Spacing.sm) {
+            ZStack {
+                if reduceMotion {
+                    // Static indicator for reduced motion
+                    Circle()
+                        .fill(color.opacity(0.2))
+                        .frame(width: size, height: size)
+
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: size * 0.5, weight: .medium))
+                        .foregroundColor(color)
+                } else {
+                    // Animated wave dots
+                    ProcessingWaveDots(size: size, color: color, isAnimating: $isAnimating)
+                }
+            }
+            .frame(width: size, height: size)
+
+            if let label = label {
+                Text(label)
+                    .font(Font.Voxa.caption)
+                    .foregroundColor(Color.Voxa.textSecondary)
+            }
+        }
+        .onAppear {
+            if !reduceMotion {
+                isAnimating = true
+            }
+        }
+    }
+}
+
+/// US-033: Internal wave dots animation for processing state
+private struct ProcessingWaveDots: View {
+    let size: CGFloat
+    let color: Color
+    @Binding var isAnimating: Bool
+
+    var body: some View {
+        HStack(spacing: size * 0.15) {
+            ForEach(0..<3, id: \.self) { index in
+                Circle()
+                    .fill(color)
+                    .frame(width: size * 0.2, height: size * 0.2)
+                    .offset(y: isAnimating ? -size * 0.15 : size * 0.15)
+                    .animation(
+                        .easeInOut(duration: 0.5)
+                        .repeatForever(autoreverses: true)
+                        .delay(Double(index) * 0.15),
+                        value: isAnimating
+                    )
+            }
+        }
+    }
+}
+
+/// US-033: Subtle transcription processing spinner
+/// A gentler alternative to LoadingSpinner that respects reduced motion
+struct TranscriptionSpinner: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var rotation: Double = 0
+    @State private var opacity: Double = 0.7
+
+    var size: CGFloat = 20
+    var lineWidth: CGFloat = 2
+    var color: Color = Color.Voxa.accent
+
+    var body: some View {
+        ZStack {
+            // Background circle
+            Circle()
+                .stroke(color.opacity(0.2), lineWidth: lineWidth)
+                .frame(width: size, height: size)
+
+            // Animated arc or static indicator
+            if reduceMotion {
+                // Static partial arc for reduced motion
+                Circle()
+                    .trim(from: 0, to: 0.3)
+                    .stroke(color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                    .frame(width: size, height: size)
+                    .opacity(opacity)
+                    .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: opacity)
+                    .onAppear {
+                        opacity = 1.0
+                    }
+            } else {
+                // Smooth rotating arc
+                Circle()
+                    .trim(from: 0, to: 0.3)
+                    .stroke(color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                    .frame(width: size, height: size)
+                    .rotationEffect(.degrees(rotation))
+                    .animation(.linear(duration: 1.2).repeatForever(autoreverses: false), value: rotation)
+                    .onAppear {
+                        rotation = 360
+                    }
+            }
+        }
+    }
+}
+
+/// US-033: State change animation wrapper
+/// Provides consistent animation behavior for state transitions
+struct StateChangeModifier: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let isActive: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(isActive ? 1.0 : 0.6)
+            .scaleEffect(reduceMotion ? 1.0 : (isActive ? 1.0 : 0.98))
+            .animation(reduceMotion ? nil : VoxaAnimation.smooth, value: isActive)
+    }
+}
+
+extension View {
+    /// US-033: Apply subtle state change animation
+    /// Respects reduced motion accessibility preference
+    func stateChangeAnimation(isActive: Bool) -> some View {
+        self.modifier(StateChangeModifier(isActive: isActive))
+    }
+}
+
+/// US-033: Enhanced pulsing dot that respects reduced motion
+/// Use this instead of PulsingDot for accessibility compliance
+struct AccessiblePulsingDot: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isPulsing = false
+
+    var size: CGFloat = 10
+    var color: Color = Color.Voxa.accent
+
+    var body: some View {
+        Circle()
+            .fill(color)
+            .frame(width: size, height: size)
+            .scaleEffect(reduceMotion ? 1.0 : (isPulsing ? 1.15 : 0.92))
+            .opacity(reduceMotion ? 1.0 : (isPulsing ? 1.0 : 0.75))
+            .animation(
+                reduceMotion ? nil : .easeInOut(duration: 0.9).repeatForever(autoreverses: true),
+                value: isPulsing
+            )
+            .onAppear {
+                if !reduceMotion {
+                    isPulsing = true
+                }
+            }
+    }
+}
+
+/// US-033: Accessible loading spinner that respects reduced motion
+/// Use this instead of LoadingSpinner for accessibility compliance
+struct AccessibleLoadingSpinner: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isAnimating = false
+    @State private var pulseOpacity: Double = 0.6
+
+    var size: CGFloat = 24
+    var lineWidth: CGFloat = 3
+    var color: Color = Color.Voxa.accent
+
+    var body: some View {
+        ZStack {
+            // Background track
+            Circle()
+                .stroke(color.opacity(0.15), lineWidth: lineWidth)
+                .frame(width: size, height: size)
+
+            if reduceMotion {
+                // Opacity pulse instead of rotation for reduced motion
+                Circle()
+                    .trim(from: 0.2, to: 0.8)
+                    .stroke(color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                    .frame(width: size, height: size)
+                    .opacity(pulseOpacity)
+                    .animation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: pulseOpacity)
+                    .onAppear {
+                        pulseOpacity = 1.0
+                    }
+            } else {
+                // Smooth rotation animation
+                Circle()
+                    .trim(from: 0.2, to: 1.0)
+                    .stroke(color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                    .frame(width: size, height: size)
+                    .rotationEffect(Angle(degrees: isAnimating ? 360 : 0))
+                    .animation(
+                        .linear(duration: 1.0).repeatForever(autoreverses: false),
+                        value: isAnimating
+                    )
+                    .onAppear {
+                        isAnimating = true
+                    }
+            }
+        }
+    }
+}
