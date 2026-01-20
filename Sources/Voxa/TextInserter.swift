@@ -487,10 +487,99 @@ final class TextInserter: ObservableObject {
     }
     
     // MARK: - Status
-    
+
     /// Reset insertion status to idle
     func resetStatus() {
         insertionStatus = .idle
         statusMessage = "Ready"
+    }
+
+    // MARK: - US-026: Undo Support
+
+    /// Result of an undo operation
+    enum UndoResult {
+        case success
+        case noAccessibilityPermission
+        case undoFailed(String)
+    }
+
+    /// US-026: Delete the last inserted text by simulating backspaces
+    /// This works across different applications by simulating keyboard input
+    /// - Parameter characterCount: Number of characters to delete
+    /// - Returns: The result of the undo attempt
+    func undoText(characterCount: Int) async -> UndoResult {
+        // Check accessibility permission first
+        if !hasAccessibilityPermission {
+            print("TextInserter: [US-026] No accessibility permission for undo")
+            recheckPermission()
+
+            if !hasAccessibilityPermission {
+                return .noAccessibilityPermission
+            }
+        }
+
+        print("TextInserter: [US-026] Undoing \(characterCount) characters")
+
+        insertionStatus = .inserting
+        statusMessage = "Undoing..."
+
+        // Simulate backspaces to delete the text
+        let result = simulateBackspaces(count: characterCount)
+
+        switch result {
+        case .success:
+            insertionStatus = .completed
+            statusMessage = "Undo complete"
+            print("TextInserter: [US-026] Undo successful")
+            return .success
+
+        case .insertionFailed(let message):
+            insertionStatus = .error("Undo failed")
+            statusMessage = "Undo failed"
+            print("TextInserter: [US-026] Undo failed: \(message)")
+            return .undoFailed(message)
+
+        default:
+            return .undoFailed("Unknown error")
+        }
+    }
+
+    /// US-026: Simulate backspace keystrokes to delete text
+    /// - Parameter count: Number of backspaces to simulate
+    /// - Returns: InsertionResult indicating success or failure
+    private func simulateBackspaces(count: Int) -> InsertionResult {
+        print("TextInserter: [US-026] Simulating \(count) backspaces using CGEvent")
+
+        // Virtual key code for Delete/Backspace (kVK_Delete = 0x33 = 51)
+        let deleteKeyCode: UInt16 = 0x33
+
+        for i in 0..<count {
+            // Create key down event for backspace
+            guard let keyDownEvent = CGEvent(keyboardEventSource: nil, virtualKey: deleteKeyCode, keyDown: true) else {
+                let errorMsg = "Failed to create backspace key down event at character \(i)"
+                print("TextInserter: [US-026] \(errorMsg)")
+                return .insertionFailed(errorMsg)
+            }
+
+            // Create key up event for backspace
+            guard let keyUpEvent = CGEvent(keyboardEventSource: nil, virtualKey: deleteKeyCode, keyDown: false) else {
+                let errorMsg = "Failed to create backspace key up event at character \(i)"
+                print("TextInserter: [US-026] \(errorMsg)")
+                return .insertionFailed(errorMsg)
+            }
+
+            // Post the events
+            keyDownEvent.post(tap: .cghidEventTap)
+            usleep(1000) // 1ms delay between key down and key up
+            keyUpEvent.post(tap: .cghidEventTap)
+
+            // Small delay between backspaces to ensure they're processed
+            if i < count - 1 {
+                usleep(500) // 0.5ms between keystrokes
+            }
+        }
+
+        print("TextInserter: [US-026] Successfully simulated \(count) backspaces")
+        return .success
     }
 }

@@ -29,6 +29,10 @@ final class HotkeyManager: ObservableObject {
         static let insertHotkeyModifiersKey = "insertHotkeyModifiers"
         // US-020: Push-to-talk mode configuration key
         static let pushToTalkEnabledKey = "pushToTalkEnabled"
+        // US-026: Undo transcription hotkey configuration keys
+        static let undoHotkeyKeyCodeKey = "undoHotkeyKeyCode"
+        static let undoHotkeyModifiersKey = "undoHotkeyModifiers"
+        static let undoHotkeyEnabledKey = "undoHotkeyEnabled"
     }
     
     // MARK: - US-512: System Shortcut Conflicts
@@ -304,6 +308,12 @@ final class HotkeyManager: ObservableObject {
             keyCode: UInt16(kVK_ANSI_V),
             modifierFlags: [.command, .option]
         )
+
+        /// US-026: Default undo transcription hotkey is Command+Z (⌘Z)
+        static let defaultUndoHotkey = HotkeyConfiguration(
+            keyCode: UInt16(kVK_ANSI_Z),
+            modifierFlags: [.command]
+        )
         
         /// Human-readable string for the hotkey
         var displayString: String {
@@ -364,6 +374,17 @@ final class HotkeyManager: ObservableObject {
     /// US-017: Insert last transcription hotkey configuration
     @Published private(set) var insertConfiguration: HotkeyConfiguration
 
+    /// US-026: Undo transcription hotkey configuration
+    @Published private(set) var undoConfiguration: HotkeyConfiguration
+
+    /// US-026: Whether undo transcription hotkey is enabled
+    @Published var undoHotkeyEnabled: Bool {
+        didSet {
+            saveUndoConfiguration()
+            print("HotkeyManager: [US-026] undoHotkeyEnabled set to \(undoHotkeyEnabled)")
+        }
+    }
+
     /// US-015: Whether to use the same hotkey for both start and stop (toggle behavior)
     @Published var useSameHotkeyForStop: Bool {
         didSet {
@@ -396,6 +417,9 @@ final class HotkeyManager: ObservableObject {
     /// US-017: Callback triggered when the insert last transcription hotkey is pressed
     var onInsertHotkeyPressed: (() -> Void)?
 
+    /// US-026: Callback triggered when the undo transcription hotkey is pressed
+    var onUndoHotkeyPressed: (() -> Void)?
+
     /// US-020: Callback triggered when the start hotkey is released (for push-to-talk mode)
     var onHotkeyReleased: (() -> Void)?
 
@@ -426,12 +450,17 @@ final class HotkeyManager: ObservableObject {
         self.cancelConfiguration = Self.loadCancelConfiguration()
         // US-017: Load insert last transcription hotkey configuration
         self.insertConfiguration = Self.loadInsertConfiguration()
+        // US-026: Load undo transcription hotkey configuration
+        let (undoConfig, undoEnabled) = Self.loadUndoConfiguration()
+        self.undoConfiguration = undoConfig
+        self.undoHotkeyEnabled = undoEnabled
         // US-020: Load push-to-talk setting
         self.pushToTalkEnabled = Self.loadPushToTalkSetting()
         print("HotkeyManager: [US-510] Initialized with start hotkey: \(self.configuration.displayString)")
         print("HotkeyManager: [US-015] Stop hotkey: \(useSame ? "same as start" : self.stopConfiguration.displayString)")
         print("HotkeyManager: [US-016] Cancel hotkey: \(self.cancelConfiguration.displayString)")
         print("HotkeyManager: [US-017] Insert hotkey: \(self.insertConfiguration.displayString)")
+        print("HotkeyManager: [US-026] Undo hotkey: \(undoEnabled ? self.undoConfiguration.displayString : "disabled")")
         print("HotkeyManager: [US-020] Push-to-talk mode: \(self.pushToTalkEnabled ? "enabled" : "disabled")")
     }
     
@@ -550,6 +579,40 @@ final class HotkeyManager: ObservableObject {
         defaults.set(Int(insertConfiguration.keyCode), forKey: Constants.insertHotkeyKeyCodeKey)
         defaults.set(Int(insertConfiguration.modifierFlags), forKey: Constants.insertHotkeyModifiersKey)
         print("HotkeyManager: [US-017] Saved insert hotkey configuration: \(insertConfiguration.displayString)")
+    }
+
+    // MARK: - US-026: Undo Hotkey Persistence
+
+    /// Load undo hotkey configuration from UserDefaults
+    private static func loadUndoConfiguration() -> (HotkeyConfiguration, Bool) {
+        let defaults = UserDefaults.standard
+
+        // Check if undo hotkey is enabled (defaults to true)
+        let enabled = defaults.object(forKey: Constants.undoHotkeyEnabledKey) == nil
+            ? true
+            : defaults.bool(forKey: Constants.undoHotkeyEnabledKey)
+
+        // Check if we have saved undo hotkey values
+        if defaults.object(forKey: Constants.undoHotkeyKeyCodeKey) != nil {
+            let keyCode = UInt16(defaults.integer(forKey: Constants.undoHotkeyKeyCodeKey))
+            let modifiers = UInt(defaults.integer(forKey: Constants.undoHotkeyModifiersKey))
+            let config = HotkeyConfiguration(keyCode: keyCode, modifierFlags: modifiers)
+            print("HotkeyManager: [US-026] Loaded saved undo hotkey configuration: \(config.displayString)")
+            return (config, enabled)
+        }
+
+        // Default undo hotkey is Command+Z
+        print("HotkeyManager: [US-026] Using default undo hotkey configuration (Cmd+Z)")
+        return (.defaultUndoHotkey, enabled)
+    }
+
+    /// Save undo hotkey configuration to UserDefaults
+    private func saveUndoConfiguration() {
+        let defaults = UserDefaults.standard
+        defaults.set(Int(undoConfiguration.keyCode), forKey: Constants.undoHotkeyKeyCodeKey)
+        defaults.set(Int(undoConfiguration.modifierFlags), forKey: Constants.undoHotkeyModifiersKey)
+        defaults.set(undoHotkeyEnabled, forKey: Constants.undoHotkeyEnabledKey)
+        print("HotkeyManager: [US-026] Saved undo hotkey configuration: \(undoConfiguration.displayString), enabled: \(undoHotkeyEnabled)")
     }
 
     // MARK: - US-020: Push-to-Talk Persistence
@@ -719,6 +782,19 @@ final class HotkeyManager: ObservableObject {
         updateInsertConfiguration(.defaultInsertHotkey)
     }
 
+    /// US-026: Update the undo hotkey configuration and save to UserDefaults
+    func updateUndoConfiguration(_ newConfig: HotkeyConfiguration) {
+        undoConfiguration = newConfig
+        saveUndoConfiguration()
+        print("HotkeyManager: [US-026] Undo hotkey updated to \(newConfig.displayString)")
+    }
+
+    /// US-026: Reset undo hotkey to default (Command+Z) and save
+    func resetUndoToDefault() {
+        updateUndoConfiguration(.defaultUndoHotkey)
+        undoHotkeyEnabled = true
+    }
+
     /// Get current hotkey display string
     var hotkeyDisplayString: String {
         return configuration.displayString
@@ -737,6 +813,11 @@ final class HotkeyManager: ObservableObject {
     /// US-017: Get current insert hotkey display string
     var insertHotkeyDisplayString: String {
         return insertConfiguration.displayString
+    }
+
+    /// US-026: Get current undo hotkey display string
+    var undoHotkeyDisplayString: String {
+        return undoConfiguration.displayString
     }
 
     /// US-015: Get the effective stop configuration (either same as start or separate)
@@ -916,6 +997,24 @@ final class HotkeyManager: ObservableObject {
             }
 
             return Unmanaged.passUnretained(event)
+        }
+
+        // US-026: Check for undo transcription hotkey match (only if enabled)
+        if manager.undoHotkeyEnabled {
+            let undoKeyCode = Int64(manager.undoConfiguration.keyCode)
+            let undoModifiers = manager.undoConfiguration.cgEventFlags.intersection(modifierMask)
+
+            if keyCode == undoKeyCode && eventModifiers == undoModifiers {
+                // Undo hotkey matched!
+                print("HotkeyManager: [US-026] Undo hotkey detected: \(manager.undoConfiguration.displayString)")
+
+                // Call the undo callback on the main thread
+                DispatchQueue.main.async {
+                    manager.onUndoHotkeyPressed?()
+                }
+
+                return Unmanaged.passUnretained(event)
+            }
         }
 
         // Always pass the event through - we're using .listenOnly mode

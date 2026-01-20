@@ -507,6 +507,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
+        // US-026: Handle undo transcription hotkey
+        hotkeyManager?.onUndoHotkeyPressed = { [weak self] in
+            print("AppDelegate: [US-026] Undo hotkey pressed")
+            DispatchQueue.main.async {
+                self?.undoLastTranscription()
+            }
+        }
+
         // US-020: Handle push-to-talk key release to stop recording
         hotkeyManager?.onHotkeyReleased = { [weak self] in
             print("AppDelegate: [US-020] Push-to-talk hotkey released")
@@ -766,6 +774,71 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task {
             await performTextInsertion(lastEntry.fullText)
         }
+    }
+
+    /// US-026: Undo last transcription insertion
+    @MainActor
+    private func undoLastTranscription() {
+        // Check if there's anything to undo
+        guard UndoStackManager.shared.canUndo else {
+            print("AppDelegate: [US-026] No transcription to undo")
+            ToastManager.shared.showWarning(
+                "Nothing to Undo",
+                message: "No recent transcription to undo"
+            )
+            return
+        }
+
+        guard let entry = UndoStackManager.shared.topEntry else {
+            return
+        }
+
+        print("AppDelegate: [US-026] Undoing transcription (\(entry.characterCount) characters)")
+
+        // Perform the undo
+        Task {
+            await performUndo(entry: entry)
+        }
+    }
+
+    /// US-026: Perform the actual undo operation
+    @MainActor
+    private func performUndo(entry: UndoEntry) async {
+        guard let inserter = textInserter else {
+            print("AppDelegate: [US-026] TextInserter not available")
+            return
+        }
+
+        let result = await inserter.undoText(characterCount: entry.characterCount)
+
+        switch result {
+        case .success:
+            // Remove the entry from the undo stack
+            UndoStackManager.shared.popTopEntry()
+
+            // Show success feedback
+            ToastManager.shared.showSuccess(
+                "Undo Complete",
+                message: "\(entry.characterCount) characters removed",
+                icon: "arrow.uturn.backward"
+            )
+            print("AppDelegate: [US-026] Undo successful")
+
+        case .noAccessibilityPermission:
+            print("AppDelegate: [US-026] Undo failed - no accessibility permission")
+            showAccessibilityPermissionAlert()
+
+        case .undoFailed(let message):
+            print("AppDelegate: [US-026] Undo failed: \(message)")
+            ToastManager.shared.showError(
+                "Undo Failed",
+                message: "Could not remove the text",
+                icon: "exclamationmark.triangle"
+            )
+        }
+
+        // Reset inserter status
+        inserter.resetStatus()
     }
 
     // MARK: - Recording State Handling
@@ -1130,11 +1203,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         
         let result = await inserter.insertText(text)
-        
+
         switch result {
         case .success:
             print("Text inserted successfully")
-            
+            // US-026: Record the insertion for undo functionality
+            UndoStackManager.shared.recordInsertion(text)
+
         case .noAccessibilityPermission:
             print("Text insertion failed: No accessibility permission")
             showAccessibilityPermissionAlert()
