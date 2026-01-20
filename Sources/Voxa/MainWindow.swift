@@ -309,22 +309,31 @@ struct MainWindowView: View {
     
     /// Main content area that displays the selected view
     private var contentView: some View {
-        Group {
+        // US-055: Use ZStack with id-based switching for smoother content transitions
+        // This prevents flicker by ensuring views are properly keyed and transitioned
+        ZStack {
             switch selectedItem {
             case .home:
                 HomeContentView()
+                    .id(NavigationItem.home)
             case .history:
                 HistoryContentView()
+                    .id(NavigationItem.history)
             case .snippets:
                 SnippetsContentView()
+                    .id(NavigationItem.snippets)
             case .dictionary:
                 DictionaryContentView()
+                    .id(NavigationItem.dictionary)
             case .settings:
                 SettingsContentView()
+                    .id(NavigationItem.settings)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .animation(VoxaAnimation.tabTransition, value: selectedItem)
+        // US-055: Use drawingGroup for GPU-accelerated rendering to prevent flicker
+        .drawingGroup(opaque: false)
     }
     
     // MARK: - US-805: Audio Import Picker
@@ -473,10 +482,11 @@ struct HomeContentView: View {
     
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Spacing.xl) {
+            // US-055: Use LazyVStack for optimized rendering - only visible content is rendered
+            LazyVStack(alignment: .leading, spacing: Spacing.xl, pinnedViews: []) {
                 // MARK: - Welcome Message
                 welcomeSection
-                
+
                 // MARK: - Two Column Layout (US-804, US-807)
                 // Main content (8/12) + Daily Insights Sidebar (4/12)
                 HStack(alignment: .top, spacing: Spacing.xl) {
@@ -488,26 +498,26 @@ struct HomeContentView: View {
                         } else {
                             emptyStatsSection
                         }
-                        
+
                         // MARK: - Feature Banner (optional promotional area)
                         featureBannerSection
-                        
+
                         // MARK: - Quick Actions
                         quickActionsSection
-                        
+
                         // MARK: - US-805: Quick Tools Section
                         quickToolsSection
-                        
+
                         // MARK: - US-803: Recent Transcriptions List
                         recentTranscriptionsSection
                     }
                     .frame(maxWidth: .infinity)
-                    
+
                     // MARK: - US-804: Daily Insights Sidebar (Right)
                     dailyInsightsSidebar
                         .frame(width: 280)
                 }
-                
+
                 Spacer(minLength: Spacing.xxl)
             }
             .padding(Spacing.xl)
@@ -11877,38 +11887,105 @@ private class KeyCaptureView: NSView {
 /// Handles window state persistence and lifecycle
 final class MainWindowController: NSObject {
     private var mainWindow: NSWindow?
-    
+
+    /// US-055: Pre-warmed hosting controller for instant popover display
+    private var cachedHostingController: NSHostingController<AnyView>?
+
+    /// US-055: Flag to track if window is pre-warmed
+    private var isPreWarmed = false
+
     /// Audio manager reference for onboarding
     private var audioManager: AudioManager?
-    
+
     /// Hotkey manager reference for onboarding
     private var hotkeyManager: HotkeyManager?
-    
+
     /// UserDefaults keys for window state persistence
     private enum WindowStateKeys {
         static let frameKey = "MainWindowFrame"
         static let wasOpen = "MainWindowWasOpen"
     }
-    
+
     /// Minimum window size (800x600 as specified)
     private let minimumSize = NSSize(width: 800, height: 600)
-    
+
     /// Default window size
     private let defaultSize = NSSize(width: 1000, height: 700)
-    
+
     override init() {
         super.init()
     }
-    
+
     /// Configure with managers for onboarding
+    /// US-055: Also pre-warms the window for instant display
     func configure(audioManager: AudioManager, hotkeyManager: HotkeyManager) {
         self.audioManager = audioManager
         self.hotkeyManager = hotkeyManager
+
+        // US-055: Pre-warm the window asynchronously for instant display on first click
+        DispatchQueue.main.async { [weak self] in
+            self?.preWarmWindow()
+        }
     }
-    
+
+    // MARK: - US-055: Window Pre-Warming
+
+    /// Pre-create the window and hosting controller for instant display
+    /// This eliminates the lag when clicking the menu bar icon for the first time
+    private func preWarmWindow() {
+        guard !isPreWarmed else { return }
+        guard let audio = audioManager, let hotkey = hotkeyManager else {
+            print("MainWindowController: Cannot pre-warm - managers not configured")
+            return
+        }
+
+        let startTime = CFAbsoluteTimeGetCurrent()
+
+        // Create the SwiftUI view hierarchy
+        let mainView = MainWindowView(initialNavigationItem: nil)
+            .environmentObject(audio)
+            .environmentObject(hotkey)
+
+        // Wrap in AnyView for type erasure so we can store it
+        let hostingController = NSHostingController(rootView: AnyView(mainView))
+        cachedHostingController = hostingController
+
+        // Create the window but don't show it yet
+        let window = NSWindow(contentViewController: hostingController)
+        window.title = "Voxa"
+        window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+        window.backgroundColor = NSColor(Color.Voxa.background)
+        window.minSize = minimumSize
+        window.delegate = self
+
+        // Restore saved window frame or use default
+        if let savedFrame = loadWindowFrame() {
+            window.setFrame(savedFrame, display: false) // display: false since window is hidden
+        } else {
+            window.setContentSize(defaultSize)
+            window.center()
+        }
+
+        window.setFrameAutosaveName("MainWindow")
+
+        // US-055: Force the view hierarchy to layout by accessing the view
+        // This pre-renders the content so it's ready when shown
+        _ = hostingController.view.frame
+
+        mainWindow = window
+        isPreWarmed = true
+
+        let duration = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
+        print("US-055: Window pre-warmed in \(String(format: "%.1f", duration))ms")
+    }
+
     /// Show the main window
     /// - Parameter initialNavItem: Optional navigation item to select when window opens
+    /// US-055: Optimized to use pre-warmed window for instant display
     func showMainWindow(initialNavItem: NavigationItem? = nil) {
+        // US-055: If window exists (pre-warmed or previously shown), just show it
         if let existingWindow = mainWindow {
             existingWindow.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
@@ -11918,21 +11995,24 @@ final class MainWindowController: NSObject {
                 // Post openSettings notification for settings, or a generic navigation notification
                 if navItem == .settings {
                     NotificationCenter.default.post(name: .openSettings, object: nil)
+                } else if navItem == .history {
+                    NotificationCenter.default.post(name: .navigateToHistory, object: nil)
                 }
             }
             return
         }
-        
+
+        // US-055: If not pre-warmed yet, create window now (fallback path)
         guard let audio = audioManager, let hotkey = hotkeyManager else {
             print("MainWindowController: Error - managers not configured")
             return
         }
-        
+
         let mainView = MainWindowView(initialNavigationItem: initialNavItem)
             .environmentObject(audio)
             .environmentObject(hotkey)
-        let hostingController = NSHostingController(rootView: mainView)
-        
+        let hostingController = NSHostingController(rootView: AnyView(mainView))
+
         let window = NSWindow(contentViewController: hostingController)
         window.title = "Voxa"
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
@@ -11943,7 +12023,7 @@ final class MainWindowController: NSObject {
         window.backgroundColor = NSColor(Color.Voxa.background)
         window.minSize = minimumSize
         window.delegate = self
-        
+
         // Restore saved window frame or use default
         if let savedFrame = loadWindowFrame() {
             window.setFrame(savedFrame, display: true)
@@ -11951,37 +12031,37 @@ final class MainWindowController: NSObject {
             window.setContentSize(defaultSize)
             window.center()
         }
-        
+
         // Use autosave for window position
         window.setFrameAutosaveName("MainWindow")
-        
+
         mainWindow = window
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-        
+
         // Mark window as open
         UserDefaults.standard.set(true, forKey: WindowStateKeys.wasOpen)
     }
-    
+
     /// Close the main window
     func closeMainWindow() {
         mainWindow?.close()
     }
-    
+
     /// Check if main window is currently open
     var isWindowOpen: Bool {
         return mainWindow != nil && mainWindow!.isVisible
     }
-    
+
     // MARK: - Window State Persistence
-    
+
     /// Save window frame to UserDefaults
     private func saveWindowFrame() {
         guard let window = mainWindow else { return }
         let frameString = NSStringFromRect(window.frame)
         UserDefaults.standard.set(frameString, forKey: WindowStateKeys.frameKey)
     }
-    
+
     /// Load saved window frame from UserDefaults
     private func loadWindowFrame() -> NSRect? {
         guard let frameString = UserDefaults.standard.string(forKey: WindowStateKeys.frameKey) else {
@@ -12002,7 +12082,9 @@ extension MainWindowController: NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
         saveWindowFrame()
         UserDefaults.standard.set(false, forKey: "MainWindowWasOpen")
-        mainWindow = nil
+        // US-055: Keep the window reference for instant re-display
+        // The window is hidden but not deallocated, allowing instant show on next click
+        // Only nil out if we need to recreate (e.g., memory pressure)
     }
     
     func windowDidResize(_ notification: Notification) {
