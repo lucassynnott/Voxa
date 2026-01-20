@@ -198,6 +198,11 @@ final class AudioManager: NSObject, ObservableObject {
         static let calibrationDuration: TimeInterval = 3.0 // Measure ambient noise over 3 seconds
         static let calibrationDataKey = "audioCalibrationData" // UserDefaults key for calibration data
         static let defaultSilenceThresholdOffset: Float = 5.0 // Add 5dB margin above ambient noise
+
+        // US-006: Muted/Silent Input Detection
+        static let silenceWarningDurationKey = "silenceWarningDuration"
+        static let defaultSilenceWarningDuration: TimeInterval = 3.0 // Warn after 3 seconds of silence
+        static let silenceCheckInterval: TimeInterval = 0.5 // Check every 0.5 seconds
     }
     
     // MARK: - US-604: Audio Level Calibration
@@ -250,6 +255,11 @@ final class AudioManager: NSObject, ObservableObject {
     private var recordingTimeoutMaxTimer: Timer?
     private var hasShownTimeoutWarning: Bool = false
     private var zeroDataCallbackCount: Int = 0  // Track callbacks where all samples are zero
+
+    // US-006: Muted/Silent Input Detection
+    private var silenceMonitorTimer: Timer?
+    private var continuousSilenceDuration: TimeInterval = 0
+    private var hasShownSilenceWarning: Bool = false
     
     private var isCapturing = false
     private var captureStartTime: Date?
@@ -278,6 +288,12 @@ final class AudioManager: NSObject, ObservableObject {
     /// Called when recording reaches the maximum duration and will auto-stop
     var onRecordingTimeoutReached: (() -> Void)?
     var onLowQualityDeviceSelected: ((AudioInputDevice) -> Void)?  // US-501: Called when only a low-quality (Bluetooth) device is available
+
+    // MARK: - US-006: Muted/Silent Input Detection Callbacks
+
+    /// Called when prolonged silence is detected during recording (microphone appears muted or silent)
+    /// Parameters: (measuredDbLevel: Float, silenceDuration: TimeInterval, deviceName: String)
+    var onProlongedSilenceDetected: ((Float, TimeInterval, String) -> Void)?
     
     // MARK: - US-601: Audio Device Hot-Plug Support
     
@@ -1749,10 +1765,14 @@ final class AudioManager: NSObject, ObservableObject {
         
         // US-603: Start recording timeout timers (warning at 4 min, auto-stop at 5 min)
         startRecordingTimeoutTimers()
-        
+
+        // US-006: Start silence monitor timer for muted/silent input detection
+        startSilenceMonitorTimer()
+
         print("AudioManager: [STAGE 1] ✓ Audio engine started - capturing audio")
         print("AudioManager: [US-302] 2-second no-callback alert timer started")
         print("AudioManager: [US-603] Recording timeout timers started (warning: \(Self.warningDuration)s, max: \(Self.maxRecordingDuration)s)")
+        print("AudioManager: [US-006] Silence monitor started (warn after: \(Self.silenceWarningDuration)s)")
     }
     
     /// Stop capturing audio and return the result
@@ -1768,10 +1788,13 @@ final class AudioManager: NSObject, ObservableObject {
         
         // US-302: Stop the no-callback alert timer
         stopNoCallbackAlertTimer()
-        
+
         // US-603: Stop the recording timeout timers
         stopRecordingTimeoutTimers()
-        
+
+        // US-006: Stop the silence monitor timer
+        stopSilenceMonitorTimer()
+
         // Stop engine and remove tap
         audioEngine.inputNode.removeTap(onBus: 0)
         audioEngine.stop()
@@ -1938,13 +1961,16 @@ final class AudioManager: NSObject, ObservableObject {
     /// Cancel capturing and discard audio
     func cancelCapturing() {
         guard isCapturing else { return }
-        
+
         // US-302: Stop the no-callback alert timer
         stopNoCallbackAlertTimer()
-        
+
         // US-603: Stop the recording timeout timers
         stopRecordingTimeoutTimers()
-        
+
+        // US-006: Stop the silence monitor timer
+        stopSilenceMonitorTimer()
+
         audioEngine.inputNode.removeTap(onBus: 0)
         audioEngine.stop()
         
@@ -2074,7 +2100,79 @@ final class AudioManager: NSObject, ObservableObject {
         recordingTimeoutMaxTimer = nil
         hasShownTimeoutWarning = false
     }
-    
+
+    // MARK: - US-006: Muted/Silent Input Detection Timer Methods
+
+    /// US-006: Start timer to monitor for prolonged silence during recording
+    private func startSilenceMonitorTimer() {
+        stopSilenceMonitorTimer()
+        continuousSilenceDuration = 0
+        hasShownSilenceWarning = false
+
+        let checkInterval = Constants.silenceCheckInterval
+        let warningThreshold = Self.silenceWarningDuration
+
+        print("AudioManager: [US-006] Starting silence monitor (check: \(checkInterval)s, warn: \(warningThreshold)s)")
+
+        silenceMonitorTimer = Timer.scheduledTimer(withTimeInterval: checkInterval, repeats: true) { [weak self] _ in
+            guard let self = self, self.isCapturing else { return }
+
+            // Check if current audio level indicates silence
+            let currentLevel = self.currentAudioLevel
+            let silenceThreshold = self.effectiveSilenceThreshold
+
+            if currentLevel < silenceThreshold {
+                // Audio is silent, accumulate duration
+                self.continuousSilenceDuration += checkInterval
+
+                if self.continuousSilenceDuration >= warningThreshold && !self.hasShownSilenceWarning {
+                    // Prolonged silence detected - fire callback
+                    self.hasShownSilenceWarning = true
+                    let deviceName = self.currentDevice?.name ?? "Unknown"
+
+                    print("╔═══════════════════════════════════════════════════════════════╗")
+                    print("║     ⚠️ US-006: PROLONGED SILENCE DETECTED DURING RECORDING     ║")
+                    print("╠═══════════════════════════════════════════════════════════════╣")
+                    print("║ Silence duration: \(String(format: "%.1f", self.continuousSilenceDuration))s (threshold: \(String(format: "%.1f", warningThreshold))s)                    ║")
+                    print("║ Current level: \(String(format: "%.1f", currentLevel))dB (threshold: \(String(format: "%.1f", silenceThreshold))dB)                ║")
+                    print("║ Device: \(deviceName.prefix(52).padding(toLength: 52, withPad: " ", startingAt: 0))   ║")
+                    print("╚═══════════════════════════════════════════════════════════════╝")
+
+                    DispatchQueue.main.async {
+                        self.onProlongedSilenceDetected?(currentLevel, self.continuousSilenceDuration, deviceName)
+                    }
+                }
+            } else {
+                // Audio detected, reset silence tracking
+                if self.continuousSilenceDuration > 0 {
+                    print("AudioManager: [US-006] Audio detected (\(String(format: "%.1f", currentLevel))dB), resetting silence counter")
+                }
+                self.continuousSilenceDuration = 0
+                self.hasShownSilenceWarning = false
+            }
+        }
+    }
+
+    /// US-006: Stop the silence monitor timer
+    private func stopSilenceMonitorTimer() {
+        silenceMonitorTimer?.invalidate()
+        silenceMonitorTimer = nil
+        continuousSilenceDuration = 0
+        hasShownSilenceWarning = false
+    }
+
+    /// US-006: Configurable silence warning duration (how long silence must persist before warning)
+    static var silenceWarningDuration: TimeInterval {
+        get {
+            let stored = UserDefaults.standard.double(forKey: Constants.silenceWarningDurationKey)
+            return stored > 0 ? stored : Constants.defaultSilenceWarningDuration
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: Constants.silenceWarningDurationKey)
+            print("AudioManager: [US-006] Silence warning duration set to \(newValue) seconds")
+        }
+    }
+
     /// US-302: Log callback statistics summary after capture stops
     private func logTapCallbackStats(duration: TimeInterval) {
         let callbacksPerSecond = duration > 0 ? Double(tapCallbackCount) / duration : 0

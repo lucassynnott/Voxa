@@ -333,6 +333,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.statusBarController?.setRecordingState(.idle)
             }
         }
+
+        // US-006: Handle prolonged silence detected during recording (muted/silent input)
+        audioManager?.onProlongedSilenceDetected = { measuredDbLevel, silenceDuration, deviceName in
+            print("AppDelegate: [US-006] Prolonged silence detected - \(String(format: "%.1f", silenceDuration))s at \(String(format: "%.1f", measuredDbLevel))dB on \(deviceName)")
+            ErrorLogger.shared.log(
+                "Prolonged silence detected during recording",
+                category: .audio,
+                severity: .warning,
+                context: [
+                    "measuredLevel": "\(String(format: "%.1f", measuredDbLevel))dB",
+                    "silenceDuration": "\(String(format: "%.1f", silenceDuration))s",
+                    "device": deviceName
+                ]
+            )
+            DispatchQueue.main.async {
+                ToastManager.shared.showProlongedSilenceWarning(
+                    measuredDbLevel: measuredDbLevel,
+                    deviceName: deviceName
+                )
+            }
+        }
     }
     
     private func showSilenceWarning(measuredDbLevel: Float) {

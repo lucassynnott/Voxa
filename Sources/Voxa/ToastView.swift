@@ -755,6 +755,30 @@ extension ToastManager {
             duration: 4.0
         )
     }
+
+    // MARK: - US-006: Muted/Silent Input Detection
+
+    /// Show warning toast when prolonged silence is detected during recording
+    /// Suggests possible causes and offers action to open settings
+    /// - Parameters:
+    ///   - measuredDbLevel: The current audio level in dB
+    ///   - deviceName: Name of the currently selected audio device
+    func showProlongedSilenceWarning(measuredDbLevel: Float, deviceName: String) {
+        let toast = ToastItem(
+            type: .warning,
+            title: "No Audio Detected",
+            message: "Possible causes:\n• Microphone is muted\n• Wrong device selected (\(deviceName))\n• Microphone not connected",
+            icon: "mic.slash",
+            actionTitle: "Settings",
+            action: {
+                NotificationCenter.default.post(name: .openSettings, object: nil)
+            },
+            secondaryActionTitle: "Dismiss",
+            secondaryAction: nil,  // Just dismisses the toast
+            duration: 0  // Manual dismiss only - stays until user acts
+        )
+        show(toast)
+    }
 }
 
 // MARK: - Notification Names
