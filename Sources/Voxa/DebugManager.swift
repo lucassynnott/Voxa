@@ -221,6 +221,8 @@ final class DebugManager: ObservableObject {
         static let fileLoggingEnabledKey = "debugFileLoggingEnabled"  // US-046
         static let maxLogEntries = 500
         static let maxLogFileSizeBytes = 10 * 1024 * 1024  // 10 MB max log file size
+        // US-047: Log rotation settings
+        static let maxRetainedLogFiles = 5  // Keep up to 5 rotated log files (debug.1.log through debug.5.log)
     }
 
     // MARK: - US-046: Sensitive Data Patterns
@@ -423,6 +425,8 @@ final class DebugManager: ObservableObject {
         let logFileURLCopy = logFileURL
         let maxSize = Constants.maxLogFileSizeBytes
 
+        let maxRetained = Constants.maxRetainedLogFiles
+
         fileWriteQueue.async {
             // Format the log entry with sensitive data redacted
             var logLine = "[\(timestamp)] [\(entry.level.prefix)] [\(entry.category.rawValue)] \(redactedMessage)"
@@ -431,8 +435,8 @@ final class DebugManager: ObservableObject {
             }
             logLine += "\n"
 
-            // Rotate log file if needed
-            Self.rotateLogFileIfNeeded(at: logFileURLCopy, maxSize: maxSize)
+            // US-047: Rotate log file if needed (with retention limit)
+            Self.rotateLogFileIfNeeded(at: logFileURLCopy, maxSize: maxSize, maxRetained: maxRetained)
 
             // Append to file
             Self.appendToLogFile(logLine, at: logFileURLCopy)
@@ -466,8 +470,14 @@ final class DebugManager: ObservableObject {
         }
     }
 
-    /// Rotate log file if it exceeds the maximum size (nonisolated for async file operations)
-    private nonisolated static func rotateLogFileIfNeeded(at logFileURL: URL, maxSize: Int) {
+    /// US-047: Rotate log file if it exceeds the maximum size (nonisolated for async file operations)
+    /// Uses numbered rotation scheme: debug.log -> debug.1.log -> debug.2.log -> ... -> debug.N.log
+    /// Old logs beyond maxRetained are automatically deleted
+    /// - Parameters:
+    ///   - logFileURL: The URL of the main log file
+    ///   - maxSize: Maximum size in bytes before rotation
+    ///   - maxRetained: Maximum number of rotated log files to keep
+    private nonisolated static func rotateLogFileIfNeeded(at logFileURL: URL, maxSize: Int, maxRetained: Int) {
         let fileManager = FileManager.default
         guard let attributes = try? fileManager.attributesOfItem(atPath: logFileURL.path),
               let fileSize = attributes[.size] as? Int,
@@ -475,10 +485,27 @@ final class DebugManager: ObservableObject {
             return
         }
 
-        // Rename current log to .old and start fresh
-        let oldLogURL = logFileURL.deletingPathExtension().appendingPathExtension("old.log")
-        try? fileManager.removeItem(at: oldLogURL)
-        try? fileManager.moveItem(at: logFileURL, to: oldLogURL)
+        // Get the base name for rotated files (e.g., "debug" from "debug.log")
+        let directory = logFileURL.deletingLastPathComponent()
+        let baseName = logFileURL.deletingPathExtension().lastPathComponent
+
+        // US-047: Delete the oldest log file if it exists (beyond retention limit)
+        let oldestLogURL = directory.appendingPathComponent("\(baseName).\(maxRetained).log")
+        try? fileManager.removeItem(at: oldestLogURL)
+
+        // US-047: Rotate existing numbered log files (N-1 -> N, N-2 -> N-1, ..., 1 -> 2)
+        // Work backwards to avoid overwriting files
+        for i in stride(from: maxRetained - 1, through: 1, by: -1) {
+            let sourceURL = directory.appendingPathComponent("\(baseName).\(i).log")
+            let destURL = directory.appendingPathComponent("\(baseName).\(i + 1).log")
+            if fileManager.fileExists(atPath: sourceURL.path) {
+                try? fileManager.moveItem(at: sourceURL, to: destURL)
+            }
+        }
+
+        // US-047: Move current log to .1.log
+        let firstRotatedURL = directory.appendingPathComponent("\(baseName).1.log")
+        try? fileManager.moveItem(at: logFileURL, to: firstRotatedURL)
     }
 
     /// US-046: Redact sensitive data from a string
