@@ -496,6 +496,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
+        // US-017: Handle insert last transcription hotkey
+        hotkeyManager?.onInsertHotkeyPressed = { [weak self] in
+            print("AppDelegate: [US-017] Insert hotkey pressed")
+            DispatchQueue.main.async {
+                self?.insertLastTranscription()
+            }
+        }
+
         // Only start hotkey manager immediately if onboarding has been completed
         // Otherwise, it will be started after onboarding completes (in setupOnboarding completion callback)
         // This prevents permission prompts from appearing before the user reaches the accessibility step
@@ -707,7 +715,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             icon: "xmark.circle"
         )
     }
-    
+
+    /// US-017: Insert last transcription at cursor position
+    @MainActor
+    private func insertLastTranscription() {
+        // Get the most recent transcription from history
+        let entries = UsageStatsManager.shared.recentEntries
+
+        guard let lastEntry = entries.first else {
+            print("AppDelegate: [US-017] No transcription history available")
+            ToastManager.shared.showWarning(
+                "No Transcription",
+                message: "No recent transcription to insert"
+            )
+            return
+        }
+
+        print("AppDelegate: [US-017] Inserting last transcription (\(lastEntry.wordCount) words)")
+
+        // Insert the text at cursor position
+        Task {
+            await performTextInsertion(lastEntry.fullText)
+        }
+    }
+
     // MARK: - Recording State Handling
     
     private func handleRecordingStateChange(_ state: RecordingState) {

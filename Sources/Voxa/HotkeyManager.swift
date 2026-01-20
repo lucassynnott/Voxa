@@ -24,6 +24,9 @@ final class HotkeyManager: ObservableObject {
         // US-016: Cancel hotkey configuration keys
         static let cancelHotkeyKeyCodeKey = "cancelHotkeyKeyCode"
         static let cancelHotkeyModifiersKey = "cancelHotkeyModifiers"
+        // US-017: Insert last transcription hotkey configuration keys
+        static let insertHotkeyKeyCodeKey = "insertHotkeyKeyCode"
+        static let insertHotkeyModifiersKey = "insertHotkeyModifiers"
     }
     
     // MARK: - US-512: System Shortcut Conflicts
@@ -293,6 +296,12 @@ final class HotkeyManager: ObservableObject {
             keyCode: UInt16(kVK_Escape),
             modifierFlags: []
         )
+
+        /// US-017: Default insert last transcription hotkey is Option+Command+V (⌥⌘V)
+        static let defaultInsertHotkey = HotkeyConfiguration(
+            keyCode: UInt16(kVK_ANSI_V),
+            modifierFlags: [.command, .option]
+        )
         
         /// Human-readable string for the hotkey
         var displayString: String {
@@ -350,6 +359,9 @@ final class HotkeyManager: ObservableObject {
     /// US-016: Cancel recording hotkey configuration (discards audio)
     @Published private(set) var cancelConfiguration: HotkeyConfiguration
 
+    /// US-017: Insert last transcription hotkey configuration
+    @Published private(set) var insertConfiguration: HotkeyConfiguration
+
     /// US-015: Whether to use the same hotkey for both start and stop (toggle behavior)
     @Published var useSameHotkeyForStop: Bool {
         didSet {
@@ -366,6 +378,9 @@ final class HotkeyManager: ObservableObject {
 
     /// US-016: Callback triggered when the cancel hotkey is pressed
     var onCancelHotkeyPressed: (() -> Void)?
+
+    /// US-017: Callback triggered when the insert last transcription hotkey is pressed
+    var onInsertHotkeyPressed: (() -> Void)?
 
     /// Callback triggered when accessibility permission is needed (US-510)
     var onAccessibilityPermissionNeeded: (() -> Void)?
@@ -388,9 +403,12 @@ final class HotkeyManager: ObservableObject {
         self.useSameHotkeyForStop = useSame
         // US-016: Load cancel hotkey configuration
         self.cancelConfiguration = Self.loadCancelConfiguration()
+        // US-017: Load insert last transcription hotkey configuration
+        self.insertConfiguration = Self.loadInsertConfiguration()
         print("HotkeyManager: [US-510] Initialized with start hotkey: \(self.configuration.displayString)")
         print("HotkeyManager: [US-015] Stop hotkey: \(useSame ? "same as start" : self.stopConfiguration.displayString)")
         print("HotkeyManager: [US-016] Cancel hotkey: \(self.cancelConfiguration.displayString)")
+        print("HotkeyManager: [US-017] Insert hotkey: \(self.insertConfiguration.displayString)")
     }
     
     // MARK: - Persistence
@@ -480,6 +498,34 @@ final class HotkeyManager: ObservableObject {
         defaults.set(Int(cancelConfiguration.keyCode), forKey: Constants.cancelHotkeyKeyCodeKey)
         defaults.set(Int(cancelConfiguration.modifierFlags), forKey: Constants.cancelHotkeyModifiersKey)
         print("HotkeyManager: [US-016] Saved cancel hotkey configuration: \(cancelConfiguration.displayString)")
+    }
+
+    // MARK: - US-017: Insert Hotkey Persistence
+
+    /// Load insert hotkey configuration from UserDefaults
+    private static func loadInsertConfiguration() -> HotkeyConfiguration {
+        let defaults = UserDefaults.standard
+
+        // Check if we have saved insert hotkey values
+        if defaults.object(forKey: Constants.insertHotkeyKeyCodeKey) != nil {
+            let keyCode = UInt16(defaults.integer(forKey: Constants.insertHotkeyKeyCodeKey))
+            let modifiers = UInt(defaults.integer(forKey: Constants.insertHotkeyModifiersKey))
+            let config = HotkeyConfiguration(keyCode: keyCode, modifierFlags: modifiers)
+            print("HotkeyManager: [US-017] Loaded saved insert hotkey configuration: \(config.displayString)")
+            return config
+        }
+
+        // Default insert hotkey is Option+Command+V
+        print("HotkeyManager: [US-017] Using default insert hotkey configuration (Option+Cmd+V)")
+        return .defaultInsertHotkey
+    }
+
+    /// Save insert hotkey configuration to UserDefaults
+    private func saveInsertConfiguration() {
+        let defaults = UserDefaults.standard
+        defaults.set(Int(insertConfiguration.keyCode), forKey: Constants.insertHotkeyKeyCodeKey)
+        defaults.set(Int(insertConfiguration.modifierFlags), forKey: Constants.insertHotkeyModifiersKey)
+        print("HotkeyManager: [US-017] Saved insert hotkey configuration: \(insertConfiguration.displayString)")
     }
 
     deinit {
@@ -610,6 +656,18 @@ final class HotkeyManager: ObservableObject {
         updateCancelConfiguration(.defaultCancelHotkey)
     }
 
+    /// US-017: Update the insert hotkey configuration and save to UserDefaults
+    func updateInsertConfiguration(_ newConfig: HotkeyConfiguration) {
+        insertConfiguration = newConfig
+        saveInsertConfiguration()
+        print("HotkeyManager: [US-017] Insert hotkey updated to \(newConfig.displayString)")
+    }
+
+    /// US-017: Reset insert hotkey to default (Option+Command+V) and save
+    func resetInsertToDefault() {
+        updateInsertConfiguration(.defaultInsertHotkey)
+    }
+
     /// Get current hotkey display string
     var hotkeyDisplayString: String {
         return configuration.displayString
@@ -623,6 +681,11 @@ final class HotkeyManager: ObservableObject {
     /// US-016: Get current cancel hotkey display string
     var cancelHotkeyDisplayString: String {
         return cancelConfiguration.displayString
+    }
+
+    /// US-017: Get current insert hotkey display string
+    var insertHotkeyDisplayString: String {
+        return insertConfiguration.displayString
     }
 
     /// US-015: Get the effective stop configuration (either same as start or separate)
@@ -719,6 +782,22 @@ final class HotkeyManager: ObservableObject {
             // Call the cancel callback on the main thread
             DispatchQueue.main.async {
                 manager.onCancelHotkeyPressed?()
+            }
+
+            return Unmanaged.passUnretained(event)
+        }
+
+        // US-017: Check for insert last transcription hotkey match
+        let insertKeyCode = Int64(manager.insertConfiguration.keyCode)
+        let insertModifiers = manager.insertConfiguration.cgEventFlags.intersection(modifierMask)
+
+        if keyCode == insertKeyCode && eventModifiers == insertModifiers {
+            // Insert hotkey matched!
+            print("HotkeyManager: [US-017] Insert hotkey detected: \(manager.insertConfiguration.displayString)")
+
+            // Call the insert callback on the main thread
+            DispatchQueue.main.async {
+                manager.onInsertHotkeyPressed?()
             }
 
             return Unmanaged.passUnretained(event)
