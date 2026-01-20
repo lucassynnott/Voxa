@@ -1,5 +1,6 @@
 import Foundation
 import WhisperKit
+import CoreML
 
 /// Manages Whisper model loading and audio transcription
 /// Handles model download, selection, and transcription pipeline
@@ -141,7 +142,7 @@ final class WhisperManager: ObservableObject {
         case switching(toModel: String, progress: Double)
     }
     // MARK: - Constants
-    
+
     private struct Constants {
         static let selectedModelKey = "selectedWhisperModel"
         static let selectedLanguageKey = "selectedTranscriptionLanguage"  // US-606
@@ -149,6 +150,21 @@ final class WhisperManager: ObservableObject {
         static let expectedSampleRate: Double = 16000.0
         static let minimumDuration: Double = 0.5    // seconds
         static let maximumDuration: Double = 120.0  // seconds
+    }
+
+    // MARK: - US-056: Optimized Compute Options
+
+    /// Returns optimized ModelComputeOptions for the current platform
+    /// Uses Neural Engine where available for maximum performance
+    private static var optimizedComputeOptions: ModelComputeOptions {
+        // Use Neural Engine for audio encoding on macOS 14+ / iOS 17+
+        // cpuAndNeuralEngine provides best inference speed on Apple Silicon
+        return ModelComputeOptions(
+            melCompute: .cpuAndGPU,           // Mel spectrogram on GPU for speed
+            audioEncoderCompute: .cpuAndNeuralEngine,  // Audio encoder on Neural Engine
+            textDecoderCompute: .cpuAndNeuralEngine,   // Text decoder on Neural Engine
+            prefillCompute: .cpuOnly          // Prefill cache on CPU (small workload)
+        )
     }
     
     // MARK: - US-606: Transcription Language
@@ -412,10 +428,11 @@ final class WhisperManager: ObservableObject {
                 statusMessage = "Loading \(newModel.displayName) in background..."
             }
 
-            // Load the new model into pending instance
+            // US-056: Load the new model with optimized compute options
             let config = WhisperKitConfig(
                 model: newModel.modelPattern,
                 downloadBase: modelsDirectory,
+                computeOptions: Self.optimizedComputeOptions,  // US-056: Use Neural Engine
                 verbose: true,
                 prewarm: true
             )
@@ -587,10 +604,11 @@ final class WhisperManager: ObservableObject {
         do {
             print("WhisperManager: Starting model load for \(selectedModel.rawValue)")
             
-            // Configure WhisperKit with progress callback
+            // US-056: Configure WhisperKit with optimized compute options for faster inference
             let config = WhisperKitConfig(
                 model: selectedModel.modelPattern,
                 downloadBase: modelsDirectory,
+                computeOptions: Self.optimizedComputeOptions,  // US-056: Use Neural Engine
                 verbose: true,
                 prewarm: true
             )
@@ -1180,22 +1198,52 @@ final class WhisperManager: ObservableObject {
             
             print("WhisperManager: Transcribing \(samples.count) samples (\(String(format: "%.2f", Double(samples.count) / sampleRate))s)")
             
-            // US-606: Create decoding options with language hint
+            // US-056: Create optimized decoding options for faster inference
+            // US-606: Also respects language hint settings
             let languageCode = selectedLanguage.whisperLanguageCode
             let detectLanguage = selectedLanguage == .automatic
-            
+
+            // US-056: Optimized decoding options for speed without sacrificing quality
             let decodingOptions = DecodingOptions(
                 task: .transcribe,
                 language: languageCode,  // nil for auto-detect
-                usePrefillPrompt: true,
-                detectLanguage: detectLanguage  // true for auto-detect, false when specific language is set
+                temperature: 0.0,        // US-056: Greedy decoding (fastest, no randomness)
+                temperatureFallbackCount: 3,  // US-056: Reduced fallback iterations for speed
+                usePrefillPrompt: true,  // US-056: Use prefill for faster warm-up
+                usePrefillCache: true,   // US-056: Cache prefill data for repeated transcriptions
+                detectLanguage: detectLanguage,  // true for auto-detect, false when specific language is set
+                skipSpecialTokens: true,  // US-056: Skip special tokens for cleaner, faster output
+                suppressBlank: true,     // US-056: Suppress blank tokens to reduce decoding loops
+                compressionRatioThreshold: 2.4,  // Default - maintains quality
+                logProbThreshold: -1.0,  // Default - maintains quality
+                noSpeechThreshold: 0.6   // Default - maintains quality
             )
-            
-            print("WhisperManager: [US-606] Using language: \(languageCode ?? "auto-detect"), detectLanguage: \(detectLanguage)")
-            
+
+            print("WhisperManager: [US-056] Optimized decoding with language: \(languageCode ?? "auto-detect"), detectLanguage: \(detectLanguage)")
+
+            // US-056: Add timing metrics for inference profiling
+            let inferenceStartTime = CFAbsoluteTimeGetCurrent()
+
             // Perform transcription with language options
             let results = try await whisper.transcribe(audioArray: samples, decodeOptions: decodingOptions)
-            
+
+            // US-056: Log inference timing
+            let inferenceEndTime = CFAbsoluteTimeGetCurrent()
+            let inferenceTime = inferenceEndTime - inferenceStartTime
+            let audioDuration = Double(samples.count) / sampleRate
+            let realTimeFactor = inferenceTime / audioDuration
+            let speedFactor = audioDuration / inferenceTime
+
+            print("╔═══════════════════════════════════════════════════════════════╗")
+            print("║ [US-056] INFERENCE PERFORMANCE METRICS                        ║")
+            print("╠═══════════════════════════════════════════════════════════════╣")
+            print("║ Audio Duration:    \(String(format: "%10.2f", audioDuration)) seconds                        ║")
+            print("║ Inference Time:    \(String(format: "%10.2f", inferenceTime)) seconds                        ║")
+            print("║ Real-Time Factor:  \(String(format: "%10.3f", realTimeFactor)) (< 1.0 = faster than real-time)   ║")
+            print("║ Speed Factor:      \(String(format: "%10.1f", speedFactor))x real-time                         ║")
+            print("║ Model:             \(selectedModel.rawValue.padding(toLength: 10, withPad: " ", startingAt: 0))                                 ║")
+            print("╚═══════════════════════════════════════════════════════════════╝")
+
             // Extract text from results (WhisperKit returns an array of TranscriptionResult)
             let transcribedText = results.map { $0.text }.joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
             
