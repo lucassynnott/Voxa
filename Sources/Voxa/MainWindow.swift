@@ -6681,11 +6681,14 @@ struct TranscriptionSettingsSummary: View {
                 .font(Font.Voxa.body)
                 .foregroundColor(Color.Voxa.textSecondary)
             
-            // Download progress bar (US-704 Task 2)
+            // Download progress bar (US-704 Task 2, US-010: Cancel support)
             if case .downloading(let progress) = whisperManager.modelStatus {
                 VStack(alignment: .leading, spacing: Spacing.sm) {
                     // Progress percentage header
                     HStack {
+                        Image(systemName: "arrow.down.circle")
+                            .foregroundColor(Color.Voxa.accent)
+                            .font(.system(size: 14, weight: .medium))
                         Text("Downloading \(whisperManager.selectedModel.displayName.components(separatedBy: " (").first ?? "model")...")
                             .font(Font.Voxa.body)
                             .foregroundColor(Color.Voxa.textPrimary)
@@ -6704,6 +6707,18 @@ struct TranscriptionSettingsSummary: View {
                     Text("Please wait, this may take a few minutes...")
                         .font(Font.Voxa.small)
                         .foregroundColor(Color.Voxa.textSecondary)
+
+                    // US-010: Cancel download button
+                    Button(action: {
+                        whisperManager.cancelDownload()
+                    }) {
+                        HStack(spacing: Spacing.xs) {
+                            Image(systemName: "xmark.circle")
+                            Text("Cancel Download")
+                        }
+                        .font(Font.Voxa.small)
+                    }
+                    .buttonStyle(VoxaButtonStyle.ghost)
                 }
                 .padding(Spacing.md)
                 .background(Color.Voxa.accentLight.opacity(0.5))

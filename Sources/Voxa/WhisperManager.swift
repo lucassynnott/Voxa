@@ -251,6 +251,9 @@ final class WhisperManager: ObservableObject {
     /// US-008: The model being loaded during hot-swap (nil when not switching)
     @Published private(set) var pendingModel: ModelSize?
 
+    /// US-010: Current download task (for cancellation support)
+    private var downloadTask: Task<Void, Never>?
+
     /// Currently selected model size
     @Published private(set) var selectedModel: ModelSize
     
@@ -349,10 +352,19 @@ final class WhisperManager: ObservableObject {
             print("WhisperManager: [US-008] Hot-swap: loading \(model.rawValue) in background while \(selectedModel.rawValue) remains active")
             await hotSwapModel(to: model)
         } else {
-            // No current model, just update selection (user will manually load)
+            // US-010: Auto-download when undownloaded model is selected
             selectedModel = model
-            modelStatus = .notDownloaded
-            statusMessage = "Model changed to \(model.displayName)"
+
+            // Check if model needs to be downloaded
+            let isDownloaded = isModelDownloaded(model)
+            if !isDownloaded {
+                print("WhisperManager: [US-010] Auto-downloading undownloaded model: \(model.rawValue)")
+                await loadModel()
+            } else {
+                // Model is downloaded but not loaded - auto-load it
+                print("WhisperManager: [US-010] Auto-loading downloaded model: \(model.rawValue)")
+                await loadModel()
+            }
         }
     }
 
@@ -485,11 +497,39 @@ final class WhisperManager: ObservableObject {
     var isModelSwitchInProgress: Bool {
         pendingModel != nil
     }
-    
+
+    /// US-010: Cancel any in-progress download
+    func cancelDownload() {
+        guard case .downloading = modelStatus else { return }
+
+        print("WhisperManager: [US-010] Cancelling download")
+        downloadTask?.cancel()
+        downloadTask = nil
+
+        modelStatus = .notDownloaded
+        downloadProgress = 0.0
+        statusMessage = "Download cancelled"
+    }
+
+    /// US-010: Check if a download is in progress
+    var isDownloadInProgress: Bool {
+        if case .downloading = modelStatus {
+            return true
+        }
+        return false
+    }
+
     /// Load the selected model (downloads if necessary)
     func loadModel() async {
+        // US-010: Also guard against downloading state (prevents duplicate downloads)
         guard modelStatus != .ready && modelStatus != .loading else {
             print("WhisperManager: Model already loaded or loading")
+            return
+        }
+
+        // US-010: Prevent duplicate downloads
+        if case .downloading = modelStatus {
+            print("WhisperManager: Download already in progress")
             return
         }
         
@@ -586,8 +626,16 @@ final class WhisperManager: ObservableObject {
                 }
             }
             
-            whisperKit = try await WhisperKit(config)
-            
+            let loadedWhisperKit = try await WhisperKit(config)
+
+            // US-010: Check if download was cancelled while WhisperKit was loading
+            if case .notDownloaded = modelStatus {
+                print("WhisperManager: [US-010] Download was cancelled, discarding loaded model")
+                return
+            }
+
+            whisperKit = loadedWhisperKit
+
             // US-304: Verify model files exist after download
             let verificationResult = verifyModelFilesAfterDownload()
             if !verificationResult.success {
