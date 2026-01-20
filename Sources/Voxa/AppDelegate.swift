@@ -53,7 +53,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusBarController?.onOpenMainWindow = { [weak self] in
             self?.openMainWindow()
         }
-        
+
+        // US-030: Set up callback for opening clipboard history
+        statusBarController?.onOpenClipboardHistory = { [weak self] in
+            self?.openClipboardHistory()
+        }
+
         // Initialize and start the hotkey manager
         setupHotkeyManager()
 
@@ -474,7 +479,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func openSettings() {
         openMainWindow(initialNavItem: .settings)
     }
-    
+
+    /// US-030: Open the main window with History selected (for clipboard history access)
+    private func openClipboardHistory() {
+        openMainWindow(initialNavItem: .history)
+    }
+
     private func setupHotkeyManager() {
         // US-701: Use shared singleton instance
         hotkeyManager = HotkeyManager.shared
@@ -1293,6 +1303,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             print("Text inserted successfully")
             // US-026: Record the insertion for undo functionality
             UndoStackManager.shared.recordInsertion(text)
+            // US-030: Record to clipboard history
+            ClipboardHistoryManager.shared.recordEntry(text)
 
         case .noAccessibilityPermission:
             print("Text insertion failed: No accessibility permission")

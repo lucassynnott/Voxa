@@ -4546,6 +4546,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case modelManagement = "modelManagement"  // US-012
     case textCleanup = "textCleanup"
     case textInsertion = "textInsertion"
+    case clipboardHistory = "clipboardHistory"  // US-030
     case debug = "debug"
 
     var id: String { rawValue }
@@ -4565,6 +4566,8 @@ enum SettingsSection: String, CaseIterable, Identifiable {
             return "Text Cleanup"
         case .textInsertion:
             return "Text Insertion"
+        case .clipboardHistory:
+            return "Clipboard History"
         case .debug:
             return "Debug"
         }
@@ -4585,6 +4588,8 @@ enum SettingsSection: String, CaseIterable, Identifiable {
             return "text.badge.checkmark"
         case .textInsertion:
             return "doc.on.clipboard"
+        case .clipboardHistory:
+            return "clock.arrow.circlepath"
         case .debug:
             return "ladybug"
         }
@@ -4605,6 +4610,8 @@ enum SettingsSection: String, CaseIterable, Identifiable {
             return "AI-powered text cleanup and post-processing options"
         case .textInsertion:
             return "How transcribed text is inserted into your applications"
+        case .clipboardHistory:
+            return "Access and reuse recent transcriptions"
         case .debug:
             return "Debug tools, logging, and audio export options"
         }
@@ -4687,7 +4694,17 @@ struct SettingsContentView: View {
                         TextInsertionSettingsSummary()
                     }
                     .id(SettingsSection.textInsertion)
-                    
+
+                    // MARK: - Clipboard History Section (US-030)
+                    SettingsSectionView(
+                        title: SettingsSection.clipboardHistory.displayName,
+                        icon: SettingsSection.clipboardHistory.icon,
+                        description: SettingsSection.clipboardHistory.description
+                    ) {
+                        ClipboardHistorySettingsSummary()
+                    }
+                    .id(SettingsSection.clipboardHistory)
+
                     // MARK: - Debug Section
                     SettingsSectionView(
                         title: SettingsSection.debug.displayName,
@@ -10025,6 +10042,560 @@ struct TextInsertionFeatureRow: View {
             
             Spacer()
         }
+    }
+}
+
+// MARK: - Clipboard History Settings Summary (US-030)
+
+/// Clipboard history settings with configuration and recent history display
+/// US-030: Clipboard History of Transcriptions
+struct ClipboardHistorySettingsSummary: View {
+    @StateObject private var historyManager = ClipboardHistoryManager.shared
+    @StateObject private var textInserter = TextInserter.shared
+    @State private var showClearConfirmation = false
+    @State private var searchQuery = ""
+    @State private var entryToDelete: ClipboardHistoryEntry?
+    @State private var showDeleteConfirmation = false
+
+    /// Filtered entries based on search query
+    private var filteredEntries: [ClipboardHistoryEntry] {
+        historyManager.searchEntries(query: searchQuery)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.xl) {
+            // MARK: - Enable/Disable Section
+            enableSection
+
+            if historyManager.isEnabled {
+                Divider()
+                    .background(Color.Voxa.border)
+
+                // MARK: - Configuration Section
+                configurationSection
+
+                Divider()
+                    .background(Color.Voxa.border)
+
+                // MARK: - History List Section
+                historyListSection
+
+                Divider()
+                    .background(Color.Voxa.border)
+
+                // MARK: - Actions Section
+                actionsSection
+            }
+        }
+        .alert("Delete Entry?", isPresented: $showDeleteConfirmation, presenting: entryToDelete) { entry in
+            Button("Delete", role: .destructive) {
+                withAnimation(VoxaAnimation.smooth) {
+                    historyManager.removeEntry(entry)
+                }
+                entryToDelete = nil
+            }
+            Button("Cancel", role: .cancel) {
+                entryToDelete = nil
+            }
+        } message: { _ in
+            Text("This entry will be permanently deleted.")
+        }
+        .alert("Clear All History?", isPresented: $showClearConfirmation) {
+            Button("Clear", role: .destructive) {
+                withAnimation(VoxaAnimation.smooth) {
+                    historyManager.clearHistory()
+                }
+                ToastManager.shared.showSuccess("History Cleared", message: "Clipboard history has been cleared")
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("All \(historyManager.entries.count) entries will be permanently deleted. This action cannot be undone.")
+        }
+    }
+
+    // MARK: - Enable Section
+
+    private var enableSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack(spacing: Spacing.sm) {
+                Image(systemName: "clock.arrow.circlepath")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(Color.Voxa.accent)
+                Text("Clipboard History")
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
+            }
+
+            Text("Keep a history of recent transcriptions for quick access and reuse.")
+                .font(Font.Voxa.caption)
+                .foregroundColor(Color.Voxa.textSecondary)
+
+            // Enable toggle
+            TextInsertionToggleRow(
+                icon: "power",
+                title: "Enable Clipboard History",
+                description: "Store transcriptions for later access",
+                isOn: $historyManager.isEnabled
+            )
+
+            // Status indicator
+            HStack(spacing: Spacing.sm) {
+                Image(systemName: historyManager.isEnabled ? "checkmark.circle.fill" : "xmark.circle.fill")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(historyManager.isEnabled ? Color.Voxa.success : Color.Voxa.textTertiary)
+
+                Text(historyManager.isEnabled ?
+                    "Transcriptions will be saved to history (\(historyManager.entries.count) entries)" :
+                    "Clipboard history is disabled"
+                )
+                    .font(Font.Voxa.small)
+                    .foregroundColor(historyManager.isEnabled ? Color.Voxa.success : Color.Voxa.textSecondary)
+            }
+            .padding(Spacing.sm)
+            .background(historyManager.isEnabled ? Color.Voxa.successLight.opacity(0.3) : Color.Voxa.border.opacity(0.2))
+            .cornerRadius(CornerRadius.small)
+        }
+    }
+
+    // MARK: - Configuration Section
+
+    private var configurationSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack(spacing: Spacing.sm) {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(Color.Voxa.accent)
+                Text("History Settings")
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
+            }
+
+            // Max entries slider
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                HStack {
+                    Text("Maximum Entries")
+                        .font(Font.Voxa.body)
+                        .foregroundColor(Color.Voxa.textPrimary)
+                    Spacer()
+                    Text("\(historyManager.maxEntries)")
+                        .font(Font.Voxa.mono)
+                        .foregroundColor(Color.Voxa.accent)
+                }
+
+                Slider(
+                    value: Binding(
+                        get: { Double(historyManager.maxEntries) },
+                        set: { historyManager.maxEntries = Int($0) }
+                    ),
+                    in: Double(ClipboardHistoryManager.maxEntriesRange.lowerBound)...Double(ClipboardHistoryManager.maxEntriesRange.upperBound),
+                    step: 10
+                )
+                .tint(Color.Voxa.accent)
+
+                HStack {
+                    Text("\(ClipboardHistoryManager.maxEntriesRange.lowerBound)")
+                        .font(Font.Voxa.small)
+                        .foregroundColor(Color.Voxa.textTertiary)
+                    Spacer()
+                    Text("\(ClipboardHistoryManager.maxEntriesRange.upperBound)")
+                        .font(Font.Voxa.small)
+                        .foregroundColor(Color.Voxa.textTertiary)
+                }
+            }
+            .padding(Spacing.md)
+            .background(Color.Voxa.surface)
+            .cornerRadius(CornerRadius.medium)
+
+            // Retention days slider
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                HStack {
+                    Text("Keep History For")
+                        .font(Font.Voxa.body)
+                        .foregroundColor(Color.Voxa.textPrimary)
+                    Spacer()
+                    Text("\(historyManager.retentionDays) days")
+                        .font(Font.Voxa.mono)
+                        .foregroundColor(Color.Voxa.accent)
+                }
+
+                Slider(
+                    value: Binding(
+                        get: { Double(historyManager.retentionDays) },
+                        set: { historyManager.retentionDays = Int($0) }
+                    ),
+                    in: Double(ClipboardHistoryManager.retentionDaysRange.lowerBound)...Double(ClipboardHistoryManager.retentionDaysRange.upperBound),
+                    step: 1
+                )
+                .tint(Color.Voxa.accent)
+
+                HStack {
+                    Text("1 day")
+                        .font(Font.Voxa.small)
+                        .foregroundColor(Color.Voxa.textTertiary)
+                    Spacer()
+                    Text("1 year")
+                        .font(Font.Voxa.small)
+                        .foregroundColor(Color.Voxa.textTertiary)
+                }
+            }
+            .padding(Spacing.md)
+            .background(Color.Voxa.surface)
+            .cornerRadius(CornerRadius.medium)
+        }
+    }
+
+    // MARK: - History List Section
+
+    private var historyListSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack(spacing: Spacing.sm) {
+                Image(systemName: "list.bullet.clipboard")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(Color.Voxa.accent)
+                Text("Recent Transcriptions")
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
+                Spacer()
+                if !historyManager.entries.isEmpty {
+                    Text("\(historyManager.entries.count) entries")
+                        .font(Font.Voxa.caption)
+                        .foregroundColor(Color.Voxa.textSecondary)
+                        .padding(.horizontal, Spacing.sm)
+                        .padding(.vertical, Spacing.xs)
+                        .background(Color.Voxa.surfaceSecondary)
+                        .cornerRadius(CornerRadius.small)
+                }
+            }
+
+            // Search bar
+            if !historyManager.entries.isEmpty {
+                HStack(spacing: Spacing.sm) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(Color.Voxa.textTertiary)
+
+                    TextField("Search history...", text: $searchQuery)
+                        .textFieldStyle(.plain)
+                        .font(Font.Voxa.body)
+                        .foregroundColor(Color.Voxa.textPrimary)
+
+                    if !searchQuery.isEmpty {
+                        Button(action: {
+                            withAnimation(VoxaAnimation.quick) {
+                                searchQuery = ""
+                            }
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(Color.Voxa.textTertiary)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                }
+                .padding(.horizontal, Spacing.md)
+                .padding(.vertical, Spacing.sm)
+                .background(Color.Voxa.surface)
+                .cornerRadius(CornerRadius.small)
+                .overlay(
+                    RoundedRectangle(cornerRadius: CornerRadius.small)
+                        .stroke(Color.Voxa.border, lineWidth: 1)
+                )
+            }
+
+            // History list (limited to recent entries)
+            if historyManager.entries.isEmpty {
+                emptyHistoryState
+            } else if filteredEntries.isEmpty {
+                noSearchResultsState
+            } else {
+                VStack(spacing: Spacing.sm) {
+                    ForEach(Array(filteredEntries.prefix(10)), id: \.id) { entry in
+                        ClipboardHistoryEntryCard(
+                            entry: entry,
+                            searchQuery: searchQuery,
+                            onCopy: {
+                                historyManager.copyToClipboard(entry)
+                                ToastManager.shared.showCopiedToClipboard()
+                            },
+                            onInsert: {
+                                Task {
+                                    await insertEntry(entry)
+                                }
+                            },
+                            onDelete: {
+                                entryToDelete = entry
+                                showDeleteConfirmation = true
+                            }
+                        )
+                    }
+
+                    // Show count of remaining entries
+                    if filteredEntries.count > 10 {
+                        HStack {
+                            Spacer()
+                            Text("+ \(filteredEntries.count - 10) more entries")
+                                .font(Font.Voxa.caption)
+                                .foregroundColor(Color.Voxa.textTertiary)
+                            Spacer()
+                        }
+                        .padding(.vertical, Spacing.sm)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Empty State
+
+    private var emptyHistoryState: some View {
+        VStack(spacing: Spacing.md) {
+            ZStack {
+                Circle()
+                    .fill(Color.Voxa.accentLight)
+                    .frame(width: 60, height: 60)
+
+                Image(systemName: "clock.badge.questionmark")
+                    .font(.system(size: 28, weight: .light))
+                    .foregroundColor(Color.Voxa.accent)
+            }
+
+            VStack(spacing: Spacing.xs) {
+                Text("No history yet")
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
+
+                Text("Your transcriptions will appear here")
+                    .font(Font.Voxa.caption)
+                    .foregroundColor(Color.Voxa.textSecondary)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(Spacing.xl)
+        .background(Color.Voxa.surface)
+        .cornerRadius(CornerRadius.medium)
+    }
+
+    // MARK: - No Search Results State
+
+    private var noSearchResultsState: some View {
+        VStack(spacing: Spacing.md) {
+            Image(systemName: "doc.text.magnifyingglass")
+                .font(.system(size: 28, weight: .light))
+                .foregroundColor(Color.Voxa.textTertiary)
+
+            Text("No results for \"\(searchQuery)\"")
+                .font(Font.Voxa.body)
+                .foregroundColor(Color.Voxa.textSecondary)
+
+            Button(action: {
+                withAnimation(VoxaAnimation.quick) {
+                    searchQuery = ""
+                }
+            }) {
+                Text("Clear Search")
+                    .font(Font.Voxa.caption)
+                    .foregroundColor(Color.Voxa.accent)
+            }
+            .buttonStyle(PlainButtonStyle())
+        }
+        .frame(maxWidth: .infinity)
+        .padding(Spacing.xl)
+        .background(Color.Voxa.surface)
+        .cornerRadius(CornerRadius.medium)
+    }
+
+    // MARK: - Actions Section
+
+    private var actionsSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack(spacing: Spacing.sm) {
+                Image(systemName: "gear")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(Color.Voxa.accent)
+                Text("Actions")
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
+            }
+
+            HStack(spacing: Spacing.md) {
+                // Clear history button
+                Button(action: {
+                    showClearConfirmation = true
+                }) {
+                    HStack(spacing: Spacing.sm) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 14, weight: .medium))
+                        Text("Clear History")
+                            .font(Font.Voxa.body)
+                    }
+                    .foregroundColor(historyManager.entries.isEmpty ? Color.Voxa.textTertiary : Color.Voxa.error)
+                    .padding(.horizontal, Spacing.md)
+                    .padding(.vertical, Spacing.sm)
+                    .background(historyManager.entries.isEmpty ? Color.Voxa.border.opacity(0.3) : Color.Voxa.errorLight)
+                    .cornerRadius(CornerRadius.small)
+                }
+                .buttonStyle(PlainButtonStyle())
+                .disabled(historyManager.entries.isEmpty)
+
+                // Reset to defaults button
+                Button(action: {
+                    historyManager.resetToDefaults()
+                    ToastManager.shared.showSuccess("Defaults Restored", message: "Settings reset to defaults")
+                }) {
+                    HStack(spacing: Spacing.sm) {
+                        Image(systemName: "arrow.counterclockwise")
+                            .font(.system(size: 14, weight: .medium))
+                        Text("Reset Defaults")
+                            .font(Font.Voxa.body)
+                    }
+                    .foregroundColor(Color.Voxa.textSecondary)
+                    .padding(.horizontal, Spacing.md)
+                    .padding(.vertical, Spacing.sm)
+                    .background(Color.Voxa.surface)
+                    .cornerRadius(CornerRadius.small)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: CornerRadius.small)
+                            .stroke(Color.Voxa.border, lineWidth: 1)
+                    )
+                }
+                .buttonStyle(PlainButtonStyle())
+
+                Spacer()
+            }
+        }
+    }
+
+    // MARK: - Helper Methods
+
+    @MainActor
+    private func insertEntry(_ entry: ClipboardHistoryEntry) async {
+        let result = await textInserter.insertText(entry.text)
+        switch result {
+        case .success:
+            ToastManager.shared.showSuccess("Inserted", message: "Transcription inserted")
+        case .noAccessibilityPermission:
+            ToastManager.shared.showError("Permission Required", message: "Accessibility permission required")
+        case .insertionFailed(let message):
+            ToastManager.shared.showError("Insertion Failed", message: message)
+        case .fallbackToManualPaste:
+            ToastManager.shared.showInfo("Manual Paste", message: "Text copied - press Cmd+V to paste")
+        }
+    }
+}
+
+// MARK: - Clipboard History Entry Card (US-030)
+
+/// Card component for individual clipboard history entries
+struct ClipboardHistoryEntryCard: View {
+    let entry: ClipboardHistoryEntry
+    let searchQuery: String
+    let onCopy: () -> Void
+    let onInsert: () -> Void
+    let onDelete: () -> Void
+
+    @State private var isHovered = false
+    @State private var isExpanded = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            // Header row with timestamp and actions
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    Text(entry.formattedTimestamp)
+                        .font(Font.Voxa.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(Color.Voxa.textPrimary)
+
+                    HStack(spacing: Spacing.sm) {
+                        Label("\(entry.wordCount) words", systemImage: "text.word.spacing")
+                            .font(Font.Voxa.small)
+                            .foregroundColor(Color.Voxa.textTertiary)
+
+                        Label("\(entry.characterCount) chars", systemImage: "character")
+                            .font(Font.Voxa.small)
+                            .foregroundColor(Color.Voxa.textTertiary)
+                    }
+                }
+
+                Spacer()
+
+                // Action buttons
+                HStack(spacing: Spacing.sm) {
+                    // Copy button
+                    Button(action: onCopy) {
+                        Image(systemName: "doc.on.doc")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(Color.Voxa.textSecondary)
+                            .frame(width: 26, height: 26)
+                            .background(Color.Voxa.surfaceSecondary)
+                            .cornerRadius(CornerRadius.small)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .help("Copy to clipboard")
+
+                    // Insert button
+                    Button(action: onInsert) {
+                        Image(systemName: "text.insert")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(Color.Voxa.accent)
+                            .frame(width: 26, height: 26)
+                            .background(Color.Voxa.accentLight)
+                            .cornerRadius(CornerRadius.small)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .help("Insert text")
+
+                    // Delete button
+                    Button(action: onDelete) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(Color.Voxa.error)
+                            .frame(width: 26, height: 26)
+                            .background(Color.Voxa.errorLight)
+                            .cornerRadius(CornerRadius.small)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .help("Delete entry")
+
+                    // Expand/collapse button
+                    Button(action: {
+                        withAnimation(VoxaAnimation.quick) {
+                            isExpanded.toggle()
+                        }
+                    }) {
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(Color.Voxa.textTertiary)
+                            .frame(width: 26, height: 26)
+                            .background(Color.Voxa.surfaceSecondary)
+                            .cornerRadius(CornerRadius.small)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .help(isExpanded ? "Collapse" : "Expand")
+                }
+                .opacity(isHovered || isExpanded ? 1 : 0.6)
+            }
+
+            // Text preview/full content
+            Text(isExpanded ? entry.text : entry.preview)
+                .font(Font.Voxa.body)
+                .foregroundColor(Color.Voxa.textSecondary)
+                .lineLimit(isExpanded ? nil : 2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(Spacing.md)
+        .background(isHovered ? Color.Voxa.surfaceSecondary : Color.Voxa.surface)
+        .cornerRadius(CornerRadius.medium)
+        .overlay(
+            RoundedRectangle(cornerRadius: CornerRadius.medium)
+                .stroke(isHovered ? Color.Voxa.accent.opacity(0.3) : Color.Voxa.border, lineWidth: 1)
+        )
+        .onHover { hovering in
+            withAnimation(VoxaAnimation.quick) {
+                isHovered = hovering
+            }
+        }
+        .contentShape(Rectangle())
     }
 }
 

@@ -23,7 +23,10 @@ final class StatusBarController: NSObject {
     
     // Callback for opening main window (US-632)
     var onOpenMainWindow: (() -> Void)?
-    
+
+    // US-030: Callback for opening clipboard history
+    var onOpenClipboardHistory: (() -> Void)?
+
     // Reference to audio manager for device selection
     weak var audioManager: AudioManager?
     
@@ -109,7 +112,13 @@ final class StatusBarController: NSObject {
         settingsItem.target = self
         settingsItem.image = createMenuIcon(systemName: "gearshape", tint: NSColor.Voxa.textSecondary)
         menu.addItem(settingsItem)
-        
+
+        // US-030: Clipboard History item
+        let clipboardHistoryItem = NSMenuItem(title: "Clipboard History", action: #selector(openClipboardHistory), keyEquivalent: "h")
+        clipboardHistoryItem.target = self
+        clipboardHistoryItem.image = createMenuIcon(systemName: "clock.arrow.circlepath", tint: NSColor.Voxa.textSecondary)
+        menu.addItem(clipboardHistoryItem)
+
         menu.addItem(NSMenuItem.separator())
         
         // Audio Input Device submenu with speaker icon
@@ -553,7 +562,13 @@ final class StatusBarController: NSObject {
         print("Settings clicked - opening main window with Settings tab")
         onOpenSettings?()
     }
-    
+
+    /// US-030: Open the clipboard history section
+    @objc private func openClipboardHistory() {
+        print("Clipboard History clicked - opening main window with History tab")
+        onOpenClipboardHistory?()
+    }
+
     /// US-632: Open the main application window
     @objc private func openMainWindow() {
         print("Open Voxa clicked - opening main window")
