@@ -33,6 +33,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // US-051: Track startup timing for optimization
     private var startupStartTime: CFAbsoluteTime = 0
 
+    // US-054: App Nap activity token to prevent App Nap during recording
+    private var appNapActivity: NSObjectProtocol?
+
+    // US-054: Track idle state for battery optimization
+    private var isAppIdle: Bool = true
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         // US-051: Start timing app startup
         startupStartTime = CFAbsoluteTimeGetCurrent()
@@ -143,13 +149,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         // Stop any active recording
         audioManager?.cancelCapturing()
-        
+
         // Stop the hotkey manager
         hotkeyManager?.stop()
-        
+
         // Hide the recording indicator if visible
         recordingIndicator?.orderOut(nil)
-        
+
+        // US-054: End any active App Nap prevention
+        if let activity = appNapActivity {
+            ProcessInfo.processInfo.endActivity(activity)
+            appNapActivity = nil
+        }
+
         print("Voxa shutting down")
     }
     
@@ -619,6 +631,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // US-053: Set up memory pressure observer
         setupMemoryPressureObserver()
+
+        // US-054: Initialize battery efficiency manager for adaptive power management
+        _ = BatteryEfficiencyManager.shared
+        print("US-054: Battery efficiency manager initialized")
     }
 
     // MARK: - US-053: Memory Pressure Handling
@@ -1045,9 +1061,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func handleRecordingStateChange(_ state: RecordingState) {
         // US-802: Post notification so Start Recording button can update its state
         NotificationCenter.default.post(name: .recordingStateChanged, object: state)
-        
+
+        // US-054: Manage App Nap based on recording state
+        updateAppNapState(for: state)
+
         switch state {
         case .idle:
+            // US-054: Mark app as idle for battery optimization
+            isAppIdle = true
+
             // Disconnect audio level meter
             recordingIndicator?.disconnectAudioManager()
             
@@ -1128,14 +1150,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             
         case .recording:
+            // US-054: Mark app as active (not idle) during recording
+            isAppIdle = false
+
             // Connect audio level meter to audio manager for real-time updates
             if let audio = audioManager {
                 recordingIndicator?.connectAudioManager(audio)
             }
-            
+
             // Show the recording indicator
             recordingIndicator?.showWithAnimation()
-            
+
             // Start audio capture
             do {
                 try audioManager?.startCapturing()
@@ -1157,6 +1182,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
 
         case .processing:
+            // US-054: Mark app as active during processing
+            isAppIdle = false
             // US-034: Processing state - menu bar icon shows processing animation
             // The processing state is managed by StatusBarController, no additional action needed here
             print("Processing transcription...")
@@ -1165,6 +1192,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // US-034: Error state - menu bar icon shows error indicator
             // The error state is managed by StatusBarController, no additional action needed here
             print("Error state active")
+        }
+    }
+
+    // MARK: - US-054: App Nap Management
+
+    /// Update App Nap state based on recording activity
+    /// Prevents App Nap during recording/processing to ensure reliable audio capture
+    private func updateAppNapState(for state: RecordingState) {
+        switch state {
+        case .recording, .processing:
+            // Disable App Nap during recording and processing
+            if appNapActivity == nil {
+                appNapActivity = ProcessInfo.processInfo.beginActivity(
+                    options: [.userInitiated, .latencyCritical],
+                    reason: "Voxa is recording or processing audio"
+                )
+                print("US-054: App Nap disabled for \(state.rawValue)")
+            }
+
+        case .idle, .error:
+            // Re-enable App Nap when idle or in error state
+            if let activity = appNapActivity {
+                ProcessInfo.processInfo.endActivity(activity)
+                appNapActivity = nil
+                print("US-054: App Nap re-enabled")
+            }
         }
     }
     

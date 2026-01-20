@@ -6,11 +6,11 @@ import Combine
 final class StatusBarController: NSObject {
     private var statusItem: NSStatusItem?
     private var recordingState: RecordingState = .idle
-    
+
     // Model status observation
     private var modelStatusObserver: AnyCancellable?
     private var currentModelStatus: WhisperManager.ModelStatus = .notDownloaded
-    
+
     // Animation timer for recording pulse effect
     private var pulseTimer: Timer?
     private var pulsePhase: CGFloat = 0
@@ -18,6 +18,9 @@ final class StatusBarController: NSObject {
     // US-034: Animation timer for processing state
     private var processingTimer: Timer?
     private var processingPhase: CGFloat = 0
+
+    // US-054: Battery optimization observer
+    private var batteryOptimizationObserver: NSObjectProtocol?
 
     // Callback for when recording state changes
     var onRecordingStateChanged: ((RecordingState) -> Void)?
@@ -54,6 +57,35 @@ final class StatusBarController: NSObject {
     override init() {
         super.init()
         setupStatusItem()
+        setupBatteryOptimizationObserver()
+    }
+
+    // MARK: - US-054: Battery Optimization
+
+    private func setupBatteryOptimizationObserver() {
+        batteryOptimizationObserver = NotificationCenter.default.addObserver(
+            forName: .batteryOptimizationStateChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            // Restart active animations with new intervals when battery state changes
+            self?.restartActiveAnimationsWithNewIntervals()
+        }
+    }
+
+    /// Restart any active animations with updated intervals based on battery state
+    private func restartActiveAnimationsWithNewIntervals() {
+        // If pulse animation is running, restart it with new interval
+        if pulseTimer != nil {
+            stopPulseAnimation()
+            startPulseAnimation()
+        }
+
+        // If processing animation is running, restart it with new interval
+        if processingTimer != nil {
+            stopProcessingAnimation()
+            startProcessingAnimation()
+        }
     }
     
     deinit {
@@ -64,6 +96,10 @@ final class StatusBarController: NSObject {
         modelStatusObserver = nil
         hotkeyModeObservers.forEach { $0.cancel() }
         hotkeyModeObservers.removeAll()
+        // US-054: Remove battery optimization observer
+        if let observer = batteryOptimizationObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
     }
     
     // MARK: - Setup
@@ -564,14 +600,19 @@ final class StatusBarController: NSObject {
     // MARK: - Pulse Animation for Recording State
     
     /// Start the pulsing glow animation for recording state
+    /// US-054: Uses battery-efficient intervals when on battery or Low Power Mode
     private func startPulseAnimation() {
         // Don't start if already running
         guard pulseTimer == nil else { return }
-        
+
         pulsePhase = 0
-        pulseTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
+        // US-054: Use BatteryEfficiencyManager for adaptive animation interval
+        let interval = BatteryEfficiencyManager.shared.animationInterval
+        pulseTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             self?.updatePulseEffect()
         }
+        // US-054: Allow timer coalescing for better battery efficiency
+        pulseTimer?.tolerance = interval * 0.2
     }
     
     /// Stop the pulsing animation
@@ -623,14 +664,19 @@ final class StatusBarController: NSObject {
     // MARK: - US-034: Processing Animation
 
     /// Start the processing animation (subtle opacity oscillation)
+    /// US-054: Uses battery-efficient intervals when on battery or Low Power Mode
     private func startProcessingAnimation() {
         // Don't start if already running
         guard processingTimer == nil else { return }
 
         processingPhase = 0
-        processingTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
+        // US-054: Use BatteryEfficiencyManager for adaptive animation interval
+        let interval = BatteryEfficiencyManager.shared.animationInterval
+        processingTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             self?.updateProcessingEffect()
         }
+        // US-054: Allow timer coalescing for better battery efficiency
+        processingTimer?.tolerance = interval * 0.2
     }
 
     /// Stop the processing animation

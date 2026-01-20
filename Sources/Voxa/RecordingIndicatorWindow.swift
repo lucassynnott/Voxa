@@ -25,10 +25,13 @@ final class RecordingIndicatorWindow: NSPanel {
     /// Recording duration timer
     private var durationTimer: Timer?
     private var recordingStartTime: Date?
-    
+
     /// Pulse animation for recording dot
     private var pulseTimer: Timer?
     private var pulsePhase: CGFloat = 0
+
+    // US-054: Battery optimization observer
+    private var batteryOptimizationObserver: NSObjectProtocol?
     
     // MARK: - Configuration
     
@@ -55,9 +58,32 @@ final class RecordingIndicatorWindow: NSPanel {
             backing: .buffered,
             defer: false
         )
-        
+
         setupWindow()
         setupUI()
+        setupBatteryOptimizationObserver()
+    }
+
+    // MARK: - US-054: Battery Optimization
+
+    private func setupBatteryOptimizationObserver() {
+        batteryOptimizationObserver = NotificationCenter.default.addObserver(
+            forName: .batteryOptimizationStateChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            // Restart active animations with new intervals when battery state changes
+            self?.restartActiveAnimationsWithNewIntervals()
+        }
+    }
+
+    /// Restart any active animations with updated intervals based on battery state
+    private func restartActiveAnimationsWithNewIntervals() {
+        // If pulse animation is running, restart it with new interval
+        if pulseTimer != nil {
+            stopPulsingAnimation()
+            startPulsingAnimation()
+        }
     }
     
     // MARK: - Setup
@@ -237,26 +263,32 @@ final class RecordingIndicatorWindow: NSPanel {
     private func startPulsingAnimation() {
         // Stop any existing animation
         stopPulsingAnimation()
-        
+
+        // US-054: Use battery-efficient pulse animation interval
+        let interval = BatteryEfficiencyManager.shared.pulseAnimationInterval
         // Gentle pulse animation using timer for smooth coral dot pulsing
-        pulseTimer = Timer.scheduledTimer(withTimeInterval: 0.03, repeats: true) { [weak self] _ in
+        pulseTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             guard let self = self else { return }
-            self.pulsePhase += 0.05
+            // US-054: Adjust phase increment based on interval to maintain consistent animation speed
+            let phaseIncrement = 0.05 * (0.03 / interval)
+            self.pulsePhase += phaseIncrement
             if self.pulsePhase > CGFloat.pi * 2 {
                 self.pulsePhase -= CGFloat.pi * 2
             }
-            
+
             // Pulse opacity between 0.6 and 1.0
             let opacity = 0.8 + 0.2 * sin(self.pulsePhase)
-            
+
             // Pulse scale between 0.9 and 1.1
             let scale = 1.0 + 0.1 * sin(self.pulsePhase)
-            
+
             DispatchQueue.main.async {
                 self.recordingDot.layer?.opacity = Float(opacity)
                 self.recordingDot.layer?.transform = CATransform3DMakeScale(scale, scale, 1.0)
             }
         }
+        // US-054: Allow timer coalescing for better battery efficiency
+        pulseTimer?.tolerance = interval * 0.2
     }
     
     private func stopPulsingAnimation() {
@@ -391,6 +423,10 @@ final class RecordingIndicatorWindow: NSPanel {
         stopPulsingAnimation()
         stopDurationTimer()
         audioLevelCancellable?.cancel()
+        // US-054: Remove battery optimization observer
+        if let observer = batteryOptimizationObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
     }
     
     // MARK: - Window Behavior Overrides
@@ -409,22 +445,25 @@ final class RecordingIndicatorWindow: NSPanel {
 /// Smooth, animated waveform visualization that responds to audio level in real-time
 /// Creates an elegant, flowing wave effect instead of harsh bars
 final class LiveWaveformView: NSView {
-    
+
     /// Number of wave points to render
     private let wavePointCount = 20
-    
+
     /// Current audio level (0-1)
     private var currentLevel: CGFloat = 0
-    
+
     /// Wave phase for animation
     private var wavePhase: CGFloat = 0
-    
+
     /// Animation timer
     private var animationTimer: Timer?
-    
+
     /// Wave shape layer
     private let waveLayer = CAShapeLayer()
-    
+
+    // US-054: Battery optimization observer
+    private var batteryOptimizationObserver: NSObjectProtocol?
+
     private struct Constants {
         static let minDB: Float = -60.0
         static let maxDB: Float = 0.0
@@ -444,7 +483,7 @@ final class LiveWaveformView: NSView {
     private func setupView() {
         wantsLayer = true
         layer?.masksToBounds = true
-        
+
         // Configure wave layer
         waveLayer.fillColor = NSColor.Voxa.accent.withAlphaComponent(0.4).cgColor
         waveLayer.strokeColor = NSColor.Voxa.accent.cgColor
@@ -452,15 +491,42 @@ final class LiveWaveformView: NSView {
         waveLayer.lineCap = .round
         waveLayer.lineJoin = .round
         layer?.addSublayer(waveLayer)
-        
+
         // Start animation loop
         startAnimation()
+
+        // US-054: Set up battery optimization observer
+        setupBatteryOptimizationObserver()
+    }
+
+    // MARK: - US-054: Battery Optimization
+
+    private func setupBatteryOptimizationObserver() {
+        batteryOptimizationObserver = NotificationCenter.default.addObserver(
+            forName: .batteryOptimizationStateChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            // Restart animation with new interval when battery state changes
+            self?.restartAnimationWithNewInterval()
+        }
+    }
+
+    private func restartAnimationWithNewInterval() {
+        if animationTimer != nil {
+            stopAnimation()
+            startAnimation()
+        }
     }
     
     private func startAnimation() {
-        animationTimer = Timer.scheduledTimer(withTimeInterval: 1.0/30.0, repeats: true) { [weak self] _ in
+        // US-054: Use battery-efficient waveform animation interval
+        let interval = BatteryEfficiencyManager.shared.waveformAnimationInterval
+        animationTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             self?.updateWave()
         }
+        // US-054: Allow timer coalescing for better battery efficiency
+        animationTimer?.tolerance = interval * 0.2
     }
     
     private func stopAnimation() {
@@ -574,6 +640,10 @@ final class LiveWaveformView: NSView {
     
     deinit {
         stopAnimation()
+        // US-054: Remove battery optimization observer
+        if let observer = batteryOptimizationObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
     }
 }
 
