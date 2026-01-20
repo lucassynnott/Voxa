@@ -9,53 +9,69 @@ import UniformTypeIdentifiers
 final class DebugManager: ObservableObject {
     
     // MARK: - Types
-    
-    /// US-707: Log level for debug output filtering
+
+    /// US-046: Log level for debug output filtering
     enum LogLevel: String, CaseIterable, Identifiable {
         case verbose = "Verbose"
+        case debug = "Debug"
         case info = "Info"
         case warning = "Warning"
         case error = "Error"
-        
+
         var id: String { rawValue }
-        
+
         /// Icon for this log level
         var icon: String {
             switch self {
             case .verbose: return "text.alignleft"
+            case .debug: return "ladybug"
             case .info: return "info.circle"
             case .warning: return "exclamationmark.triangle"
             case .error: return "xmark.circle"
             }
         }
-        
+
         /// Color for this log level
         var colorName: String {
             switch self {
             case .verbose: return "textTertiary"
+            case .debug: return "textSecondary"
             case .info: return "info"
             case .warning: return "warning"
             case .error: return "error"
             }
         }
-        
+
         /// Description for this log level
         var description: String {
             switch self {
             case .verbose: return "All debug output including detailed traces"
+            case .debug: return "Debug information and diagnostics"
             case .info: return "General information and progress messages"
             case .warning: return "Warnings and potential issues"
             case .error: return "Errors and critical failures only"
             }
         }
-        
+
         /// Numeric priority (lower = more verbose)
         var priority: Int {
             switch self {
             case .verbose: return 0
-            case .info: return 1
-            case .warning: return 2
-            case .error: return 3
+            case .debug: return 1
+            case .info: return 2
+            case .warning: return 3
+            case .error: return 4
+            }
+        }
+
+        /// Short prefix for log file entries
+        var prefix: String {
+            switch self {
+            case .verbose: return "VERBOSE"
+            case .debug: return "DEBUG"
+            case .info: return "INFO"
+            case .warning: return "WARN"
+            case .error: return "ERROR"
             }
         }
     }
@@ -65,15 +81,34 @@ final class DebugManager: ObservableObject {
         let id = UUID()
         let timestamp: Date
         let category: Category
+        let level: LogLevel
         let message: String
         let details: String?
-        
+
+        /// US-046: Initialize with default info level for backwards compatibility
+        init(timestamp: Date, category: Category, message: String, details: String? = nil) {
+            self.timestamp = timestamp
+            self.category = category
+            self.level = .info
+            self.message = message
+            self.details = details
+        }
+
+        /// US-046: Initialize with explicit log level
+        init(timestamp: Date, category: Category, level: LogLevel, message: String, details: String? = nil) {
+            self.timestamp = timestamp
+            self.category = category
+            self.level = level
+            self.message = message
+            self.details = details
+        }
+
         enum Category: String {
             case audio = "Audio"
             case transcription = "Transcription"
             case model = "Model"
             case system = "System"
-            
+
             var icon: String {
                 switch self {
                 case .audio: return "waveform"
@@ -177,14 +212,32 @@ final class DebugManager: ObservableObject {
     }
     
     // MARK: - Constants
-    
+
     private struct Constants {
         static let debugModeKey = "debugModeEnabled"
         static let silenceDetectionDisabledKey = "silenceDetectionDisabled"
         static let autoSaveRecordingsKey = "autoSaveRecordingsEnabled"
-        static let logLevelKey = "debugLogLevel"  // US-707
+        static let logLevelKey = "debugLogLevel"
+        static let fileLoggingEnabledKey = "debugFileLoggingEnabled"  // US-046
         static let maxLogEntries = 500
+        static let maxLogFileSizeBytes = 10 * 1024 * 1024  // 10 MB max log file size
     }
+
+    // MARK: - US-046: Sensitive Data Patterns
+
+    /// Patterns that should be redacted from logs to protect sensitive data
+    private static let sensitivePatterns: [(pattern: String, replacement: String)] = [
+        // API keys and tokens
+        ("(api[_-]?key|apikey|token|secret|password|credential)[\\s]*[:=][\\s]*[\"']?[A-Za-z0-9_\\-\\.]+[\"']?", "$1=[REDACTED]"),
+        // Email addresses
+        ("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}", "[EMAIL_REDACTED]"),
+        // File paths that might contain usernames (but keep the filename)
+        ("/Users/[^/]+/", "/Users/[USER]/"),
+        // Bearer tokens
+        ("Bearer\\s+[A-Za-z0-9_\\-\\.]+", "Bearer [REDACTED]"),
+        // Common secret patterns
+        ("(sk|pk|key)[_-][a-zA-Z0-9]{20,}", "[API_KEY_REDACTED]"),
+    ]
     
     // MARK: - Singleton
     
@@ -232,27 +285,50 @@ final class DebugManager: ObservableObject {
         }
     }
     
-    /// US-707: Selected log level for filtering debug output
+    /// US-046: Selected log level for filtering debug output
     @Published var selectedLogLevel: LogLevel {
         didSet {
             UserDefaults.standard.set(selectedLogLevel.rawValue, forKey: Constants.logLevelKey)
             addLogEntry(category: .system, message: "Log level changed to \(selectedLogLevel.rawValue)")
         }
     }
-    
+
+    /// US-046: Whether file logging is enabled
+    @Published var isFileLoggingEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(isFileLoggingEnabled, forKey: Constants.fileLoggingEnabledKey)
+            if isFileLoggingEnabled {
+                addLogEntry(category: .system, message: "File logging enabled (\(logFileURL.path))")
+            } else {
+                addLogEntry(category: .system, message: "File logging disabled")
+            }
+        }
+    }
+
     /// Log entries for the debug window
     @Published private(set) var logEntries: [LogEntry] = []
-    
+
     /// Last recorded audio data for waveform visualization
     @Published private(set) var lastAudioData: AudioDebugData?
-    
+
     /// Last transcription data for raw vs cleaned comparison
     @Published private(set) var lastTranscriptionData: TranscriptionDebugData?
-    
+
     /// Raw audio data for WAV export
     private(set) var lastRawAudioData: Data?
     private(set) var lastRawAudioSampleRate: Double = 16000.0
-    
+
+    // MARK: - US-046: File Logging Properties
+
+    /// URL for the debug log file
+    private let logFileURL: URL
+
+    /// Queue for async file writes
+    private let fileWriteQueue = DispatchQueue(label: "com.voxa.debuglogger.filewrite", qos: .utility)
+
+    /// File manager instance
+    private let fileManager = FileManager.default
+
     /// Date formatter for log entries
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -261,53 +337,176 @@ final class DebugManager: ObservableObject {
     }()
     
     // MARK: - Initialization
-    
+
     private init() {
+        // US-046: Set up log file path
+        let homeDirectory = fileManager.homeDirectoryForCurrentUser
+        let ralphDirectory = homeDirectory.appendingPathComponent(".ralph", isDirectory: true)
+        logFileURL = ralphDirectory.appendingPathComponent("debug.log")
+
+        // Create directory if it doesn't exist
+        if !fileManager.fileExists(atPath: ralphDirectory.path) {
+            try? fileManager.createDirectory(at: ralphDirectory, withIntermediateDirectories: true)
+        }
+
+        // Load settings from UserDefaults
         isDebugModeEnabled = UserDefaults.standard.bool(forKey: Constants.debugModeKey)
         isSilenceDetectionDisabled = UserDefaults.standard.bool(forKey: Constants.silenceDetectionDisabledKey)
         isAutoSaveEnabled = UserDefaults.standard.bool(forKey: Constants.autoSaveRecordingsKey)
-        
-        // US-707: Load log level from UserDefaults
+        isFileLoggingEnabled = UserDefaults.standard.bool(forKey: Constants.fileLoggingEnabledKey)
+
+        // US-046: Load log level from UserDefaults
         if let logLevelString = UserDefaults.standard.string(forKey: Constants.logLevelKey),
            let logLevel = LogLevel(rawValue: logLevelString) {
             selectedLogLevel = logLevel
         } else {
             selectedLogLevel = .info
         }
-        
+
         // Add initial log entry
-        addLogEntry(category: .system, message: "Debug manager initialized")
+        addLogEntry(category: .system, level: .info, message: "Debug manager initialized")
     }
-    
+
     // MARK: - Log Management
-    
-    /// Add a log entry
-    func addLogEntry(category: LogEntry.Category, message: String, details: String? = nil) {
+
+    /// US-046: Add a log entry with explicit log level
+    /// - Parameters:
+    ///   - category: The category of the log entry
+    ///   - level: The verbosity level of this log entry
+    ///   - message: The log message
+    ///   - details: Optional additional details
+    func addLogEntry(category: LogEntry.Category, level: LogLevel = .info, message: String, details: String? = nil) {
+        // US-046: Filter by log level - only log if this entry's level meets or exceeds the threshold
+        guard level.priority >= selectedLogLevel.priority else { return }
+
         let entry = LogEntry(
             timestamp: Date(),
             category: category,
+            level: level,
             message: message,
             details: details
         )
-        
+
         logEntries.append(entry)
-        
+
         // Trim old entries if needed
         if logEntries.count > Constants.maxLogEntries {
             logEntries.removeFirst(logEntries.count - Constants.maxLogEntries)
         }
-        
+
         // Also log to console
-        print("[Debug] [\(category.rawValue)] \(message)")
+        print("[Debug] [\(level.prefix)] [\(category.rawValue)] \(message)")
         if let details = details {
             print("        Details: \(details)")
         }
+
+        // US-046: Write to file if file logging is enabled
+        if isFileLoggingEnabled {
+            writeToFile(entry: entry)
+        }
     }
-    
+
     /// Clear all log entries
     func clearLog() {
         logEntries.removeAll()
-        addLogEntry(category: .system, message: "Log cleared")
+        addLogEntry(category: .system, level: .info, message: "Log cleared")
+    }
+
+    // MARK: - US-046: File Logging
+
+    /// Write a log entry to the debug log file
+    private func writeToFile(entry: LogEntry) {
+        // Prepare data on main thread
+        let timestamp = ISO8601DateFormatter().string(from: entry.timestamp)
+        let redactedMessage = redactSensitiveData(entry.message)
+        let redactedDetails = entry.details.map { redactSensitiveData($0) }
+        let logFileURLCopy = logFileURL
+        let maxSize = Constants.maxLogFileSizeBytes
+
+        fileWriteQueue.async {
+            // Format the log entry with sensitive data redacted
+            var logLine = "[\(timestamp)] [\(entry.level.prefix)] [\(entry.category.rawValue)] \(redactedMessage)"
+            if let details = redactedDetails {
+                logLine += "\n  Details: \(details)"
+            }
+            logLine += "\n"
+
+            // Rotate log file if needed
+            Self.rotateLogFileIfNeeded(at: logFileURLCopy, maxSize: maxSize)
+
+            // Append to file
+            Self.appendToLogFile(logLine, at: logFileURLCopy)
+        }
+    }
+
+    /// Append a string to the log file (nonisolated for async file operations)
+    private nonisolated static func appendToLogFile(_ content: String, at logFileURL: URL) {
+        guard let data = content.data(using: .utf8) else { return }
+        let fileManager = FileManager.default
+
+        if fileManager.fileExists(atPath: logFileURL.path) {
+            // Append to existing file
+            if let fileHandle = try? FileHandle(forWritingTo: logFileURL) {
+                fileHandle.seekToEndOfFile()
+                fileHandle.write(data)
+                try? fileHandle.close()
+            }
+        } else {
+            // Create new file with header
+            let header = """
+            # Voxa Debug Log
+            # Format: [timestamp] [level] [category] message
+            # Log levels: VERBOSE, DEBUG, INFO, WARN, ERROR
+            # Sensitive data is automatically redacted
+            #
+
+            """
+            let initialData = (header + content).data(using: .utf8)
+            fileManager.createFile(atPath: logFileURL.path, contents: initialData)
+        }
+    }
+
+    /// Rotate log file if it exceeds the maximum size (nonisolated for async file operations)
+    private nonisolated static func rotateLogFileIfNeeded(at logFileURL: URL, maxSize: Int) {
+        let fileManager = FileManager.default
+        guard let attributes = try? fileManager.attributesOfItem(atPath: logFileURL.path),
+              let fileSize = attributes[.size] as? Int,
+              fileSize > maxSize else {
+            return
+        }
+
+        // Rename current log to .old and start fresh
+        let oldLogURL = logFileURL.deletingPathExtension().appendingPathExtension("old.log")
+        try? fileManager.removeItem(at: oldLogURL)
+        try? fileManager.moveItem(at: logFileURL, to: oldLogURL)
+    }
+
+    /// US-046: Redact sensitive data from a string
+    /// - Parameter text: The text to redact
+    /// - Returns: The text with sensitive data replaced by placeholders
+    private func redactSensitiveData(_ text: String) -> String {
+        var result = text
+        for (pattern, replacement) in Self.sensitivePatterns {
+            if let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) {
+                let range = NSRange(result.startIndex..., in: result)
+                result = regex.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: replacement)
+            }
+        }
+        return result
+    }
+
+    /// US-046: Get the path to the debug log file
+    var debugLogFilePath: String {
+        return logFileURL.path
+    }
+
+    /// US-046: Clear the debug log file
+    func clearLogFile() {
+        let logFileURLCopy = logFileURL
+        fileWriteQueue.async {
+            try? FileManager.default.removeItem(at: logFileURLCopy)
+        }
+        addLogEntry(category: .system, level: .info, message: "Log file cleared")
     }
     
     // MARK: - Audio Debug Data
@@ -355,72 +554,104 @@ final class DebugManager: ObservableObject {
         
         addLogEntry(
             category: .audio,
+            level: .debug,
             message: "Audio captured: \(String(format: "%.2f", duration))s",
             details: "Peak: \(String(format: "%.1f", peakDb))dB, RMS: \(String(format: "%.1f", rmsDb))dB, Samples: \(samples.count)"
         )
     }
-    
+
     // MARK: - Transcription Debug Data
-    
+
     /// Store transcription data for debug comparison
     func storeTranscriptionData(raw: String, cleaned: String, processingTime: TimeInterval, model: String) {
         guard isDebugModeEnabled else { return }
-        
+
         lastTranscriptionData = TranscriptionDebugData(
             rawText: raw,
             cleanedText: cleaned,
             processingTime: processingTime,
             modelUsed: model
         )
-        
+
         addLogEntry(
             category: .transcription,
+            level: .info,
             message: "Transcription complete in \(String(format: "%.2f", processingTime))s",
             details: "Model: \(model)\nRaw: \(raw.prefix(100))\(raw.count > 100 ? "..." : "")"
         )
     }
-    
+
     /// Log raw transcription result (before cleanup)
     func logRawTranscription(_ text: String, model: String) {
         guard isDebugModeEnabled else { return }
-        
+
         addLogEntry(
             category: .transcription,
+            level: .verbose,
             message: "Raw transcription (before cleanup)",
             details: "Model: \(model)\nText: \(text)"
         )
     }
-    
+
     /// Log cleaned transcription result
     func logCleanedTranscription(_ text: String, mode: String) {
         guard isDebugModeEnabled else { return }
-        
+
         addLogEntry(
             category: .transcription,
+            level: .verbose,
             message: "Cleaned transcription",
             details: "Mode: \(mode)\nText: \(text)"
         )
     }
-    
+
     // MARK: - Model Debug
-    
+
     /// Log model status change
     func logModelStatus(_ status: String, model: String) {
         guard isDebugModeEnabled else { return }
-        
+
         addLogEntry(
             category: .model,
+            level: .info,
             message: status,
             details: "Model: \(model)"
         )
     }
-    
+
+    // MARK: - US-046: Convenience Logging Methods
+
+    /// Log a verbose message (most detailed)
+    func verbose(_ message: String, category: LogEntry.Category = .system, details: String? = nil) {
+        addLogEntry(category: category, level: .verbose, message: message, details: details)
+    }
+
+    /// Log a debug message
+    func debug(_ message: String, category: LogEntry.Category = .system, details: String? = nil) {
+        addLogEntry(category: category, level: .debug, message: message, details: details)
+    }
+
+    /// Log an info message
+    func info(_ message: String, category: LogEntry.Category = .system, details: String? = nil) {
+        addLogEntry(category: category, level: .info, message: message, details: details)
+    }
+
+    /// Log a warning message
+    func warning(_ message: String, category: LogEntry.Category = .system, details: String? = nil) {
+        addLogEntry(category: category, level: .warning, message: message, details: details)
+    }
+
+    /// Log an error message
+    func error(_ message: String, category: LogEntry.Category = .system, details: String? = nil) {
+        addLogEntry(category: category, level: .error, message: message, details: details)
+    }
+
     // MARK: - Formatted Log Output
-    
+
     /// Get formatted log output for display
     func formatLogEntry(_ entry: LogEntry) -> String {
         let time = dateFormatter.string(from: entry.timestamp)
-        var text = "[\(time)] [\(entry.category.rawValue)] \(entry.message)"
+        var text = "[\(time)] [\(entry.level.prefix)] [\(entry.category.rawValue)] \(entry.message)"
         if let details = entry.details {
             text += "\n  " + details.replacingOccurrences(of: "\n", with: "\n  ")
         }

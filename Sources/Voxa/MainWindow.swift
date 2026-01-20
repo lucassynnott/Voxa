@@ -10887,10 +10887,21 @@ struct DebugSettingsSummary: View {
                     description: "Each recording will be saved to Documents/Voxa/DebugRecordings/ for analysis.",
                     isOn: $debugManager.isAutoSaveEnabled
                 )
+
+                Divider()
+                    .background(Color.Voxa.border)
+
+                // US-046: File logging toggle
+                DebugSettingsToggleRow(
+                    icon: "doc.text",
+                    title: "Write Logs to File",
+                    description: "Logs are written to ~/.ralph/debug.log for field diagnostics. Sensitive data is automatically redacted.",
+                    isOn: $debugManager.isFileLoggingEnabled
+                )
             }
         }
     }
-    
+
     // MARK: - Log Level Section (US-707 Task 1)
     
     /// Log level selector
@@ -11374,10 +11385,11 @@ enum DebugLogLevel: String, CaseIterable, Identifiable {
 // MARK: - Debug Log Level Picker (US-707)
 
 /// Picker for selecting log verbosity level
-/// US-707 Task 1: Log level selection works
+/// US-046: Log level selection syncs with DebugManager
 struct DebugLogLevelPicker: View {
     @Binding var selectedLevel: DebugLogLevel
-    
+    @StateObject private var debugManager = DebugManager.shared
+
     var body: some View {
         VStack(spacing: Spacing.sm) {
             ForEach(DebugLogLevel.allCases) { level in
@@ -11387,8 +11399,12 @@ struct DebugLogLevelPicker: View {
                     onSelect: {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             selectedLevel = level
+                            // US-046: Sync with DebugManager
+                            if let managerLevel = DebugManager.LogLevel(rawValue: level.displayName) {
+                                debugManager.selectedLogLevel = managerLevel
+                            }
                         }
-                        print("[US-707] Log level selected: \(level.rawValue)")
+                        print("[US-046] Log level selected: \(level.rawValue)")
                     }
                 )
             }
