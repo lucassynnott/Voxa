@@ -13,10 +13,14 @@ final class HotkeyManager: ObservableObject {
     static let shared = HotkeyManager()
     
     // MARK: - Constants
-    
+
     private struct Constants {
         static let hotkeyKeyCodeKey = "hotkeyKeyCode"
         static let hotkeyModifiersKey = "hotkeyModifiers"
+        // US-015: Stop hotkey configuration keys
+        static let stopHotkeyKeyCodeKey = "stopHotkeyKeyCode"
+        static let stopHotkeyModifiersKey = "stopHotkeyModifiers"
+        static let useSameHotkeyForStopKey = "useSameHotkeyForStop"
     }
     
     // MARK: - US-512: System Shortcut Conflicts
@@ -321,27 +325,41 @@ final class HotkeyManager: ObservableObject {
     }
     
     // MARK: - Properties
-    
+
     /// CGEvent tap for global hotkey detection (US-510)
     private var eventTap: CFMachPort?
-    
+
     /// Run loop source for the event tap
     private var runLoopSource: CFRunLoopSource?
-    
-    /// Current hotkey configuration
+
+    /// Current hotkey configuration for start recording
     @Published private(set) var configuration: HotkeyConfiguration
-    
-    /// Callback triggered when the hotkey is pressed
+
+    /// US-015: Stop recording hotkey configuration (separate from start)
+    @Published private(set) var stopConfiguration: HotkeyConfiguration
+
+    /// US-015: Whether to use the same hotkey for both start and stop (toggle behavior)
+    @Published var useSameHotkeyForStop: Bool {
+        didSet {
+            saveStopConfiguration()
+            print("HotkeyManager: [US-015] useSameHotkeyForStop set to \(useSameHotkeyForStop)")
+        }
+    }
+
+    /// Callback triggered when the start hotkey is pressed
     var onHotkeyPressed: (() -> Void)?
-    
+
+    /// US-015: Callback triggered when the stop hotkey is pressed
+    var onStopHotkeyPressed: (() -> Void)?
+
     /// Callback triggered when accessibility permission is needed (US-510)
     var onAccessibilityPermissionNeeded: (() -> Void)?
-    
+
     /// Whether the event tap is currently active
     @Published private(set) var isActive: Bool = false
     
     // MARK: - Initialization
-    
+
     init(configuration: HotkeyConfiguration? = nil) {
         // Load saved configuration or use default
         if let saved = configuration {
@@ -349,7 +367,12 @@ final class HotkeyManager: ObservableObject {
         } else {
             self.configuration = Self.loadConfiguration()
         }
-        print("HotkeyManager: [US-510] Initialized with hotkey: \(self.configuration.displayString)")
+        // US-015: Load stop hotkey configuration
+        let (stopConfig, useSame) = Self.loadStopConfiguration()
+        self.stopConfiguration = stopConfig
+        self.useSameHotkeyForStop = useSame
+        print("HotkeyManager: [US-510] Initialized with start hotkey: \(self.configuration.displayString)")
+        print("HotkeyManager: [US-015] Stop hotkey: \(useSame ? "same as start" : self.stopConfiguration.displayString)")
     }
     
     // MARK: - Persistence
@@ -377,6 +400,40 @@ final class HotkeyManager: ObservableObject {
         defaults.set(Int(configuration.keyCode), forKey: Constants.hotkeyKeyCodeKey)
         defaults.set(Int(configuration.modifierFlags), forKey: Constants.hotkeyModifiersKey)
         print("HotkeyManager: [US-510] Saved hotkey configuration: \(configuration.displayString)")
+    }
+
+    // MARK: - US-015: Stop Hotkey Persistence
+
+    /// Load stop hotkey configuration from UserDefaults
+    private static func loadStopConfiguration() -> (HotkeyConfiguration, Bool) {
+        let defaults = UserDefaults.standard
+
+        // Check if we have the "use same hotkey" preference (defaults to true for toggle behavior)
+        let useSame = defaults.object(forKey: Constants.useSameHotkeyForStopKey) == nil
+            ? true
+            : defaults.bool(forKey: Constants.useSameHotkeyForStopKey)
+
+        // Check if we have saved stop hotkey values
+        if defaults.object(forKey: Constants.stopHotkeyKeyCodeKey) != nil {
+            let keyCode = UInt16(defaults.integer(forKey: Constants.stopHotkeyKeyCodeKey))
+            let modifiers = UInt(defaults.integer(forKey: Constants.stopHotkeyModifiersKey))
+            let config = HotkeyConfiguration(keyCode: keyCode, modifierFlags: modifiers)
+            print("HotkeyManager: [US-015] Loaded saved stop hotkey configuration: \(config.displayString)")
+            return (config, useSame)
+        }
+
+        // Default stop hotkey is same as start hotkey default
+        print("HotkeyManager: [US-015] Using default stop hotkey configuration")
+        return (.defaultHotkey, useSame)
+    }
+
+    /// Save stop hotkey configuration to UserDefaults
+    private func saveStopConfiguration() {
+        let defaults = UserDefaults.standard
+        defaults.set(Int(stopConfiguration.keyCode), forKey: Constants.stopHotkeyKeyCodeKey)
+        defaults.set(Int(stopConfiguration.modifierFlags), forKey: Constants.stopHotkeyModifiersKey)
+        defaults.set(useSameHotkeyForStop, forKey: Constants.useSameHotkeyForStopKey)
+        print("HotkeyManager: [US-015] Saved stop hotkey configuration: \(stopConfiguration.displayString), useSame: \(useSameHotkeyForStop)")
     }
     
     deinit {
@@ -476,15 +533,38 @@ final class HotkeyManager: ObservableObject {
             start()
         }
     }
-    
+
+    /// US-015: Update the stop hotkey configuration and save to UserDefaults
+    func updateStopConfiguration(_ newConfig: HotkeyConfiguration) {
+        stopConfiguration = newConfig
+        saveStopConfiguration()
+        print("HotkeyManager: [US-015] Stop hotkey updated to \(newConfig.displayString)")
+    }
+
     /// Reset hotkey to default and save
     func resetToDefault() {
         updateConfiguration(.defaultHotkey)
     }
-    
+
+    /// US-015: Reset stop hotkey to default and save
+    func resetStopToDefault() {
+        updateStopConfiguration(.defaultHotkey)
+        useSameHotkeyForStop = true
+    }
+
     /// Get current hotkey display string
     var hotkeyDisplayString: String {
         return configuration.displayString
+    }
+
+    /// US-015: Get current stop hotkey display string
+    var stopHotkeyDisplayString: String {
+        return useSameHotkeyForStop ? configuration.displayString : stopConfiguration.displayString
+    }
+
+    /// US-015: Get the effective stop configuration (either same as start or separate)
+    var effectiveStopConfiguration: HotkeyConfiguration {
+        return useSameHotkeyForStop ? configuration : stopConfiguration
     }
     
     /// Check if accessibility permission is granted (US-510)
@@ -527,32 +607,44 @@ final class HotkeyManager: ObservableObject {
         // Get modifier flags from the event (US-510: detect Command, Shift, Option, Control)
         let eventFlags = event.flags
         
-        // Check if this matches our configured hotkey
-        let configKeyCode = Int64(manager.configuration.keyCode)
-        let configFlags = manager.configuration.cgEventFlags
-        
-        // Compare key code
-        guard keyCode == configKeyCode else {
-            return Unmanaged.passUnretained(event)
-        }
-        
         // Compare modifier flags (mask out non-modifier flags like caps lock indicator)
         let modifierMask: CGEventFlags = [.maskCommand, .maskShift, .maskAlternate, .maskControl]
         let eventModifiers = eventFlags.intersection(modifierMask)
-        let configModifiers = configFlags.intersection(modifierMask)
-        
-        guard eventModifiers == configModifiers else {
+
+        // US-015: Check for start hotkey match
+        let startKeyCode = Int64(manager.configuration.keyCode)
+        let startModifiers = manager.configuration.cgEventFlags.intersection(modifierMask)
+
+        if keyCode == startKeyCode && eventModifiers == startModifiers {
+            // Start hotkey matched!
+            print("HotkeyManager: [US-510] Start hotkey detected: \(manager.configuration.displayString)")
+
+            // Call the callback on the main thread
+            DispatchQueue.main.async {
+                manager.onHotkeyPressed?()
+            }
+
             return Unmanaged.passUnretained(event)
         }
-        
-        // Hotkey matched! Trigger the callback
-        print("HotkeyManager: [US-510] Hotkey detected: \(manager.configuration.displayString)")
-        
-        // Call the callback on the main thread
-        DispatchQueue.main.async {
-            manager.onHotkeyPressed?()
+
+        // US-015: Check for stop hotkey match (only if using different hotkey)
+        if !manager.useSameHotkeyForStop {
+            let stopKeyCode = Int64(manager.stopConfiguration.keyCode)
+            let stopModifiers = manager.stopConfiguration.cgEventFlags.intersection(modifierMask)
+
+            if keyCode == stopKeyCode && eventModifiers == stopModifiers {
+                // Stop hotkey matched!
+                print("HotkeyManager: [US-015] Stop hotkey detected: \(manager.stopConfiguration.displayString)")
+
+                // Call the stop callback on the main thread
+                DispatchQueue.main.async {
+                    manager.onStopHotkeyPressed?()
+                }
+
+                return Unmanaged.passUnretained(event)
+            }
         }
-        
+
         // Always pass the event through - we're using .listenOnly mode
         // so we can only observe events, not consume them
         return Unmanaged.passUnretained(event)

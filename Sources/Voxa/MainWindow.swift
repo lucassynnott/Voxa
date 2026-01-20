@@ -4911,6 +4911,7 @@ struct GeneralSettingsSummary: View {
     @StateObject private var hotkeyManager = HotkeyManager.shared
     @StateObject private var permissionManager = PermissionManager.shared
     @State private var isRecordingHotkey = false
+    @State private var isRecordingStopHotkey = false  // US-015
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     
     /// Get the app version from the bundle
@@ -5039,7 +5040,7 @@ struct GeneralSettingsSummary: View {
     }
     
     // MARK: - Hotkey Section
-    
+
     /// Global hotkey configuration with recording UI
     private var hotkeySection: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
@@ -5047,36 +5048,42 @@ struct GeneralSettingsSummary: View {
                 Image(systemName: "keyboard")
                     .foregroundColor(Color.Voxa.accent)
                     .font(.system(size: 16, weight: .medium))
-                Text("Global Hotkey")
+                Text("Global Hotkeys")
                     .font(Font.Voxa.headline)
                     .foregroundColor(Color.Voxa.textPrimary)
             }
-            
-            Text("Press this keyboard shortcut from any app to start/stop voice recording.")
+
+            Text("Configure keyboard shortcuts for recording control from any app.")
                 .font(Font.Voxa.caption)
                 .foregroundColor(Color.Voxa.textSecondary)
-            
-            HStack(spacing: Spacing.md) {
-                // Hotkey recorder component
-                GeneralSettingsHotkeyRecorder(
-                    hotkeyManager: hotkeyManager,
-                    isRecording: $isRecordingHotkey
-                )
-                
-                // Reset to default button
-                Button(action: {
-                    print("[US-702] Button action: Reset Hotkey to Default")
-                    hotkeyManager.resetToDefault()
-                }) {
-                    HStack(spacing: Spacing.xs) {
-                        Image(systemName: "arrow.counterclockwise")
-                        Text("Reset")
+
+            // Start Recording Hotkey
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                Text("Start Recording")
+                    .font(Font.Voxa.body)
+                    .foregroundColor(Color.Voxa.textPrimary)
+
+                HStack(spacing: Spacing.md) {
+                    GeneralSettingsHotkeyRecorder(
+                        hotkeyManager: hotkeyManager,
+                        isRecording: $isRecordingHotkey,
+                        isForStopHotkey: false
+                    )
+
+                    Button(action: {
+                        print("[US-702] Button action: Reset Start Hotkey to Default")
+                        hotkeyManager.resetToDefault()
+                    }) {
+                        HStack(spacing: Spacing.xs) {
+                            Image(systemName: "arrow.counterclockwise")
+                            Text("Reset")
+                        }
                     }
+                    .buttonStyle(VoxaButtonStyle.secondary)
+                    .disabled(hotkeyManager.configuration == .defaultHotkey)
                 }
-                .buttonStyle(VoxaButtonStyle.secondary)
-                .disabled(hotkeyManager.configuration == .defaultHotkey)
             }
-            
+
             if isRecordingHotkey {
                 HStack(spacing: Spacing.sm) {
                     ProgressView()
@@ -5088,8 +5095,62 @@ struct GeneralSettingsSummary: View {
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
+
+            Divider()
+                .background(Color.Voxa.border)
+                .padding(.vertical, Spacing.xs)
+
+            // US-015: Stop Recording Hotkey
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                Text("Stop Recording")
+                    .font(Font.Voxa.body)
+                    .foregroundColor(Color.Voxa.textPrimary)
+
+                // Toggle for using same hotkey
+                Toggle("Use same hotkey (toggle behavior)", isOn: $hotkeyManager.useSameHotkeyForStop)
+                    .toggleStyle(VoxaToggleStyle())
+                    .font(Font.Voxa.caption)
+                    .foregroundColor(Color.Voxa.textSecondary)
+
+                if !hotkeyManager.useSameHotkeyForStop {
+                    HStack(spacing: Spacing.md) {
+                        GeneralSettingsHotkeyRecorder(
+                            hotkeyManager: hotkeyManager,
+                            isRecording: $isRecordingStopHotkey,
+                            isForStopHotkey: true
+                        )
+
+                        Button(action: {
+                            print("[US-015] Button action: Reset Stop Hotkey to Default")
+                            hotkeyManager.updateStopConfiguration(.defaultHotkey)
+                        }) {
+                            HStack(spacing: Spacing.xs) {
+                                Image(systemName: "arrow.counterclockwise")
+                                Text("Reset")
+                            }
+                        }
+                        .buttonStyle(VoxaButtonStyle.secondary)
+                        .disabled(hotkeyManager.stopConfiguration == .defaultHotkey)
+                    }
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+
+                if isRecordingStopHotkey {
+                    HStack(spacing: Spacing.sm) {
+                        ProgressView()
+                            .scaleEffect(0.6)
+                            .frame(width: 12, height: 12)
+                        Text("Press your desired key combination...")
+                            .font(Font.Voxa.caption)
+                            .foregroundColor(Color.Voxa.accent)
+                    }
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+            }
+            .animation(.easeInOut(duration: 0.2), value: hotkeyManager.useSameHotkeyForStop)
         }
         .animation(.easeInOut(duration: 0.2), value: isRecordingHotkey)
+        .animation(.easeInOut(duration: 0.2), value: isRecordingStopHotkey)
     }
     
     // MARK: - Startup Section
@@ -5232,18 +5293,25 @@ struct GeneralSettingsLinkButton: View {
 
 /// Hotkey recorder component for the General settings section
 /// US-702: Include Global Hotkey configuration with recording UI
+/// US-015: Support separate stop hotkey configuration
 struct GeneralSettingsHotkeyRecorder: View {
     @ObservedObject var hotkeyManager: HotkeyManager
     @Binding var isRecording: Bool
+    var isForStopHotkey: Bool = false  // US-015: Flag to indicate this recorder is for stop hotkey
     @State private var localEventMonitor: Any?
     @State private var isHovering = false
     @State private var pulseAnimation = false
-    
+
     // Conflict detection state
     @State private var pendingConfig: HotkeyManager.HotkeyConfiguration?
     @State private var conflictingShortcuts: [HotkeyManager.SystemShortcut] = []
     @State private var showConflictWarning = false
-    
+
+    /// US-015: Display string based on whether this is for start or stop hotkey
+    private var displayString: String {
+        isForStopHotkey ? hotkeyManager.stopHotkeyDisplayString : hotkeyManager.hotkeyDisplayString
+    }
+
     var body: some View {
         Button(action: {
             if isRecording {
@@ -5260,7 +5328,7 @@ struct GeneralSettingsHotkeyRecorder: View {
                         .frame(width: 8, height: 8)
                         .scaleEffect(pulseAnimation ? 1.2 : 0.8)
                         .opacity(pulseAnimation ? 1.0 : 0.6)
-                    
+
                     Text("Recording...")
                         .font(Font.Voxa.body)
                         .fontWeight(.medium)
@@ -5270,8 +5338,8 @@ struct GeneralSettingsHotkeyRecorder: View {
                     Image(systemName: "command")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(isHovering ? Color.Voxa.accent : Color.Voxa.textSecondary)
-                    
-                    Text(hotkeyManager.hotkeyDisplayString)
+
+                    Text(displayString)
                         .font(Font.Voxa.mono)
                         .fontWeight(.medium)
                         .foregroundColor(Color.Voxa.textPrimary)
@@ -5285,7 +5353,7 @@ struct GeneralSettingsHotkeyRecorder: View {
                 ZStack {
                     RoundedRectangle(cornerRadius: CornerRadius.medium)
                         .fill(isRecording ? Color.Voxa.accentLight : (isHovering ? Color.Voxa.border.opacity(0.3) : Color.Voxa.surface))
-                    
+
                     if !isRecording {
                         RoundedRectangle(cornerRadius: CornerRadius.medium)
                             .stroke(Color.Voxa.border.opacity(0.5), lineWidth: 1)
@@ -5341,10 +5409,10 @@ struct GeneralSettingsHotkeyRecorder: View {
             Text("\(config.displayString) conflicts with:\n\n\(conflictDescriptions)\n\nUsing this hotkey may prevent these system shortcuts from working.")
         }
     }
-    
+
     private func startRecording() {
         isRecording = true
-        
+
         localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { event in
             if event.type == .keyDown {
                 handleKeyEvent(event)
@@ -5353,7 +5421,7 @@ struct GeneralSettingsHotkeyRecorder: View {
             return event
         }
     }
-    
+
     private func stopRecording() {
         isRecording = false
         if let monitor = localEventMonitor {
@@ -5361,52 +5429,66 @@ struct GeneralSettingsHotkeyRecorder: View {
             localEventMonitor = nil
         }
     }
-    
+
     private func handleKeyEvent(_ event: NSEvent) {
         let relevantFlags: NSEvent.ModifierFlags = [.command, .shift, .option, .control]
         let modifiers = event.modifierFlags.intersection(relevantFlags)
-        
+
         guard !modifiers.isEmpty else {
-            print("[US-702] Hotkey must include at least one modifier")
+            let hotkeyType = isForStopHotkey ? "Stop" : "Start"
+            print("[US-015] \(hotkeyType) hotkey must include at least one modifier")
             return
         }
-        
+
         // Ignore Escape key (cancel)
         if event.keyCode == 53 {
             stopRecording()
             return
         }
-        
+
         let newConfig = HotkeyManager.HotkeyConfiguration(
             keyCode: event.keyCode,
             modifierFlags: modifiers
         )
-        
+
         let conflicts = HotkeyManager.checkForConflicts(newConfig)
-        
+
         if !conflicts.isEmpty {
             pendingConfig = newConfig
             conflictingShortcuts = conflicts
             showConflictWarning = true
             stopRecording()
-            print("[US-702] Conflict detected: \(conflicts.map { $0.name }.joined(separator: ", "))")
+            print("[US-015] Conflict detected: \(conflicts.map { $0.name }.joined(separator: ", "))")
         } else {
-            hotkeyManager.updateConfiguration(newConfig)
+            // US-015: Update appropriate configuration based on isForStopHotkey
+            if isForStopHotkey {
+                hotkeyManager.updateStopConfiguration(newConfig)
+                print("[US-015] New stop hotkey set to \(newConfig.displayString)")
+            } else {
+                hotkeyManager.updateConfiguration(newConfig)
+                print("[US-702] New start hotkey set to \(newConfig.displayString)")
+            }
             stopRecording()
-            print("[US-702] New hotkey set to \(newConfig.displayString)")
         }
     }
-    
+
     private func applyPendingConfig() {
         guard let config = pendingConfig else { return }
-        hotkeyManager.updateConfiguration(config)
-        print("[US-702] User proceeded despite conflict, hotkey set to \(config.displayString)")
+        // US-015: Apply to appropriate configuration
+        if isForStopHotkey {
+            hotkeyManager.updateStopConfiguration(config)
+            print("[US-015] User proceeded despite conflict, stop hotkey set to \(config.displayString)")
+        } else {
+            hotkeyManager.updateConfiguration(config)
+            print("[US-702] User proceeded despite conflict, start hotkey set to \(config.displayString)")
+        }
         pendingConfig = nil
         conflictingShortcuts = []
     }
-    
+
     private func cancelPendingConfig() {
-        print("[US-702] User cancelled conflicting hotkey")
+        let hotkeyType = isForStopHotkey ? "stop" : "start"
+        print("[US-015] User cancelled conflicting \(hotkeyType) hotkey")
         pendingConfig = nil
         conflictingShortcuts = []
     }
