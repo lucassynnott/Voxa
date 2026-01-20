@@ -4642,216 +4642,260 @@ enum SettingsSection: String, CaseIterable, Identifiable {
 /// Settings content view that displays all settings in the main window content area
 /// US-701: Create SettingsContentView for Main Window
 /// US-709: Settings Section Navigation - Added section jump buttons and smooth scrolling
+/// US-038: Added sidebar navigation for settings sections
 struct SettingsContentView: View {
     /// Currently active/visible section for highlighting navigation
     @State private var activeSection: SettingsSection = .general
-    
+
+    /// Width of the settings sidebar
+    private let settingsSidebarWidth: CGFloat = 200
+
     var body: some View {
-        ScrollViewReader { scrollProxy in
-            ScrollView {
-                VStack(alignment: .leading, spacing: Spacing.xl) {
-                    // MARK: - Header with Navigation
-                    settingsHeader
-                    
-                    // MARK: - Section Navigation Bar (US-709)
-                    sectionNavigationBar(scrollProxy: scrollProxy)
-                    
-                    // MARK: - General Section
-                    SettingsSectionView(
-                        title: SettingsSection.general.displayName,
-                        icon: SettingsSection.general.icon,
-                        description: SettingsSection.general.description
-                    ) {
-                        GeneralSettingsSummary()
-                    }
-                    .id(SettingsSection.general)
-                    
-                    // MARK: - Audio Section
-                    SettingsSectionView(
-                        title: SettingsSection.audio.displayName,
-                        icon: SettingsSection.audio.icon,
-                        description: SettingsSection.audio.description
-                    ) {
-                        AudioSettingsSummary()
-                    }
-                    .id(SettingsSection.audio)
-                    
-                    // MARK: - Transcription Section
-                    SettingsSectionView(
-                        title: SettingsSection.transcription.displayName,
-                        icon: SettingsSection.transcription.icon,
-                        description: SettingsSection.transcription.description
-                    ) {
-                        TranscriptionSettingsSummary()
-                    }
-                    .id(SettingsSection.transcription)
+        HStack(spacing: 0) {
+            // MARK: - Settings Sidebar (US-038)
+            settingsSidebar
+                .frame(width: settingsSidebarWidth)
 
-                    // MARK: - Model Management Section (US-012)
-                    SettingsSectionView(
-                        title: SettingsSection.modelManagement.displayName,
-                        icon: SettingsSection.modelManagement.icon,
-                        description: SettingsSection.modelManagement.description
-                    ) {
-                        ModelManagementView()
-                    }
-                    .id(SettingsSection.modelManagement)
+            // MARK: - Vertical Separator
+            Rectangle()
+                .fill(Color.Voxa.border.opacity(0.3))
+                .frame(width: 1)
 
-                    // MARK: - Text Cleanup Section
-                    SettingsSectionView(
-                        title: SettingsSection.textCleanup.displayName,
-                        icon: SettingsSection.textCleanup.icon,
-                        description: SettingsSection.textCleanup.description
-                    ) {
-                        TextCleanupSettingsSummary()
-                    }
-                    .id(SettingsSection.textCleanup)
-                    
-                    // MARK: - Text Insertion Section
-                    SettingsSectionView(
-                        title: SettingsSection.textInsertion.displayName,
-                        icon: SettingsSection.textInsertion.icon,
-                        description: SettingsSection.textInsertion.description
-                    ) {
-                        TextInsertionSettingsSummary()
-                    }
-                    .id(SettingsSection.textInsertion)
+            // MARK: - Settings Content Area
+            ScrollViewReader { scrollProxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: Spacing.xl) {
+                        // MARK: - Header
+                        settingsHeader
 
-                    // MARK: - Clipboard History Section (US-030)
-                    SettingsSectionView(
-                        title: SettingsSection.clipboardHistory.displayName,
-                        icon: SettingsSection.clipboardHistory.icon,
-                        description: SettingsSection.clipboardHistory.description
-                    ) {
-                        ClipboardHistorySettingsSummary()
-                    }
-                    .id(SettingsSection.clipboardHistory)
+                        // MARK: - General Section
+                        SettingsSectionView(
+                            title: SettingsSection.general.displayName,
+                            icon: SettingsSection.general.icon,
+                            description: SettingsSection.general.description
+                        ) {
+                            GeneralSettingsSummary()
+                        }
+                        .id(SettingsSection.general)
 
-                    // MARK: - Debug Section
-                    SettingsSectionView(
-                        title: SettingsSection.debug.displayName,
-                        icon: SettingsSection.debug.icon,
-                        description: SettingsSection.debug.description
-                    ) {
-                        DebugSettingsSummary()
+                        // MARK: - Audio Section
+                        SettingsSectionView(
+                            title: SettingsSection.audio.displayName,
+                            icon: SettingsSection.audio.icon,
+                            description: SettingsSection.audio.description
+                        ) {
+                            AudioSettingsSummary()
+                        }
+                        .id(SettingsSection.audio)
+
+                        // MARK: - Transcription Section
+                        SettingsSectionView(
+                            title: SettingsSection.transcription.displayName,
+                            icon: SettingsSection.transcription.icon,
+                            description: SettingsSection.transcription.description
+                        ) {
+                            TranscriptionSettingsSummary()
+                        }
+                        .id(SettingsSection.transcription)
+
+                        // MARK: - Model Management Section (US-012)
+                        SettingsSectionView(
+                            title: SettingsSection.modelManagement.displayName,
+                            icon: SettingsSection.modelManagement.icon,
+                            description: SettingsSection.modelManagement.description
+                        ) {
+                            ModelManagementView()
+                        }
+                        .id(SettingsSection.modelManagement)
+
+                        // MARK: - Text Cleanup Section
+                        SettingsSectionView(
+                            title: SettingsSection.textCleanup.displayName,
+                            icon: SettingsSection.textCleanup.icon,
+                            description: SettingsSection.textCleanup.description
+                        ) {
+                            TextCleanupSettingsSummary()
+                        }
+                        .id(SettingsSection.textCleanup)
+
+                        // MARK: - Text Insertion Section
+                        SettingsSectionView(
+                            title: SettingsSection.textInsertion.displayName,
+                            icon: SettingsSection.textInsertion.icon,
+                            description: SettingsSection.textInsertion.description
+                        ) {
+                            TextInsertionSettingsSummary()
+                        }
+                        .id(SettingsSection.textInsertion)
+
+                        // MARK: - Clipboard History Section (US-030)
+                        SettingsSectionView(
+                            title: SettingsSection.clipboardHistory.displayName,
+                            icon: SettingsSection.clipboardHistory.icon,
+                            description: SettingsSection.clipboardHistory.description
+                        ) {
+                            ClipboardHistorySettingsSummary()
+                        }
+                        .id(SettingsSection.clipboardHistory)
+
+                        // MARK: - Debug Section
+                        SettingsSectionView(
+                            title: SettingsSection.debug.displayName,
+                            icon: SettingsSection.debug.icon,
+                            description: SettingsSection.debug.description
+                        ) {
+                            DebugSettingsSummary()
+                        }
+                        .id(SettingsSection.debug)
+
+                        Spacer(minLength: Spacing.xxl)
                     }
-                    .id(SettingsSection.debug)
-                    
-                    Spacer(minLength: Spacing.xxl)
+                    .padding(Spacing.xl)
                 }
-                .padding(Spacing.xl)
+                // US-805: Listen for scroll to text cleanup section notification
+                .onReceive(NotificationCenter.default.publisher(for: .scrollToTextCleanupSection)) { _ in
+                    scrollToSection(.textCleanup, using: scrollProxy)
+                }
+                // US-038: Listen for section navigation from sidebar
+                .onChange(of: activeSection) { _, newSection in
+                    scrollToSection(newSection, using: scrollProxy)
+                }
             }
-            // US-805: Listen for scroll to text cleanup section notification
-            .onReceive(NotificationCenter.default.publisher(for: .scrollToTextCleanupSection)) { _ in
-                scrollToSection(.textCleanup, using: scrollProxy)
-            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color.Voxa.background)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.Voxa.background)
     }
-    
-    // MARK: - Header View
-    
-    private var settingsHeader: some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
-            Text("Settings")
-                .font(Font.Voxa.largeTitle)
-                .foregroundColor(Color.Voxa.textPrimary)
-            
-            Text("Configure Voxa preferences and options")
-                .font(Font.Voxa.body)
-                .foregroundColor(Color.Voxa.textSecondary)
-        }
-    }
-    
-    // MARK: - Section Navigation Bar (US-709)
-    
-    /// Navigation bar with section jump buttons
-    /// US-709: Add section jump buttons at top of settings view
-    private func sectionNavigationBar(scrollProxy: ScrollViewProxy) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
-            Text("Jump to Section")
-                .font(Font.Voxa.caption)
-                .foregroundColor(Color.Voxa.textTertiary)
-            
-            // Horizontal scrollable section buttons
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: Spacing.sm) {
+
+    // MARK: - Settings Sidebar (US-038)
+
+    /// Vertical sidebar navigation for settings sections
+    /// US-038: Sidebar shows all available sections with current section highlighted
+    private var settingsSidebar: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Sidebar header
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text("Settings")
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
+
+                Text("Configure preferences")
+                    .font(Font.Voxa.caption)
+                    .foregroundColor(Color.Voxa.textTertiary)
+            }
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.lg)
+
+            Divider()
+                .background(Color.Voxa.border.opacity(0.5))
+
+            // Section list
+            ScrollView {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
                     ForEach(SettingsSection.allCases) { section in
-                        SettingsSectionNavButton(
+                        SettingsSidebarItem(
                             section: section,
                             isActive: activeSection == section,
                             onTap: {
-                                scrollToSection(section, using: scrollProxy)
+                                withAnimation(VoxaAnimation.smooth) {
+                                    activeSection = section
+                                }
+                                // US-037: Announce section change to VoiceOver
+                                AccessibilityAnnouncer.announce("Navigated to \(section.displayName) settings")
                             }
                         )
                     }
                 }
-                .padding(.horizontal, 1) // Prevent clipping of button shadows
+                .padding(.vertical, Spacing.sm)
             }
+
+            Spacer()
         }
-        .padding(Spacing.md)
-        .background(Color.Voxa.surface)
-        .cornerRadius(CornerRadius.medium)
-        .voxaShadow(.subtle)
+        .frame(maxHeight: .infinity)
+        .background(Color.Voxa.sidebarBackground.opacity(0.5))
     }
-    
+
+    // MARK: - Header View
+
+    private var settingsHeader: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Text(activeSection.displayName)
+                .font(Font.Voxa.largeTitle)
+                .foregroundColor(Color.Voxa.textPrimary)
+
+            Text(activeSection.description)
+                .font(Font.Voxa.body)
+                .foregroundColor(Color.Voxa.textSecondary)
+        }
+    }
+
     // MARK: - Scroll to Section (US-709)
-    
+
     /// Scrolls to the specified section with smooth animation
     /// US-709: Implement smooth scroll to section
     private func scrollToSection(_ section: SettingsSection, using proxy: ScrollViewProxy) {
-        // Update active section for visual feedback
-        withAnimation(VoxaAnimation.smooth) {
-            activeSection = section
-        }
-        
         // Perform smooth scroll to section
         withAnimation(.easeInOut(duration: 0.4)) {
             proxy.scrollTo(section, anchor: .top)
         }
-        
-        print("[US-709] Scrolled to section: \(section.displayName)")
+
+        print("[US-038] Scrolled to section: \(section.displayName)")
     }
 }
 
-// MARK: - Settings Section Nav Button (US-709)
+// MARK: - Settings Sidebar Item (US-038)
 
-/// Navigation button for quickly jumping to a settings section
-/// US-709: Section navigation button component
-struct SettingsSectionNavButton: View {
+/// Individual sidebar item for settings navigation
+/// US-038: Displays section icon, name, and highlights when active
+struct SettingsSidebarItem: View {
     let section: SettingsSection
     let isActive: Bool
     let onTap: () -> Void
-    
+
     @State private var isHovering = false
-    
+
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: Spacing.xs) {
+            HStack(spacing: Spacing.sm) {
+                // Section icon
                 Image(systemName: section.icon)
-                    .font(.system(size: 12, weight: .medium))
-                
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(isActive ? Color.Voxa.accent : Color.Voxa.textSecondary)
+                    .frame(width: 20)
+
+                // Section name
                 Text(section.displayName)
-                    .font(Font.Voxa.caption)
-                    .fontWeight(.medium)
+                    .font(Font.Voxa.body)
+                    .fontWeight(isActive ? .medium : .regular)
+                    .foregroundColor(isActive ? Color.Voxa.textPrimary : Color.Voxa.textSecondary)
+
+                Spacer()
+
+                // Active indicator
+                if isActive {
+                    Circle()
+                        .fill(Color.Voxa.accent)
+                        .frame(width: 6, height: 6)
+                }
             }
-            .foregroundColor(isActive ? .white : (isHovering ? Color.Voxa.accent : Color.Voxa.textSecondary))
             .padding(.horizontal, Spacing.md)
             .padding(.vertical, Spacing.sm)
             .background(
                 RoundedRectangle(cornerRadius: CornerRadius.small)
-                    .fill(isActive ? Color.Voxa.accent : (isHovering ? Color.Voxa.accentLight : Color.Voxa.border.opacity(0.3)))
+                    .fill(isActive ? Color.Voxa.accentLight : (isHovering ? Color.Voxa.border.opacity(0.3) : Color.clear))
             )
             .contentShape(Rectangle())
         }
         .buttonStyle(PlainButtonStyle())
-        .scaleEffect(isHovering ? 1.02 : 1.0)
-        .animation(VoxaAnimation.quick, value: isHovering)
-        .animation(VoxaAnimation.quick, value: isActive)
+        .padding(.horizontal, Spacing.sm)
         .onHover { hovering in
             isHovering = hovering
         }
-        .help("Jump to \(section.displayName)")
+        .help(section.description)
+        // US-037: Accessibility support
+        .accessibilityLabel("\(section.displayName) settings")
+        .accessibilityHint(section.description)
+        .accessibilityAddTraits(isActive ? [.isSelected] : [])
     }
 }
 
