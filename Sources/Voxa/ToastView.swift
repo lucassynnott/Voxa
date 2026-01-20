@@ -118,7 +118,15 @@ final class ToastManager: ObservableObject {
     private var dismissTimers: [UUID: Timer] = [:]
     
     private init() {}
-    
+
+    deinit {
+        // US-053: Ensure all timers are invalidated on deallocation
+        for timer in dismissTimers.values {
+            timer.invalidate()
+        }
+        dismissTimers.removeAll()
+    }
+
     // MARK: - Public API
     
     /// Show a success toast

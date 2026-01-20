@@ -59,6 +59,11 @@ final class StatusBarController: NSObject {
     deinit {
         stopPulseAnimation()
         stopProcessingAnimation()
+        // US-053: Cancel Combine subscriptions to prevent memory leaks
+        modelStatusObserver?.cancel()
+        modelStatusObserver = nil
+        hotkeyModeObservers.forEach { $0.cancel() }
+        hotkeyModeObservers.removeAll()
     }
     
     // MARK: - Setup

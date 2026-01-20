@@ -306,6 +306,17 @@ final class ClipboardHistoryManager: ObservableObject {
         print("ClipboardHistoryManager: [US-030] Reset to defaults")
     }
 
+    /// US-053: Trim entries to a specific count (for memory pressure)
+    /// - Parameter count: Maximum number of entries to keep
+    func trimToCount(_ count: Int) {
+        guard count >= 0 else { return }
+        if entries.count > count {
+            entries = Array(entries.prefix(count))
+            saveHistory()
+            print("ClipboardHistoryManager: [US-053] Trimmed to \(count) entries for memory pressure")
+        }
+    }
+
     // MARK: - Private Methods
 
     /// Trim entries to configured max

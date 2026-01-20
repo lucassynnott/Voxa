@@ -935,22 +935,31 @@ final class WhisperManager: ObservableObject {
         guard !audioData.isEmpty else {
             return .emptyAudioData
         }
-        
+
         // Convert to Float samples for analysis
         let samples = audioData.withUnsafeBytes { buffer -> [Float] in
             let floatBuffer = buffer.bindMemory(to: Float.self)
             return Array(floatBuffer)
         }
-        
+
+        return validateAudioSamples(samples, sampleRate: sampleRate)
+    }
+
+    /// US-053: Optimized validation using pre-converted samples to avoid redundant allocations
+    /// - Parameters:
+    ///   - samples: Pre-converted Float samples
+    ///   - sampleRate: Sample rate of the audio
+    /// - Returns: Validation error if invalid, nil if valid
+    private func validateAudioSamples(_ samples: [Float], sampleRate: Double) -> AudioValidationError? {
         guard samples.count > 0 else {
             return .emptyAudioData
         }
-        
+
         // Check sample rate
         if abs(sampleRate - Constants.expectedSampleRate) > 0.01 {
             return .invalidSampleRate(expected: Constants.expectedSampleRate, actual: sampleRate)
         }
-        
+
         // Check duration
         let duration = Double(samples.count) / sampleRate
         if duration < Constants.minimumDuration {
@@ -959,7 +968,7 @@ final class WhisperManager: ObservableObject {
         if duration > Constants.maximumDuration {
             return .durationTooLong(actual: duration, maximum: Constants.maximumDuration)
         }
-        
+
         // Check sample range
         var minSample: Float = Float.infinity
         var maxSample: Float = -Float.infinity
@@ -967,13 +976,13 @@ final class WhisperManager: ObservableObject {
             minSample = min(minSample, sample)
             maxSample = max(maxSample, sample)
         }
-        
+
         // Allow small tolerance beyond [-1.0, 1.0] but warn for significant overflow
         let rangeTolerance: Float = 1.1
         if minSample < -rangeTolerance || maxSample > rangeTolerance {
             return .samplesOutOfRange(min: minSample, max: maxSample)
         }
-        
+
         return nil
     }
     
@@ -1040,9 +1049,68 @@ final class WhisperManager: ObservableObject {
         print("╚═══════════════════════════════════════════════════════════════╝")
         print("WhisperManager: [STAGE 5] ✓ Audio data ready for WhisperKit transcription")
     }
-    
+
+    /// US-053: Optimized diagnostics logging using pre-converted samples to avoid redundant allocations
+    /// - Parameters:
+    ///   - samples: Pre-converted Float samples
+    ///   - sampleRate: Sample rate of the audio
+    ///   - byteCount: Original byte count of the audio data
+    private func logAudioDiagnosticsOptimized(samples: [Float], sampleRate: Double, byteCount: Int) {
+        // Calculate statistics in a single pass for efficiency
+        var minSample: Float = Float.infinity
+        var maxSample: Float = -Float.infinity
+        var sumSquares: Float = 0
+        var clippedCount = 0
+        var zeroCount = 0
+        let zeroThreshold: Float = 1e-7
+
+        for sample in samples {
+            minSample = min(minSample, sample)
+            maxSample = max(maxSample, sample)
+            sumSquares += sample * sample
+            if abs(sample) > 0.99 {
+                clippedCount += 1
+            }
+            if abs(sample) < zeroThreshold {
+                zeroCount += 1
+            }
+        }
+
+        let peakAmplitude = max(abs(minSample), abs(maxSample))
+        let peakDb = peakAmplitude > 0 ? 20.0 * log10(peakAmplitude) : -Float.infinity
+        let rms = samples.isEmpty ? 0 : sqrt(sumSquares / Float(samples.count))
+        let rmsDb = rms > 0 ? 20.0 * log10(rms) : -Float.infinity
+        let duration = Double(samples.count) / sampleRate
+        let clippingPercent = samples.isEmpty ? 0 : (Double(clippedCount) / Double(samples.count)) * 100
+        let zeroPercent = samples.isEmpty ? 0 : (Double(zeroCount) / Double(samples.count)) * 100
+
+        // Get first and last 10 samples for verification (using ArraySlice to avoid allocation)
+        let firstSamples = samples.prefix(10)
+        let lastSamples = samples.suffix(10)
+
+        print("╔═══════════════════════════════════════════════════════════════╗")
+        print("║      AUDIO PIPELINE STAGE 5: TRANSCRIPTION HANDOFF            ║")
+        print("╠═══════════════════════════════════════════════════════════════╣")
+        print("║ Byte Count:      \(String(format: "%10d", byteCount)) bytes                        ║")
+        print("║ Sample Count:    \(String(format: "%10d", samples.count)) samples                       ║")
+        print("║ Sample Rate:     \(String(format: "%10.0f", sampleRate)) Hz                            ║")
+        print("║ Duration:        \(String(format: "%10.2f", duration)) seconds                        ║")
+        print("║ Peak Amplitude:  \(String(format: "%10.4f", peakAmplitude)) (linear)                       ║")
+        print("║ Peak Level:      \(String(format: "%10.1f", peakDb)) dB                             ║")
+        print("║ RMS Level:       \(String(format: "%10.1f", rmsDb)) dB                             ║")
+        print("║ Sample Range:    [\(String(format: "%.4f", minSample)), \(String(format: "%.4f", maxSample))]                        ║")
+        print("║ Zero Samples:    \(String(format: "%10.1f", zeroPercent))% (\(zeroCount)/\(samples.count))                   ║")
+        print("║ Clipping:        \(String(format: "%10.2f", clippingPercent))%                              ║")
+        print("║ Format:          Float32 mono PCM                             ║")
+        print("╠═══════════════════════════════════════════════════════════════╣")
+        print("║ First 10 samples: \(firstSamples.map { String(format: "%.4f", $0) }.joined(separator: ", "))")
+        print("║ Last 10 samples:  \(lastSamples.map { String(format: "%.4f", $0) }.joined(separator: ", "))")
+        print("╚═══════════════════════════════════════════════════════════════╝")
+        print("WhisperManager: [STAGE 5] ✓ Audio data ready for WhisperKit transcription")
+    }
+
     // MARK: - Transcription
-    
+
     /// Transcribe audio data
     /// - Parameters:
     ///   - audioData: Raw audio data (Float32 samples at 16kHz)
@@ -1053,7 +1121,7 @@ final class WhisperManager: ObservableObject {
         guard let whisper = whisperKit else {
             statusMessage = "Model not loaded"
             transcriptionStatus = .error("Model not loaded. Please load a model first.")
-            
+
             let error = TranscriptionError.modelNotLoaded
             ErrorLogger.shared.log(
                 "Transcription attempted without loaded model",
@@ -1061,22 +1129,29 @@ final class WhisperManager: ObservableObject {
                 severity: .error,
                 context: ["modelStatus": String(describing: modelStatus)]
             )
-            
+
             onError?("Model not loaded")
             onTranscriptionError?(error, audioData, sampleRate)
             return nil
         }
-        
-        // Log audio diagnostics before transcription
-        logAudioDiagnostics(audioData: audioData, sampleRate: sampleRate)
-        
-        // Validate audio data before transcription
-        if let validationError = validateAudioData(audioData, sampleRate: sampleRate) {
+
+        // US-053: Convert audio data to samples ONCE and reuse for all operations
+        // This optimization reduces memory allocations from 4x to 1x during transcription
+        var samples = audioData.withUnsafeBytes { buffer -> [Float] in
+            let floatBuffer = buffer.bindMemory(to: Float.self)
+            return Array(floatBuffer)
+        }
+
+        // Log audio diagnostics before transcription (using pre-converted samples)
+        logAudioDiagnosticsOptimized(samples: samples, sampleRate: sampleRate, byteCount: audioData.count)
+
+        // Validate audio data before transcription (using pre-converted samples)
+        if let validationError = validateAudioSamples(samples, sampleRate: sampleRate) {
             let errorMessage = "Audio validation failed: \(validationError.localizedDescription)"
             statusMessage = "Invalid audio"
             transcriptionStatus = .error(errorMessage)
             print("WhisperManager: \(errorMessage)")
-            
+
             let error = TranscriptionError.audioValidationFailed(validationError.localizedDescription)
             ErrorLogger.shared.log(
                 errorMessage,
@@ -1088,21 +1163,17 @@ final class WhisperManager: ObservableObject {
                     "sampleRate": sampleRate
                 ]
             )
-            
+
             onError?(errorMessage)
             onTranscriptionError?(error, audioData, sampleRate)
             return nil
         }
-        
+
         transcriptionStatus = .transcribing
         statusMessage = "Transcribing..."
-        
+
         do {
-            // Convert Data to [Float] samples
-            var samples = audioData.withUnsafeBytes { buffer -> [Float] in
-                let floatBuffer = buffer.bindMemory(to: Float.self)
-                return Array(floatBuffer)
-            }
+            // US-053: Samples already converted above - no need to convert again
             
             // Normalize samples to [-1.0, 1.0] range if needed
             samples = normalizeAudioSamples(samples)

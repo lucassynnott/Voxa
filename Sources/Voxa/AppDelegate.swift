@@ -590,7 +590,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func setupToastSystem() {
         // Initialize the toast window controller for displaying toasts
         toastWindowController = ToastWindowController.shared
-        
+
         // Observe openSettings notification from toast actions
         NotificationCenter.default.addObserver(
             forName: .openSettings,
@@ -599,7 +599,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ) { [weak self] _ in
             self?.openSettings()
         }
-        
+
         // US-802: Observe toggleRecording notification from Start Recording button
         NotificationCenter.default.addObserver(
             forName: .toggleRecording,
@@ -608,14 +608,78 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ) { [weak self] _ in
             self?.toggleRecordingFromHotkey()
         }
-        
+
         // US-632: Initialize main window controller
         mainWindowController = MainWindowController()
-        
+
         // Configure with managers for onboarding integration
         if let audio = audioManager, let hotkey = hotkeyManager {
             mainWindowController?.configure(audioManager: audio, hotkeyManager: hotkey)
         }
+
+        // US-053: Set up memory pressure observer
+        setupMemoryPressureObserver()
+    }
+
+    // MARK: - US-053: Memory Pressure Handling
+
+    /// Set up observer for system memory pressure notifications
+    private func setupMemoryPressureObserver() {
+        // Listen for memory pressure warnings using dispatch source
+        let memoryPressureSource = DispatchSource.makeMemoryPressureSource(
+            eventMask: [.warning, .critical],
+            queue: .main
+        )
+
+        memoryPressureSource.setEventHandler { [weak self] in
+            let event = memoryPressureSource.data
+            Task { @MainActor in
+                if event.contains(.critical) {
+                    print("US-053: Critical memory pressure - performing aggressive cleanup")
+                    self?.handleMemoryPressure(critical: true)
+                } else if event.contains(.warning) {
+                    print("US-053: Memory pressure warning - performing cleanup")
+                    self?.handleMemoryPressure(critical: false)
+                }
+            }
+        }
+
+        memoryPressureSource.resume()
+    }
+
+    /// Handle memory pressure by cleaning up non-essential data
+    /// - Parameter critical: If true, perform more aggressive cleanup
+    @MainActor
+    private func handleMemoryPressure(critical: Bool) {
+        // Clear retained audio data immediately
+        lastAudioData = nil
+        audioBufferClearTimer?.invalidate()
+        audioBufferClearTimer = nil
+
+        // Trim clipboard history to reduce memory footprint
+        if critical {
+            // Under critical pressure, keep only recent entries
+            ClipboardHistoryManager.shared.trimToCount(10)
+        } else {
+            // Under warning, trim to half the max
+            let currentMax = ClipboardHistoryManager.shared.maxEntries
+            ClipboardHistoryManager.shared.trimToCount(currentMax / 2)
+        }
+
+        // Clear undo stack under memory pressure
+        if critical {
+            UndoStackManager.shared.clearStack()
+        }
+
+        ErrorLogger.shared.log(
+            "Memory pressure cleanup performed",
+            category: .general,
+            severity: critical ? .warning : .info,
+            context: [
+                "criticalPressure": "\(critical)",
+                "clearedAudioBuffer": "true"
+            ]
+        )
     }
     
     /// US-632: Open the main application window
