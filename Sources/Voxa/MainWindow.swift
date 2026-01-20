@@ -182,10 +182,12 @@ struct MainWindowView: View {
             }
         }
         .background(Color.Voxa.background)
+        // US-032: Apply smooth transition when system appearance changes
+        .appearanceTransition()
     }
-    
+
     // MARK: - Sidebar View
-    
+
     /// Fixed left sidebar with navigation items
     /// US-806: Updated sidebar background for light/dark mode with semi-transparent surface
     private var sidebarView: some View {
@@ -11626,7 +11628,8 @@ final class MainWindowController: NSObject {
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
-        window.appearance = NSAppearance(named: .aqua)
+        // US-032: Follow system appearance for light/dark mode support
+        // window.appearance is nil by default, which follows system preference
         window.backgroundColor = NSColor(Color.Voxa.background)
         window.minSize = minimumSize
         window.delegate = self

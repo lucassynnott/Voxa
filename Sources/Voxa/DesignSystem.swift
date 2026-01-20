@@ -756,26 +756,32 @@ enum CornerRadius {
 // MARK: - Shadow Styles
 
 /// Voxa shadow styles
+/// US-032: Shadows are adaptive for light/dark mode - darker shadows in dark mode
 enum ShadowStyle {
     /// Card shadow - soft, warm-toned for elevated content
     case card
-    
+
     /// Floating shadow - more prominent for floating elements
     case floating
-    
+
     /// Subtle shadow - very light for minimal elevation
     case subtle
-    
-    /// The shadow color (warm gray)
+
+    /// The shadow color - adaptive for light/dark mode
+    /// In dark mode, shadows are slightly more pronounced for depth perception
     var color: Color {
-        switch self {
-        case .card:
-            return Color(hex: "2D3436").opacity(0.08)
-        case .floating:
-            return Color(hex: "2D3436").opacity(0.15)
-        case .subtle:
-            return Color(hex: "2D3436").opacity(0.04)
-        }
+        Color(NSColor(name: nil, dynamicProvider: { appearance in
+            let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            let baseColor = NSColor(hex: "000000")
+            switch self {
+            case .card:
+                return baseColor.withAlphaComponent(isDark ? 0.25 : 0.08)
+            case .floating:
+                return baseColor.withAlphaComponent(isDark ? 0.35 : 0.15)
+            case .subtle:
+                return baseColor.withAlphaComponent(isDark ? 0.15 : 0.04)
+            }
+        }))
     }
     
     /// The shadow radius
@@ -1039,6 +1045,10 @@ enum VoxaAnimation {
     
     /// Tab transition animation
     static let tabTransition = Animation.easeInOut(duration: 0.25)
+
+    /// US-032: Appearance transition animation for smooth light/dark mode switching
+    /// Uses a slightly longer duration for a polished feel when system appearance changes
+    static let appearanceTransition = Animation.easeInOut(duration: 0.35)
 }
 
 // MARK: - Animated Success Checkmark
@@ -1274,5 +1284,26 @@ extension View {
     /// Apply bounce animation on appear
     func bounceOnAppear(delay: Double = 0) -> some View {
         self.modifier(BounceOnAppear(delay: delay))
+    }
+}
+
+// MARK: - US-032: Appearance Transition Modifier
+
+/// View modifier that adds smooth transitions when system appearance changes
+/// This helps create a polished experience when switching between light and dark mode
+struct AppearanceTransitionModifier: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+
+    func body(content: Content) -> some View {
+        content
+            .animation(VoxaAnimation.appearanceTransition, value: colorScheme)
+    }
+}
+
+extension View {
+    /// Apply smooth transition animation when system appearance (light/dark mode) changes
+    /// US-032: Light and Dark Mode Support
+    func appearanceTransition() -> some View {
+        self.modifier(AppearanceTransitionModifier())
     }
 }
