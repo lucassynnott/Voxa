@@ -76,7 +76,8 @@ struct MainWindowView: View {
     @State private var selectedItem: NavigationItem = .home
     
     /// Whether the sidebar is collapsed (icon-only mode)
-    @State private var isSidebarCollapsed: Bool = false
+    /// US-040: Collapsed state is persisted across app launches
+    @AppStorage("sidebarCollapsed") private var isSidebarCollapsed: Bool = false
     
     /// Track window width for auto-collapse
     @State private var windowWidth: CGFloat = 900
