@@ -132,7 +132,14 @@ final class StatusBarController: NSObject {
         let audioDeviceSubmenu = NSMenu()
         audioDeviceItem.submenu = audioDeviceSubmenu
         menu.addItem(audioDeviceItem)
-        
+
+        // US-043: Model Selection submenu for quick model switching
+        let modelSelectionItem = NSMenuItem(title: "Whisper Model", action: nil, keyEquivalent: "")
+        modelSelectionItem.image = createMenuIcon(systemName: "cpu", tint: NSColor.Voxa.textSecondary)
+        let modelSelectionSubmenu = NSMenu()
+        modelSelectionItem.submenu = modelSelectionSubmenu
+        menu.addItem(modelSelectionItem)
+
         menu.addItem(NSMenuItem.separator())
         
         // Launch at login item with checkmark icon when enabled
@@ -255,7 +262,82 @@ final class StatusBarController: NSObject {
         audioManager?.selectDevice(uid: uid)
         print("Selected audio device: \(sender.title)")
     }
-    
+
+    // MARK: - US-043: Model Selection
+
+    /// Populate the model selection submenu with available Whisper models
+    private func populateModelSelectionMenu(_ menu: NSMenu) {
+        menu.removeAllItems()
+
+        guard let whisperManager = whisperManager else {
+            let noManagerItem = NSMenuItem(title: "Model manager unavailable", action: nil, keyEquivalent: "")
+            noManagerItem.isEnabled = false
+            menu.addItem(noManagerItem)
+            return
+        }
+
+        // Get model info synchronously from main actor context
+        Task { @MainActor in
+            let modelsInfo = whisperManager.getAllModelsInfo()
+            let currentModel = whisperManager.selectedModel
+
+            // Populate menu on main thread
+            DispatchQueue.main.async { [weak self] in
+                menu.removeAllItems()
+
+                for info in modelsInfo {
+                    let model = info.model
+                    var title = model.displayName
+
+                    // Add download indicator for not-downloaded models
+                    if !info.isDownloaded {
+                        title += " (Download)"
+                    }
+
+                    let modelItem = NSMenuItem(
+                        title: title,
+                        action: #selector(self?.selectWhisperModel(_:)),
+                        keyEquivalent: ""
+                    )
+                    modelItem.target = self
+                    modelItem.representedObject = model.rawValue
+
+                    // Show checkmark for current model
+                    modelItem.state = (model == currentModel) ? .on : .off
+
+                    // Add icon based on download status
+                    if info.isActive {
+                        modelItem.image = self?.createMenuIcon(systemName: "checkmark.circle.fill", tint: NSColor.Voxa.accent)
+                    } else if info.isDownloaded {
+                        modelItem.image = self?.createMenuIcon(systemName: "circle.fill", tint: NSColor.Voxa.textSecondary)
+                    } else {
+                        modelItem.image = self?.createMenuIcon(systemName: "arrow.down.circle", tint: NSColor.Voxa.textTertiary)
+                    }
+
+                    // Disable selection if currently switching models
+                    if case .switching = self?.currentModelStatus {
+                        modelItem.isEnabled = false
+                    }
+
+                    menu.addItem(modelItem)
+                }
+            }
+        }
+    }
+
+    @objc private func selectWhisperModel(_ sender: NSMenuItem) {
+        guard let modelRawValue = sender.representedObject as? String,
+              let model = WhisperManager.ModelSize(rawValue: modelRawValue),
+              let whisperManager = whisperManager else { return }
+
+        print("US-043: Selecting Whisper model: \(model.displayName)")
+
+        // Select the model asynchronously
+        Task { @MainActor in
+            await whisperManager.selectModel(model)
+        }
+    }
+
     // MARK: - Model Status Observation
     
     private func setupModelStatusObserver() {
@@ -736,13 +818,19 @@ extension StatusBarController: NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         // Update model status in menu
         updateModelStatusMenuItem()
-        
+
         // Find the Audio Input submenu and populate it with current devices
+        // US-043: Also populate the Whisper Model submenu for quick model selection
         for item in menu.items {
             if item.title == "Audio Input", let submenu = item.submenu {
                 populateAudioDevicesMenu(submenu)
             }
-            
+
+            // US-043: Populate Whisper Model submenu
+            if item.title == "Whisper Model", let submenu = item.submenu {
+                populateModelSelectionMenu(submenu)
+            }
+
             // Update launch at login state
             if item.title == "Launch at Login" {
                 item.state = isLaunchAtLoginEnabled() ? .on : .off
