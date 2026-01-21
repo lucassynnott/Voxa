@@ -39,6 +39,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // US-054: Track idle state for battery optimization
     private var isAppIdle: Bool = true
 
+    // Flag to prevent showing model not ready alert repeatedly
+    private var hasShownModelNotReadyAlert: Bool = false
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         // US-051: Start timing app startup
         startupStartTime = CFAbsoluteTimeGetCurrent()
@@ -113,6 +116,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // This significantly improves startup time (from 2-10s to <1s)
             // Model will be loaded on-demand when user tries to record
             print("US-051: Whisper model loading deferred for faster startup")
+
+            // Auto-download small Whisper model if no model is downloaded
+            if let whisper = whisperManager {
+                if case .notDownloaded = whisper.modelStatus {
+                    print("AppDelegate: No Whisper model downloaded - auto-downloading small model")
+                    // Select small model and start download
+                    await whisper.selectModel(.small)
+                    print("AppDelegate: Auto-download of small model initiated")
+                }
+            }
 
             // Text cleanup is ready immediately (rule-based, no model download needed)
             print("Text cleanup ready with mode: \(textCleanupManager?.selectedMode.rawValue ?? "unknown")")
@@ -779,8 +792,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     
     @MainActor
     private func showModelNotReadyAlert() {
+        // Prevent showing alert multiple times in quick succession
+        guard !hasShownModelNotReadyAlert else {
+            print("AppDelegate: Model not ready alert already shown, skipping duplicate")
+            return
+        }
+
+        hasShownModelNotReadyAlert = true
+
+        // Reset the flag after a delay to allow showing again later if needed
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) { [weak self] in
+            self?.hasShownModelNotReadyAlert = false
+        }
+
         let alert = NSAlert()
-        
+
         // Determine message based on model status
         var detailMessage = "Please wait for the Whisper model to finish loading."
         if let whisper = whisperManager {
@@ -802,13 +828,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 detailMessage = "Model is ready." // Should not happen
             }
         }
-        
+
         alert.messageText = "Model Not Ready"
         alert.informativeText = detailMessage
         alert.alertStyle = .warning
         alert.addButton(withTitle: "Open Settings")
         alert.addButton(withTitle: "OK")
-        
+
         if alert.runModal() == .alertFirstButtonReturn {
             openSettings()
         }
