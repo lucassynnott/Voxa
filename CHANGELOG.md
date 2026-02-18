@@ -2,6 +2,26 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.1.2] - 2026-02-18
+
+### Added
+- Added Sparkle 2 in-app update system with:
+  - menu bar `Check for Updates...`
+  - settings controls for automatic update checks/downloads
+  - centralized update manager lifecycle integration.
+- Added Sparkle appcast generation script: `scripts/generate-appcast.sh`.
+- Added GitHub Pages deployment script for update feed publishing: `scripts/publish-updates-github-pages.sh`.
+
+### Changed
+- Release packaging workflow now generates Sparkle update artifacts and can publish them to GitHub Pages.
+- Release verification now checks Sparkle framework bundling and feed/public-key configuration.
+- App bundle build script now bundles `Sparkle.framework`.
+
+### Technical Notes
+- `SUFeedURL` now targets GitHub Pages update feed:
+  - `https://lucassynnott.github.io/Voxa/updates/appcast.xml`
+- `SUPublicEDKey` is configured for Sparkle EdDSA signing.
+
 ## [0.1.1] - 2026-02-18
 
 ### Fixed

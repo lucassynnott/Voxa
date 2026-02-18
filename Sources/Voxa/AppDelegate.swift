@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var debugManager: DebugManager?
     private var toastWindowController: ToastWindowController?
     private var mainWindowController: MainWindowController?
+    private var updateManager: UpdateManager?
     
     // Store last audio data for retry functionality
     private var lastAudioData: Data?
@@ -77,6 +78,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.openClipboardHistory()
         }
 
+        statusBarController?.onCheckForUpdates = { [weak self] in
+            Task { @MainActor in
+                self?.updateManager?.checkForUpdates()
+            }
+        }
+
         // Initialize and start the hotkey manager
         setupHotkeyManager()
 
@@ -98,6 +105,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         
         // Initialize Whisper manager, text cleanup manager, LLM manager, text inserter, and auto-load models on main actor
         Task { @MainActor in
+            setupUpdateManager()
             setupWhisperManager()
             setupTextCleanupManager()
             setupLLMManager()
@@ -186,7 +194,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     // MARK: - Setup
-    
+
+    @MainActor
+    private func setupUpdateManager() {
+        updateManager = UpdateManager.shared
+        updateManager?.refreshConfiguration()
+    }
+
     private func setupAudioManager() {
         // US-701: Use shared singleton instance
         audioManager = AudioManager.shared

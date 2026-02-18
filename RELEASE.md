@@ -14,6 +14,7 @@ This will:
 1. Build the app in release mode
 2. Sign it with your Developer ID
 3. Create a beautiful DMG installer
+4. Generate Sparkle update artifacts (`.build/updates/appcast.xml`)
 
 The DMG will be created at: `.build/Voxa-Installer.dmg`
 
@@ -79,6 +80,39 @@ This will:
 - Wait for approval (usually 1-5 minutes)
 - Staple the notarization ticket to the app
 
+### 4. Generate Sparkle Appcast
+
+```bash
+./scripts/generate-appcast.sh
+```
+
+This creates update artifacts at `.build/updates/`:
+- A versioned update ZIP archive
+- `appcast.xml` for Sparkle clients
+
+To enable in-app updates in production, set these keys in `Resources/Info.plist` before release:
+
+```xml
+<key>SUFeedURL</key>
+<string>https://your-update-host.example.com/appcast.xml</string>
+<key>SUPublicEDKey</key>
+<string>YOUR_SPARKLE_PUBLIC_ED25519_KEY</string>
+```
+
+Then publish all files from `.build/updates/` to your update host over HTTPS.
+
+### 5. Publish Updates to GitHub Pages
+
+```bash
+./scripts/publish-updates-github-pages.sh
+```
+
+This script:
+- Pushes `.build/updates/*` to the `gh-pages` branch under `/updates`
+- Ensures GitHub Pages is configured to serve from `gh-pages` root
+- Publishes feed URL:
+  - `https://lucassynnott.github.io/Voxa/updates/appcast.xml`
+
 #### Notarize the DMG (Optional)
 
 ```bash
@@ -138,7 +172,7 @@ Once notarized, you can distribute:
    - Recommended: Use HTTPS
    - Include SHA-256 checksum for verification
 
-3. **Auto-Updates**: Consider Sparkle framework for future versions
+3. **Auto-Updates**: Sparkle is integrated; publish `.build/updates/appcast.xml` and archives
 
 ## Troubleshooting
 

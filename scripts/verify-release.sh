@@ -7,6 +7,8 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 BUILD_DIR="${ROOT_DIR}/.build"
 APP_BUNDLE="${BUILD_DIR}/Voxa.app"
 DMG_PATH="${BUILD_DIR}/Voxa-Installer.dmg"
+UPDATES_DIR="${BUILD_DIR}/updates"
+SPARKLE_READY=true
 
 echo "╔════════════════════════════════════════╗"
 echo "║   Voxa Release Verification           ║"
@@ -58,6 +60,34 @@ else
     exit 1
 fi
 
+# Check Sparkle updater integration
+echo ""
+echo "Checking Sparkle updater integration..."
+if [ -d "${APP_BUNDLE}/Contents/Frameworks/Sparkle.framework" ]; then
+    echo "✓ Sparkle.framework bundled"
+else
+    echo "❌ Sparkle.framework missing from app bundle"
+    SPARKLE_READY=false
+fi
+
+APP_PLIST="${APP_BUNDLE}/Contents/Info.plist"
+SU_FEED_URL=$(/usr/libexec/PlistBuddy -c "Print :SUFeedURL" "$APP_PLIST" 2>/dev/null || true)
+SU_PUBLIC_KEY=$(/usr/libexec/PlistBuddy -c "Print :SUPublicEDKey" "$APP_PLIST" 2>/dev/null || true)
+
+if [ -n "$SU_FEED_URL" ] && [[ "$SU_FEED_URL" != REPLACE_WITH_* ]]; then
+    echo "✓ SUFeedURL configured ($SU_FEED_URL)"
+else
+    echo "❌ SUFeedURL is missing or placeholder"
+    SPARKLE_READY=false
+fi
+
+if [ -n "$SU_PUBLIC_KEY" ] && [[ "$SU_PUBLIC_KEY" != REPLACE_WITH_* ]]; then
+    echo "✓ SUPublicEDKey configured"
+else
+    echo "❌ SUPublicEDKey is missing or placeholder"
+    SPARKLE_READY=false
+fi
+
 # Check hardened runtime
 echo ""
 echo "Checking hardened runtime..."
@@ -98,6 +128,15 @@ else
     echo "   Run ./scripts/notarize-app.sh to notarize"
 fi
 
+# Check appcast artifacts
+echo ""
+if [ -f "${UPDATES_DIR}/appcast.xml" ]; then
+    echo "✓ Sparkle appcast exists"
+else
+    echo "⚠️  Sparkle appcast missing at ${UPDATES_DIR}/appcast.xml"
+    echo "   Run ./scripts/generate-appcast.sh to create update artifacts"
+fi
+
 # Summary
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -106,7 +145,8 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 
 if codesign -v "$APP_BUNDLE" 2>/dev/null && \
    echo "$ENTITLEMENTS" | grep -q "com.apple.security.device.audio-input" && \
-   echo "$ENTITLEMENTS" | grep -q "com.apple.security.automation.apple-events"; then
+   echo "$ENTITLEMENTS" | grep -q "com.apple.security.automation.apple-events" && \
+   [ "$SPARKLE_READY" = true ]; then
     echo "✅ App is ready for distribution"
 
     if echo "$NOTARY_INFO" | grep -q "accepted"; then

@@ -72,6 +72,27 @@ for LLAMA_FRAMEWORK in "${LLAMA_LOCATIONS[@]}"; do
     fi
 done
 
+# Copy Sparkle.framework from various possible locations
+SPARKLE_LOCATIONS=(
+    "${BUILD_DIR}/arm64-apple-macosx/${BUILD_CONFIG}/Sparkle.framework"
+    "${BUILD_DIR}/${BUILD_CONFIG}/Sparkle.framework"
+    "${BUILD_DIR}/artifacts/sparkle/Sparkle/Sparkle.framework"
+    "${BUILD_DIR}/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework"
+)
+
+for SPARKLE_FRAMEWORK in "${SPARKLE_LOCATIONS[@]}"; do
+    if [ -d "$SPARKLE_FRAMEWORK" ]; then
+        echo "Bundling Sparkle.framework from: $SPARKLE_FRAMEWORK"
+        # Use ditto to preserve symlinks and executable bits inside the framework bundle.
+        ditto "$SPARKLE_FRAMEWORK" "${APP_BUNDLE}/Contents/Frameworks/Sparkle.framework"
+        break
+    fi
+done
+
+if [ ! -d "${APP_BUNDLE}/Contents/Frameworks/Sparkle.framework" ]; then
+    echo "Warning: Sparkle.framework not found in known build locations"
+fi
+
 # Copy any dylibs from build directory
 for dylib in "${BUILD_DIR}/${BUILD_CONFIG}"/*.dylib; do
     if [ -f "$dylib" ]; then

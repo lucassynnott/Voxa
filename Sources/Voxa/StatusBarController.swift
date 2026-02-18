@@ -34,6 +34,9 @@ final class StatusBarController: NSObject {
     // US-030: Callback for opening clipboard history
     var onOpenClipboardHistory: (() -> Void)?
 
+    // Callback for checking for app updates
+    var onCheckForUpdates: (() -> Void)?
+
     // Reference to audio manager for device selection
     weak var audioManager: AudioManager?
     
@@ -180,6 +183,14 @@ final class StatusBarController: NSObject {
         let modelSelectionSubmenu = NSMenu()
         modelSelectionItem.submenu = modelSelectionSubmenu
         menu.addItem(modelSelectionItem)
+
+        menu.addItem(NSMenuItem.separator())
+
+        // Sparkle updates
+        let updatesItem = NSMenuItem(title: "Check for Updates...", action: #selector(checkForUpdates), keyEquivalent: "u")
+        updatesItem.target = self
+        updatesItem.image = createMenuIcon(systemName: "arrow.triangle.2.circlepath", tint: NSColor.Voxa.textSecondary)
+        menu.addItem(updatesItem)
 
         menu.addItem(NSMenuItem.separator())
         
@@ -791,6 +802,11 @@ final class StatusBarController: NSObject {
     @objc private func openMainWindow() {
         print("Open Voxa clicked - opening main window")
         onOpenMainWindow?()
+    }
+
+    @objc private func checkForUpdates() {
+        print("Check for Updates clicked")
+        onCheckForUpdates?()
     }
     
     @objc private func toggleLaunchAtLogin(_ sender: NSMenuItem) {

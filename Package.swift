@@ -11,14 +11,16 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/argmaxinc/WhisperKit.git", from: "0.9.0"),
-        .package(url: "https://github.com/mattt/llama.swift.git", .upToNextMajor(from: "2.7721.0"))
+        .package(url: "https://github.com/mattt/llama.swift.git", .upToNextMajor(from: "2.7721.0")),
+        .package(url: "https://github.com/sparkle-project/Sparkle.git", from: "2.8.0")
     ],
     targets: [
         .executableTarget(
             name: "Voxa",
             dependencies: [
                 "WhisperKit",
-                .product(name: "LlamaSwift", package: "llama.swift")
+                .product(name: "LlamaSwift", package: "llama.swift"),
+                .product(name: "Sparkle", package: "Sparkle")
             ],
             path: "Sources/Voxa"
         )

@@ -2,27 +2,35 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleIdentifier</key>
-    <string>com.wispflow.Voxa</string>
-    <key>CFBundleName</key>
-    <string>Voxa</string>
-    <key>CFBundleDisplayName</key>
-    <string>Voxa</string>
-    <key>CFBundleVersion</key>
-    <string>2</string>
-    <key>CFBundleShortVersionString</key>
-    <string>0.1.1</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>CFBundleExecutable</key>
-    <string>Voxa</string>
-    <key>CFBundleIconFile</key>
-    <string>AppIcon</string>
-    <key>LSMinimumSystemVersion</key>
-    <string>14.0</string>
-    <key>NSMicrophoneUsageDescription</key>
-    <string>Voxa needs microphone access to transcribe your speech.</string>
-    <key>NSAppleEventsUsageDescription</key>
-    <string>Voxa needs accessibility access to insert transcribed text into other applications.</string>
+	<key>CFBundleDisplayName</key>
+	<string>Voxa</string>
+	<key>CFBundleExecutable</key>
+	<string>Voxa</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.wispflow.Voxa</string>
+	<key>CFBundleName</key>
+	<string>Voxa</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1.2</string>
+	<key>CFBundleVersion</key>
+	<string>3</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>Voxa needs accessibility access to insert transcribed text into other applications.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Voxa needs microphone access to transcribe your speech.</string>
+	<key>SUAutomaticallyUpdate</key>
+	<false/>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+    <key>SUFeedURL</key>
+    <string>https://lucassynnott.github.io/Voxa/updates/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>Mxvw46keX9f13Ua4hLQ9VIoQquk5dMWqM1Mo/vFPmhc=</string>
 </dict>
 </plist>

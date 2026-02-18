@@ -5146,6 +5146,7 @@ struct SettingsSectionView<Content: View>: View {
 struct GeneralSettingsSummary: View {
     @StateObject private var hotkeyManager = HotkeyManager.shared
     @StateObject private var permissionManager = PermissionManager.shared
+    @StateObject private var updateManager = UpdateManager.shared
     @State private var isRecordingHotkey = false
     @State private var isRecordingStopHotkey = false  // US-015
     @State private var isRecordingCancelHotkey = false  // US-016
@@ -5175,6 +5176,9 @@ struct GeneralSettingsSummary: View {
             
             // MARK: - Startup Options (US-702 Task 4)
             startupSection
+
+            // MARK: - Updates Section
+            updateSection
             
             // MARK: - Permissions Section
             permissionsSection
@@ -5184,6 +5188,7 @@ struct GeneralSettingsSummary: View {
             launchAtLogin = SMAppService.mainApp.status == .enabled
             // Refresh permission status on appear
             permissionManager.refreshAllStatuses()
+            updateManager.refreshConfiguration()
         }
     }
     
@@ -5583,6 +5588,75 @@ struct GeneralSettingsSummary: View {
                     .foregroundColor(Color.Voxa.textSecondary)
                     .padding(.leading, Spacing.xxl + Spacing.md)
             }
+        }
+    }
+
+    // MARK: - Updates Section
+
+    private var updateSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack(spacing: Spacing.sm) {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .foregroundColor(Color.Voxa.accent)
+                    .font(.system(size: 16, weight: .medium))
+                Text("Updates")
+                    .font(Font.Voxa.headline)
+                    .foregroundColor(Color.Voxa.textPrimary)
+
+                Spacer()
+
+                StatusPill(
+                    text: updateManager.statusText,
+                    color: updateManager.canCheckForUpdates ? Color.Voxa.success : Color.Voxa.warning
+                )
+            }
+
+            Text("Keep Voxa up to date with in-app updates.")
+                .font(Font.Voxa.caption)
+                .foregroundColor(Color.Voxa.textSecondary)
+
+            HStack(spacing: Spacing.md) {
+                Button(action: {
+                    updateManager.checkForUpdates()
+                }) {
+                    HStack(spacing: Spacing.xs) {
+                        Image(systemName: "arrow.down.circle")
+                        Text("Check for Updates")
+                    }
+                }
+                .buttonStyle(VoxaButtonStyle.primary)
+                .disabled(!updateManager.isConfigured)
+
+                if !updateManager.isConfigured {
+                    Text(updateManager.configurationHint)
+                        .font(Font.Voxa.small)
+                        .foregroundColor(Color.Voxa.warning)
+                }
+            }
+
+            Toggle(
+                "Automatically check for updates",
+                isOn: Binding(
+                    get: { updateManager.automaticallyChecksForUpdates },
+                    set: { updateManager.setAutomaticallyChecksForUpdates($0) }
+                )
+            )
+            .toggleStyle(VoxaToggleStyle())
+            .font(Font.Voxa.body)
+            .foregroundColor(Color.Voxa.textPrimary)
+            .disabled(!updateManager.isConfigured)
+
+            Toggle(
+                "Download updates automatically",
+                isOn: Binding(
+                    get: { updateManager.automaticallyDownloadsUpdates },
+                    set: { updateManager.setAutomaticallyDownloadsUpdates($0) }
+                )
+            )
+            .toggleStyle(VoxaToggleStyle())
+            .font(Font.Voxa.body)
+            .foregroundColor(Color.Voxa.textPrimary)
+            .disabled(!updateManager.isConfigured || !updateManager.automaticallyChecksForUpdates)
         }
     }
     
