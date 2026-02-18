@@ -1,0 +1,14 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>Voxa</title>
+        <item>
+            <title>0.1.2</title>
+            <pubDate>Wed, 18 Feb 2026 19:33:56 +0000</pubDate>
+            <sparkle:version>3</sparkle:version>
+            <sparkle:shortVersionString>0.1.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://stopmoclay.github.io/WispFlow/Voxa-0.1.2-3.zip" length="7525129" type="application/octet-stream" sparkle:edSignature="u1mqsyv7iuFoWQxkkmSGASuBAB4zJ+ZsAqDRyyEK7QMJZGuj8qaaNFD1yITJUslcMuzITBA1ma2JdCgXAM0eDg=="/>
+        </item>
+    </channel>
+</rss>
