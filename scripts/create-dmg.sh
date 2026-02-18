@@ -5,6 +5,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 BUILD_DIR="${ROOT_DIR}/.build"
+export BUILD_DIR
 APP_BUNDLE="${BUILD_DIR}/Voxa.app"
 DMG_DIR="${BUILD_DIR}/dmg"
 DMG_NAME="Voxa-Installer.dmg"

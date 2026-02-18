@@ -117,9 +117,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // Model will be loaded on-demand when user tries to record
             print("US-051: Whisper model loading deferred for faster startup")
 
-            // Auto-download small Whisper model if no model is downloaded
+            // Auto-download small Whisper model only if no models are present on disk
             if let whisper = whisperManager {
-                if case .notDownloaded = whisper.modelStatus {
+                if whisper.getDownloadedModels().isEmpty {
                     print("AppDelegate: No Whisper model downloaded - auto-downloading small model")
                     // Select small model and start download
                     await whisper.selectModel(.small)

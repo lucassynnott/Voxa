@@ -304,6 +304,39 @@ final class WhisperManager: ObservableObject {
         try? FileManager.default.createDirectory(at: modelsDir, withIntermediateDirectories: true)
         return modelsDir
     }
+
+    /// Base directory where WhisperKit stores repository models under `models/<repo>/`.
+    private var repositoryModelsDirectory: URL {
+        var url = modelsDirectory.appendingPathComponent("models", isDirectory: true)
+        for segment in Constants.modelRepo.split(separator: "/") {
+            url.appendPathComponent(String(segment), isDirectory: true)
+        }
+        return url
+    }
+
+    /// Returns all known on-disk locations where WhisperKit may place a model directory.
+    private func modelDirectoryCandidates(for model: ModelSize) -> [URL] {
+        [
+            // Legacy layout used by earlier app logic.
+            modelsDirectory.appendingPathComponent(model.modelPattern, isDirectory: true),
+            // Current WhisperKit/Hugging Face layout.
+            repositoryModelsDirectory.appendingPathComponent(model.modelPattern, isDirectory: true),
+            // Alternate HF layout seen in some setups.
+            modelsDirectory.appendingPathComponent("models/openai/whisper-\(model.rawValue)", isDirectory: true)
+        ]
+    }
+
+    /// Check whether a URL exists and is a directory.
+    private func directoryExists(at url: URL) -> Bool {
+        var isDirectory: ObjCBool = false
+        let exists = FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory)
+        return exists && isDirectory.boolValue
+    }
+
+    /// Returns the first existing model directory for the given model, if any.
+    private func existingModelDirectory(for model: ModelSize) -> URL? {
+        modelDirectoryCandidates(for: model).first { directoryExists(at: $0) }
+    }
     
     // MARK: - Callbacks
     
@@ -334,7 +367,13 @@ final class WhisperManager: ObservableObject {
         } else {
             selectedLanguage = .automatic // Default to auto-detect
         }
-        
+
+        // Reflect persisted on-disk model availability on app launch.
+        if isModelDownloaded(selectedModel) {
+            modelStatus = .downloaded
+            statusMessage = "\(selectedModel.displayName) available"
+        }
+
         print("WhisperManager initialized with model: \(selectedModel.rawValue), language: \(selectedLanguage.rawValue)")
     }
     
@@ -790,13 +829,12 @@ final class WhisperManager: ObservableObject {
     /// Verify model files exist after download
     /// - Returns: Tuple with success flag and descriptive message
     private func verifyModelFilesAfterDownload() -> (success: Bool, message: String) {
-        let modelPath = modelsDirectory.appendingPathComponent(selectedModel.modelPattern)
-        let fm = FileManager.default
-        
-        guard fm.fileExists(atPath: modelPath.path) else {
-            return (false, "Model directory not found at: \(modelPath.path)")
+        guard let modelPath = existingModelDirectory(for: selectedModel) else {
+            let searchedPaths = modelDirectoryCandidates(for: selectedModel).map(\.path).joined(separator: ", ")
+            return (false, "Model directory not found. Searched: \(searchedPaths)")
         }
-        
+        let fm = FileManager.default
+
         // List files in model directory
         do {
             let contents = try fm.contentsOfDirectory(atPath: modelPath.path)
@@ -815,7 +853,7 @@ final class WhisperManager: ObservableObject {
             }
             
             let sizeStr = ByteCountFormatter.string(fromByteCount: Int64(totalSize), countStyle: .file)
-            return (true, "Model verified: \(contents.count) files, total size: \(sizeStr)")
+            return (true, "Model verified at \(modelPath.path): \(contents.count) files, total size: \(sizeStr)")
         } catch {
             return (false, "Failed to verify model directory: \(error.localizedDescription)")
         }
@@ -882,20 +920,35 @@ final class WhisperManager: ObservableObject {
     
     /// Check if a model is downloaded
     func isModelDownloaded(_ model: ModelSize) -> Bool {
-        let modelPath = modelsDirectory.appendingPathComponent(model.modelPattern)
-        return FileManager.default.fileExists(atPath: modelPath.path)
+        existingModelDirectory(for: model) != nil
     }
     
     /// Delete a downloaded model
     func deleteModel(_ model: ModelSize) async {
-        let modelPath = modelsDirectory.appendingPathComponent(model.modelPattern)
-        
         do {
-            if FileManager.default.fileExists(atPath: modelPath.path) {
+            var deletedAnyModelPath = false
+
+            for modelPath in modelDirectoryCandidates(for: model) where directoryExists(at: modelPath) {
                 try FileManager.default.removeItem(at: modelPath)
+                deletedAnyModelPath = true
+                print("WhisperManager: Deleted model path \(modelPath.path)")
+            }
+
+            // Also remove cached download artifacts for this model pattern.
+            let cachePath = repositoryModelsDirectory
+                .appendingPathComponent(".cache", isDirectory: true)
+                .appendingPathComponent("huggingface", isDirectory: true)
+                .appendingPathComponent("download", isDirectory: true)
+                .appendingPathComponent(model.modelPattern, isDirectory: true)
+            if directoryExists(at: cachePath) {
+                try FileManager.default.removeItem(at: cachePath)
+                print("WhisperManager: Deleted model cache path \(cachePath.path)")
+            }
+
+            if deletedAnyModelPath {
                 print("WhisperManager: Deleted model \(model.rawValue)")
-                
-                // If this was the active model, reset status
+
+                // If this was the active model, reset status.
                 if model == selectedModel {
                     whisperKit = nil
                     modelStatus = .notDownloaded
@@ -918,8 +971,12 @@ final class WhisperManager: ObservableObject {
     /// - Parameter model: The model to check
     /// - Returns: Size in bytes, or 0 if not downloaded
     func getStorageForModel(_ model: ModelSize) -> UInt64 {
-        let modelPath = modelsDirectory.appendingPathComponent(model.modelPattern)
-        return calculateDirectorySize(at: modelPath)
+        let existingDirectories = modelDirectoryCandidates(for: model).filter { directoryExists(at: $0) }
+        let uniqueDirectories = Dictionary(grouping: existingDirectories, by: { $0.resolvingSymlinksInPath().standardizedFileURL.path }).values.compactMap(\.first)
+
+        return uniqueDirectories.reduce(0) { partialResult, directory in
+            partialResult + calculateDirectorySize(at: directory)
+        }
     }
 
     /// Get the total storage size (in bytes) used by all downloaded models
