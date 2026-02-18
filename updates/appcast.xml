@@ -8,7 +8,7 @@
             <sparkle:version>3</sparkle:version>
             <sparkle:shortVersionString>0.1.2</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://lucassynnott.github.io/Voxa/updates/Voxa-0.1.2-3.zip" length="7525129" type="application/octet-stream" sparkle:edSignature="UrncoxZF450nkVNY5wbMnpkeKhTkPzVrissEEuWm8jY9etazCjz5YWbeRr9xPy/zzSpOoFtGQFcEgwhEGFR9Aw=="/>
+            <enclosure url="https://lucassynnott.github.io/Voxa/updates/Voxa-0.1.2-3.zip" length="7525136" type="application/octet-stream" sparkle:edSignature="7tcK2x9iDWjUiM3X/ygk8QVDC0zTonQrSBGh6mxIO+x9hR2l1kvZ93S77yJZeOTpBOxrc+BFUbp826yZPJI9AA=="/>
         </item>
     </channel>
 </rss>
