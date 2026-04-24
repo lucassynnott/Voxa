@@ -3,12 +3,13 @@
     <channel>
         <title>Voxa</title>
         <item>
-            <title>0.1.2</title>
-            <pubDate>Wed, 18 Feb 2026 19:33:56 +0000</pubDate>
-            <sparkle:version>3</sparkle:version>
-            <sparkle:shortVersionString>0.1.2</sparkle:shortVersionString>
+            <title>0.1.3</title>
+            <pubDate>Fri, 24 Apr 2026 11:02:39 +0100</pubDate>
+            <sparkle:version>4</sparkle:version>
+            <sparkle:shortVersionString>0.1.3</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://lucassynnott.github.io/Voxa/updates/Voxa-0.1.2-3.zip" length="7525136" type="application/octet-stream" sparkle:edSignature="7tcK2x9iDWjUiM3X/ygk8QVDC0zTonQrSBGh6mxIO+x9hR2l1kvZ93S77yJZeOTpBOxrc+BFUbp826yZPJI9AA=="/>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <enclosure url="https://lucassynnott.github.io/Voxa/updates/Voxa-0.1.3-4.zip" length="8044115" type="application/octet-stream" sparkle:edSignature="Y4stwQWwmjCPc81/5EfFoZddLWaqoeKP7RRwZTikLec5wpQwLLvPLe+lRv8AnPquNLU1uic2CAggcURQSxH8CA=="/>
         </item>
     </channel>
 </rss>
