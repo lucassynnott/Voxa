@@ -60,13 +60,31 @@ final class AudioManager: NSObject, ObservableObject {
     
     /// Audio capture completion result
     struct AudioCaptureResult {
-        let audioData: Data
+        let audioSamples: [Float]
         let duration: TimeInterval
         let sampleRate: Double
         let peakLevel: Float    // Peak level in dB
         let sampleCount: Int    // Total number of samples
         let wasSilent: Bool     // True if audio appeared silent (peak < -55dB and >95% near-zero samples)
         let measuredDbLevel: Float  // Actual measured dB level for error messages
+
+        var audioData: Data {
+            Self.makeAudioData(from: audioSamples)
+        }
+
+        var audioByteCount: Int {
+            audioSamples.count * MemoryLayout<Float>.size
+        }
+
+        private static func makeAudioData(from samples: [Float]) -> Data {
+            samples.withUnsafeBufferPointer { buffer in
+                guard let baseAddress = buffer.baseAddress else { return Data() }
+                return Data(
+                    bytes: baseAddress,
+                    count: buffer.count * MemoryLayout<Float>.size
+                )
+            }
+        }
     }
     
     /// Audio buffer statistics for debugging
@@ -191,8 +209,8 @@ final class AudioManager: NSObject, ObservableObject {
         
         // US-603: Recording Timeout Safety - prevent runaway recordings
         static let maxRecordingDurationKey = "maxRecordingDuration"
-        static let defaultMaxRecordingDuration: TimeInterval = 300.0 // 5 minutes default
-        static let warningOffsetFromMax: TimeInterval = 60.0 // Warning 1 minute before max (at 4 minutes)
+        static let defaultMaxRecordingDuration: TimeInterval = 360.0 // 6 minutes default
+        static let warningOffsetFromMax: TimeInterval = 60.0 // Warning 1 minute before max
         
         // US-604: Audio Level Calibration
         static let calibrationDuration: TimeInterval = 3.0 // Measure ambient noise over 3 seconds
@@ -286,7 +304,7 @@ final class AudioManager: NSObject, ObservableObject {
     
     // MARK: - US-603: Recording Timeout Safety Callbacks
     
-    /// Called when recording approaches the maximum duration (warning at 4 minutes by default)
+    /// Called when recording approaches the maximum duration
     var onRecordingTimeoutWarning: ((TimeInterval) -> Void)?
     
     /// Called when recording reaches the maximum duration and will auto-stop
@@ -1886,8 +1904,9 @@ final class AudioManager: NSObject, ObservableObject {
         print("╚═══════════════════════════════════════════════════════════════╝")
         
         // US-301: Get audio directly from masterBuffer (no combining needed!)
-        let (audioData, stats) = getMasterBufferDataWithStats()
-        print("AudioManager: [STAGE 4] ✓ masterBuffer converted to \(audioData.count) bytes (\(stats.sampleCount) samples)")
+        let (audioSamples, stats) = getMasterBufferSamplesWithStats()
+        let audioByteCount = audioSamples.count * MemoryLayout<Float>.size
+        print("AudioManager: [STAGE 4] ✓ masterBuffer prepared as \(audioSamples.count) Float samples (\(audioByteCount) bytes)")
         
         // Log detailed audio buffer statistics
         logAudioBufferStatistics(stats: stats, duration: duration)
@@ -1910,7 +1929,7 @@ final class AudioManager: NSObject, ObservableObject {
             print("AudioManager: [STAGE 4] ✓ Audio level check passed (peak \(String(format: "%.1f", stats.peakLevel))dB)")
         }
         
-        print("AudioManager: [STAGE 4] ✓ Audio ready for transcription - Duration: \(String(format: "%.2f", duration))s, Data size: \(audioData.count) bytes, Peak: \(String(format: "%.1f", stats.peakLevel))dB")
+        print("AudioManager: [STAGE 4] ✓ Audio ready for transcription - Duration: \(String(format: "%.2f", duration))s, Data size: \(audioByteCount) bytes, Peak: \(String(format: "%.1f", stats.peakLevel))dB")
         
         // US-502: Cache the device used for this successful recording
         // This enables fast-path device selection on the next recording
@@ -1927,7 +1946,7 @@ final class AudioManager: NSObject, ObservableObject {
         print("AudioManager: [US-303] masterBuffer cleared after read (was \(clearedSampleCount) samples, now 0)")
         
         return AudioCaptureResult(
-            audioData: audioData,
+            audioSamples: audioSamples,
             duration: duration,
             sampleRate: Constants.targetSampleRate,
             peakLevel: stats.peakLevel,
@@ -2065,7 +2084,7 @@ final class AudioManager: NSObject, ObservableObject {
         print("║ Auto-stop at:            \(String(format: "%10.0f", maxDuration)) seconds (\(String(format: "%.1f", maxDuration / 60.0)) min)       ║")
         print("╚═══════════════════════════════════════════════════════════════╝")
         
-        // Start warning timer (fires at 4 minutes by default)
+        // Start warning timer
         if warningDuration > 0 {
             recordingTimeoutWarningTimer = Timer.scheduledTimer(withTimeInterval: warningDuration, repeats: false) { [weak self] _ in
                 guard let self = self, self.isCapturing, !self.hasShownTimeoutWarning else { return }
@@ -2086,7 +2105,7 @@ final class AudioManager: NSObject, ObservableObject {
             }
         }
         
-        // Start max timer (fires at 5 minutes by default - auto-stops recording)
+        // Start max timer (auto-stops recording)
         recordingTimeoutMaxTimer = Timer.scheduledTimer(withTimeInterval: maxDuration, repeats: false) { [weak self] _ in
             guard let self = self, self.isCapturing else { return }
             
@@ -2283,8 +2302,8 @@ final class AudioManager: NSObject, ObservableObject {
         return buffer
     }
     
-    /// US-301: Get masterBuffer data with statistics (for transcription)
-    private func getMasterBufferDataWithStats() -> (Data, AudioBufferStats) {
+    /// US-301: Get masterBuffer samples with statistics (for transcription)
+    private func getMasterBufferSamplesWithStats() -> ([Float], AudioBufferStats) {
         // US-303: Log when buffer is read for transcription
         print("╔═══════════════════════════════════════════════════════════════╗")
         print("║       US-303: BUFFER INTEGRITY - READING FOR TRANSCRIPTION    ║")
@@ -2337,18 +2356,7 @@ final class AudioManager: NSObject, ObservableObject {
         // Calculate statistics from normalized samples
         let stats = calculateBufferStatistics(samples: normalizedSamples)
         
-        // Convert normalized Float32 samples to Data
-        var combinedData = Data()
-        combinedData.reserveCapacity(normalizedSamples.count * MemoryLayout<Float>.size)
-        
-        for sample in normalizedSamples {
-            var sampleValue = sample
-            withUnsafeBytes(of: &sampleValue) { bytes in
-                combinedData.append(contentsOf: bytes)
-            }
-        }
-        
-        return (combinedData, stats)
+        return (normalizedSamples, stats)
     }
     
     /// Normalize audio samples to [-1.0, 1.0] range
@@ -2498,11 +2506,11 @@ final class AudioManager: NSObject, ObservableObject {
     
     // MARK: - US-603: Recording Timeout Configuration
     
-    /// Maximum recording duration in seconds (configurable, default 5 minutes)
+    /// Maximum recording duration in seconds (configurable, default 6 minutes)
     static var maxRecordingDuration: TimeInterval {
         get {
             let stored = UserDefaults.standard.double(forKey: Constants.maxRecordingDurationKey)
-            return stored > 0 ? stored : Constants.defaultMaxRecordingDuration
+            return stored > 0 ? max(stored, Constants.defaultMaxRecordingDuration) : Constants.defaultMaxRecordingDuration
         }
         set {
             UserDefaults.standard.set(newValue, forKey: Constants.maxRecordingDurationKey)

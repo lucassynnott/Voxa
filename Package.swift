@@ -22,7 +22,8 @@ let package = Package(
                 .product(name: "LlamaSwift", package: "llama.swift"),
                 .product(name: "Sparkle", package: "Sparkle")
             ],
-            path: "Sources/Voxa"
+            path: "Sources/Voxa",
+            exclude: ["MEMORY_AUDIT.md"]
         )
         // Note: Tests require full Xcode installation (not just Command Line Tools)
         // Tests can be added when building with Xcode IDE

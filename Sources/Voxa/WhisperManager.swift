@@ -149,7 +149,9 @@ final class WhisperManager: ObservableObject {
         static let modelRepo = "argmaxinc/whisperkit-coreml"
         static let expectedSampleRate: Double = 16000.0
         static let minimumDuration: Double = 0.5    // seconds
-        static let maximumDuration: Double = 120.0  // seconds
+        static var maximumDuration: Double {
+            max(360.0, AudioManager.maxRecordingDuration)
+        }
     }
 
     // MARK: - US-056: Optimized Compute Options
@@ -1229,6 +1231,27 @@ final class WhisperManager: ObservableObject {
     ///   - sampleRate: Sample rate of the audio (should be 16000)
     /// - Returns: Transcribed text or nil if failed
     func transcribe(audioData: Data, sampleRate: Double = 16000.0) async -> String? {
+        let samples = audioData.withUnsafeBytes { buffer -> [Float] in
+            let floatBuffer = buffer.bindMemory(to: Float.self)
+            return Array(floatBuffer)
+        }
+
+        return await transcribe(
+            audioSamples: samples,
+            sampleRate: sampleRate,
+            audioDataForRetry: audioData
+        )
+    }
+
+    /// Transcribe pre-converted Float32 audio samples.
+    /// - Parameters:
+    ///   - audioSamples: Float32 mono samples at 16kHz
+    ///   - sampleRate: Sample rate of the audio (should be 16000)
+    ///   - audioDataForRetry: Optional original audio data used by existing retry/export error flows
+    /// - Returns: Transcribed text or nil if failed
+    func transcribe(audioSamples: [Float], sampleRate: Double = 16000.0, audioDataForRetry: Data? = nil) async -> String? {
+        let byteCount = audioSamples.count * MemoryLayout<Float>.size
+
         // Ensure model is loaded
         guard let whisper = whisperKit else {
             statusMessage = "Model not loaded"
@@ -1243,19 +1266,15 @@ final class WhisperManager: ObservableObject {
             )
 
             onError?("Model not loaded")
-            onTranscriptionError?(error, audioData, sampleRate)
+            onTranscriptionError?(error, audioDataForRetry, sampleRate)
             return nil
         }
 
-        // US-053: Convert audio data to samples ONCE and reuse for all operations
-        // This optimization reduces memory allocations from 4x to 1x during transcription
-        var samples = audioData.withUnsafeBytes { buffer -> [Float] in
-            let floatBuffer = buffer.bindMemory(to: Float.self)
-            return Array(floatBuffer)
-        }
+        // US-053: Samples are passed in directly from AudioManager and reused for all operations.
+        var samples = audioSamples
 
         // Log audio diagnostics before transcription (using pre-converted samples)
-        logAudioDiagnosticsOptimized(samples: samples, sampleRate: sampleRate, byteCount: audioData.count)
+        logAudioDiagnosticsOptimized(samples: samples, sampleRate: sampleRate, byteCount: byteCount)
 
         // Validate audio data before transcription (using pre-converted samples)
         if let validationError = validateAudioSamples(samples, sampleRate: sampleRate) {
@@ -1271,13 +1290,13 @@ final class WhisperManager: ObservableObject {
                 severity: .error,
                 context: [
                     "validationError": String(describing: validationError),
-                    "audioDataSize": audioData.count,
+                    "audioDataSize": byteCount,
                     "sampleRate": sampleRate
                 ]
             )
 
             onError?(errorMessage)
-            onTranscriptionError?(error, audioData, sampleRate)
+            onTranscriptionError?(error, audioDataForRetry, sampleRate)
             return nil
         }
 
@@ -1343,16 +1362,16 @@ final class WhisperManager: ObservableObject {
             
             // Handle BLANK_AUDIO response from WhisperKit
             if isBlankAudioResponse(transcribedText) {
-                let errorDetails = createBlankAudioErrorMessage(audioData: audioData, sampleRate: sampleRate)
+                let errorDetails = createBlankAudioErrorMessage(samples: samples, sampleRate: sampleRate)
                 statusMessage = "No speech detected"
                 transcriptionStatus = .error(errorDetails)
                 print("WhisperManager: Received BLANK_AUDIO - \(errorDetails)")
                 
                 let error = TranscriptionError.blankAudioResult(details: errorDetails)
-                let audioStats = getAudioStats(audioData: audioData, sampleRate: sampleRate)
+                let audioStats = getAudioStats(samples: samples, sampleRate: sampleRate)
                 ErrorLogger.shared.logBlankAudioResult(audioStats: audioStats)
                 
-                onTranscriptionError?(error, audioData, sampleRate)
+                onTranscriptionError?(error, audioDataForRetry, sampleRate)
                 // Return empty string instead of showing BLANK_AUDIO to user
                 return ""
             }
@@ -1364,13 +1383,17 @@ final class WhisperManager: ObservableObject {
                 
                 let errorDetails = "The recording was successfully processed, but no speech was detected. Try speaking more clearly or check your microphone position."
                 let error = TranscriptionError.noSpeechDetected(details: errorDetails)
-                onTranscriptionError?(error, audioData, sampleRate)
+                onTranscriptionError?(error, audioDataForRetry, sampleRate)
                 return ""
             }
             
             transcriptionStatus = .completed(transcribedText)
             statusMessage = "Transcription complete"
-            print("WhisperManager: Transcription result: \(transcribedText)")
+            print("WhisperManager: Transcription result received (\(transcribedText.count) characters)")
+            logSensitiveTranscription(
+                message: "Whisper transcription result",
+                details: "Model: \(selectedModel.rawValue)\nText: \(transcribedText)"
+            )
             
             onTranscriptionComplete?(transcribedText)
             return transcribedText
@@ -1382,11 +1405,11 @@ final class WhisperManager: ObservableObject {
             print("WhisperManager: \(errorMessage)")
             
             let transcriptionError = TranscriptionError.whisperKitError(underlying: error)
-            let audioStats = getAudioStats(audioData: audioData, sampleRate: sampleRate)
+            let audioStats = getAudioStats(samples: samples, sampleRate: sampleRate)
             ErrorLogger.shared.logTranscriptionError(error, audioInfo: audioStats)
             
             onError?(errorMessage)
-            onTranscriptionError?(transcriptionError, audioData, sampleRate)
+            onTranscriptionError?(transcriptionError, audioDataForRetry, sampleRate)
             return nil
         }
     }
@@ -1397,7 +1420,12 @@ final class WhisperManager: ObservableObject {
             let floatBuffer = buffer.bindMemory(to: Float.self)
             return Array(floatBuffer)
         }
-        
+
+        return getAudioStats(samples: samples, sampleRate: sampleRate)
+    }
+
+    /// Get audio statistics for logging from pre-converted samples
+    private func getAudioStats(samples: [Float], sampleRate: Double) -> [String: Any] {
         var peakAmplitude: Float = 0
         var sumSquares: Float = 0
         for sample in samples {
@@ -1448,6 +1476,17 @@ final class WhisperManager: ObservableObject {
         
         return samples.map { $0 * normalizationFactor }
     }
+
+    private func logSensitiveTranscription(message: String, details: String) {
+        guard DebugManager.shared.isDebugModeEnabled else { return }
+
+        DebugManager.shared.addLogEntry(
+            category: .transcription,
+            level: .verbose,
+            message: message,
+            details: details
+        )
+    }
     
     /// Check if transcription result is a BLANK_AUDIO response
     /// - Parameter text: Transcription result text
@@ -1472,7 +1511,12 @@ final class WhisperManager: ObservableObject {
             let floatBuffer = buffer.bindMemory(to: Float.self)
             return Array(floatBuffer)
         }
-        
+
+        return createBlankAudioErrorMessage(samples: samples, sampleRate: sampleRate)
+    }
+
+    /// Create a meaningful error message for BLANK_AUDIO responses from pre-converted samples
+    private func createBlankAudioErrorMessage(samples: [Float], sampleRate: Double) -> String {
         // Analyze audio to determine likely cause
         var peakAmplitude: Float = 0
         var sumSquares: Float = 0

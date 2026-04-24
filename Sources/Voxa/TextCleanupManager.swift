@@ -307,7 +307,11 @@ final class TextCleanupManager: ObservableObject {
         cleanupStatus = .processing
         statusMessage = "Cleaning up text..."
         
-        print("TextCleanupManager: Cleaning up text with mode \(selectedMode.rawValue): \(text)")
+        print("TextCleanupManager: Cleaning up text with mode \(selectedMode.rawValue) (\(text.count) characters)")
+        logSensitiveCleanupText(
+            message: "Text cleanup input",
+            details: "Mode: \(selectedMode.rawValue)\nText: \(text)"
+        )
         
         var cleanedText: String
         
@@ -337,7 +341,11 @@ final class TextCleanupManager: ObservableObject {
         
         cleanupStatus = .completed(cleanedText)
         statusMessage = "Cleanup complete"
-        print("TextCleanupManager: Cleanup result: \(cleanedText)")
+        print("TextCleanupManager: Cleanup result ready (\(cleanedText.count) characters)")
+        logSensitiveCleanupText(
+            message: "Text cleanup output",
+            details: "Mode: \(selectedMode.rawValue)\nText: \(cleanedText)"
+        )
         
         onCleanupComplete?(cleanedText)
         return cleanedText
@@ -612,7 +620,11 @@ final class TextCleanupManager: ObservableObject {
             result = convertToSmartQuotes(result)
         }
 
-        print("TextCleanupManager: [US-607/US-023/US-024] Post-processing applied (capitalizeSentences=\(autoCapitalizeSentences), capitalizeFirst=\(autoCapitalizeFirstLetter), period=\(addPeriodAtEnd), trim=\(trimWhitespace), smartQuotes=\(useSmartQuotes)): '\(text)' -> '\(result)'")
+        print("TextCleanupManager: [US-607/US-023/US-024] Post-processing applied (capitalizeSentences=\(autoCapitalizeSentences), capitalizeFirst=\(autoCapitalizeFirstLetter), period=\(addPeriodAtEnd), trim=\(trimWhitespace), smartQuotes=\(useSmartQuotes), inputCharacters=\(text.count), outputCharacters=\(result.count))")
+        logSensitiveCleanupText(
+            message: "Text post-processing applied",
+            details: "Input: \(text)\nOutput: \(result)"
+        )
 
         return result
     }
@@ -806,7 +818,11 @@ final class TextCleanupManager: ObservableObject {
             result += text[textIndex...]
         }
 
-        print("TextCleanupManager: [US-025] Applied timing-based punctuation: '\(text)' -> '\(result)'")
+        print("TextCleanupManager: [US-025] Applied timing-based punctuation (inputCharacters=\(text.count), outputCharacters=\(result.count))")
+        logSensitiveCleanupText(
+            message: "Timing-based punctuation applied",
+            details: "Input: \(text)\nOutput: \(result)"
+        )
         return result
     }
 
@@ -891,10 +907,25 @@ final class TextCleanupManager: ObservableObject {
         }
 
         if result != text {
-            print("TextCleanupManager: [US-025] Applied pattern-based punctuation: '\(text)' -> '\(result)'")
+            print("TextCleanupManager: [US-025] Applied pattern-based punctuation (inputCharacters=\(text.count), outputCharacters=\(result.count))")
+            logSensitiveCleanupText(
+                message: "Pattern-based punctuation applied",
+                details: "Input: \(text)\nOutput: \(result)"
+            )
         }
 
         return result
+    }
+
+    private func logSensitiveCleanupText(message: String, details: String) {
+        guard DebugManager.shared.isDebugModeEnabled else { return }
+
+        DebugManager.shared.addLogEntry(
+            category: .transcription,
+            level: .verbose,
+            message: message,
+            details: details
+        )
     }
 
     /// Process text with both cleanup and post-processing

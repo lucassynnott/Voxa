@@ -604,7 +604,7 @@ final class DebugManager: ObservableObject {
             category: .transcription,
             level: .info,
             message: "Transcription complete in \(String(format: "%.2f", processingTime))s",
-            details: "Model: \(model)\nRaw: \(raw.prefix(100))\(raw.count > 100 ? "..." : "")"
+            details: "Model: \(model)\nRaw characters: \(raw.count)\nCleaned characters: \(cleaned.count)"
         )
     }
 

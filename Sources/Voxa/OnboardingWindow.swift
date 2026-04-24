@@ -2168,7 +2168,7 @@ final class OnboardingWindowController: NSObject {
     /// Callback when onboarding is complete
     var onComplete: (() -> Void)?
     
-    init(onboardingManager: OnboardingManager = OnboardingManager.shared, audioManager: AudioManager, hotkeyManager: HotkeyManager) {
+    init(onboardingManager: OnboardingManager, audioManager: AudioManager, hotkeyManager: HotkeyManager) {
         self.onboardingManager = onboardingManager
         self.audioManager = audioManager
         self.hotkeyManager = hotkeyManager

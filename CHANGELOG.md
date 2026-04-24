@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.1.3] - 2026-04-24
+
+### Fixed
+- Increased supported recording and transcription length to at least 6 minutes.
+- Reduced long-recording memory overhead in the audio-to-transcription path.
+- Removed sensitive transcript text from default production logs.
+- Improved LLM cleanup concurrency safety and recording state notifications.
+
+### Changed
+- Started decomposing the main window code by extracting navigation metadata.
+- Cleaned SwiftPM package configuration and Swift concurrency warnings.
+
 ## [0.1.2] - 2026-02-18
 
 ### Added

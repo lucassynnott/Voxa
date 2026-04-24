@@ -170,11 +170,8 @@ final class LLMManager: ObservableObject {
         }
     }
     
-    /// llama.cpp model instance (opaque pointer)
-    private var llamaModel: OpaquePointer?
-    
-    /// llama.cpp context instance (opaque pointer)
-    private var llamaContext: OpaquePointer?
+    /// llama.cpp session. Owns the raw model/context pointers and serializes access.
+    private var llamaSession: LlamaSession?
     
     /// LLM models directory
     private var modelsDirectory: URL {
@@ -220,13 +217,7 @@ final class LLMManager: ObservableObject {
     }
     
     deinit {
-        // Free llama resources directly in deinit (can't call actor-isolated methods)
-        if let context = llamaContext {
-            llama_free(context)
-        }
-        if let model = llamaModel {
-            llama_model_free(model)
-        }
+        llamaSession = nil
     }
     
     // MARK: - Model Management
@@ -254,14 +245,7 @@ final class LLMManager: ObservableObject {
     
     /// Unload the current model and free resources
     private func unloadModel() {
-        if let context = llamaContext {
-            llama_free(context)
-            llamaContext = nil
-        }
-        if let model = llamaModel {
-            llama_model_free(model)
-            llamaModel = nil
-        }
+        llamaSession = nil
     }
     
     /// Check if a model is downloaded
@@ -687,12 +671,13 @@ final class LLMManager: ObservableObject {
         
         do {
             // Load model on background thread
-            let result = try await Task.detached {
-                return try self.loadLlamaModel(at: customURL)
+            let contextSize = Constants.contextSize
+            let batchSize = Constants.batchSize
+            let session = try await Task.detached {
+                return try Self.loadLlamaSession(at: customURL, contextSize: contextSize, batchSize: batchSize)
             }.value
             
-            self.llamaModel = result.model
-            self.llamaContext = result.context
+            self.llamaSession = session
             
             modelStatus = .ready
             statusMessage = "Custom model ready"
@@ -737,12 +722,13 @@ final class LLMManager: ObservableObject {
         
         do {
             // Load model on background thread
-            let result = try await Task.detached {
-                return try self.loadLlamaModel(at: modelURL)
+            let contextSize = Constants.contextSize
+            let batchSize = Constants.batchSize
+            let session = try await Task.detached {
+                return try Self.loadLlamaSession(at: modelURL, contextSize: contextSize, batchSize: batchSize)
             }.value
             
-            self.llamaModel = result.model
-            self.llamaContext = result.context
+            self.llamaSession = session
             
             modelStatus = .ready
             statusMessage = "\(selectedModel.displayName) ready"
@@ -759,27 +745,8 @@ final class LLMManager: ObservableObject {
     }
     
     /// Load llama.cpp model (runs on background thread)
-    private nonisolated func loadLlamaModel(at url: URL) throws -> (model: OpaquePointer, context: OpaquePointer) {
-        // Initialize llama backend
-        llama_backend_init()
-        
-        // Load model
-        var modelParams = llama_model_default_params()
-        guard let model = llama_model_load_from_file(url.path, modelParams) else {
-            throw NSError(domain: "LLMManager", code: 10, userInfo: [NSLocalizedDescriptionKey: "Failed to load model file"])
-        }
-        
-        // Create context
-        var contextParams = llama_context_default_params()
-        contextParams.n_ctx = Constants.contextSize
-        contextParams.n_batch = UInt32(Constants.batchSize)
-        
-        guard let context = llama_init_from_model(model, contextParams) else {
-            llama_model_free(model)
-            throw NSError(domain: "LLMManager", code: 11, userInfo: [NSLocalizedDescriptionKey: "Failed to create model context"])
-        }
-        
-        return (model, context)
+    private nonisolated static func loadLlamaSession(at url: URL, contextSize: UInt32, batchSize: Int32) throws -> LlamaSession {
+        return try LlamaSession.load(at: url, contextSize: contextSize, batchSize: batchSize)
     }
     
     /// Delete a downloaded model
@@ -819,7 +786,7 @@ final class LLMManager: ObservableObject {
             return nil
         }
         
-        guard let model = llamaModel, let context = llamaContext, modelStatus == .ready else {
+        guard let session = llamaSession, modelStatus == .ready else {
             print("LLMManager: Model not ready for cleanup")
             return nil
         }
@@ -851,8 +818,10 @@ final class LLMManager: ObservableObject {
         
         do {
             // Run generation on background thread
-            let result = try await Task.detached { [model, context] in
-                return try self.generateText(prompt: prompt, model: model, context: context)
+            let maxTokens = Constants.maxTokens
+            let batchSize = Constants.batchSize
+            let result = try await Task.detached { [session, prompt] in
+                return try session.generateText(prompt: prompt, maxTokens: maxTokens, batchSize: batchSize)
             }.value
             
             // Clean up the result
@@ -867,7 +836,11 @@ final class LLMManager: ObservableObject {
             
             cleanupStatus = .completed(cleanedResult)
             statusMessage = "Cleanup complete"
-            print("LLMManager: Cleanup result: \(cleanedResult)")
+            print("LLMManager: Cleanup result ready (\(cleanedResult.count) characters)")
+            logSensitiveCleanupText(
+                message: "LLM cleanup output",
+                details: "Model: \(selectedModel.rawValue)\nText: \(cleanedResult)"
+            )
             
             onCleanupComplete?(cleanedResult)
             return cleanedResult
@@ -882,89 +855,143 @@ final class LLMManager: ObservableObject {
         }
     }
     
-    /// Generate text using llama.cpp (runs on background thread)
-    private nonisolated func generateText(prompt: String, model: OpaquePointer, context: OpaquePointer) throws -> String {
+    /// Reset cleanup status to idle
+    func resetStatus() {
+        cleanupStatus = .idle
+        if modelStatus == .ready {
+            statusMessage = "\(selectedModel.displayName) ready"
+        }
+    }
+
+    // MARK: - Status
+
+    /// Check if the manager is ready for text cleanup
+    var isReady: Bool {
+        return modelStatus == .ready && llamaSession != nil && isLLMEnabled
+    }
+
+    private func logSensitiveCleanupText(message: String, details: String) {
+        guard DebugManager.shared.isDebugModeEnabled else { return }
+
+        DebugManager.shared.addLogEntry(
+            category: .transcription,
+            level: .verbose,
+            message: message,
+            details: details
+        )
+    }
+}
+
+private final class LlamaSession: @unchecked Sendable {
+    private let model: OpaquePointer
+    private let context: OpaquePointer
+    private let lock = NSLock()
+
+    private init(model: OpaquePointer, context: OpaquePointer) {
+        self.model = model
+        self.context = context
+    }
+
+    deinit {
+        llama_free(context)
+        llama_model_free(model)
+    }
+
+    static func load(at url: URL, contextSize: UInt32, batchSize: Int32) throws -> LlamaSession {
+        llama_backend_init()
+
+        let modelParams = llama_model_default_params()
+        guard let model = llama_model_load_from_file(url.path, modelParams) else {
+            throw NSError(domain: "LLMManager", code: 10, userInfo: [NSLocalizedDescriptionKey: "Failed to load model file"])
+        }
+
+        var contextParams = llama_context_default_params()
+        contextParams.n_ctx = contextSize
+        contextParams.n_batch = UInt32(batchSize)
+
+        guard let context = llama_init_from_model(model, contextParams) else {
+            llama_model_free(model)
+            throw NSError(domain: "LLMManager", code: 11, userInfo: [NSLocalizedDescriptionKey: "Failed to create model context"])
+        }
+
+        return LlamaSession(model: model, context: context)
+    }
+
+    func generateText(prompt: String, maxTokens: Int, batchSize: Int32) throws -> String {
+        lock.lock()
+        defer { lock.unlock() }
+
         let vocab = llama_model_get_vocab(model)
-        
-        // Tokenize the prompt
+
         let utf8Count = prompt.utf8.count
         let maxTokenCount = utf8Count + 1
         var tokens = [llama_token](repeating: 0, count: maxTokenCount)
-        
+
         let tokenCount = llama_tokenize(
             vocab,
             prompt,
             Int32(utf8Count),
             &tokens,
             Int32(maxTokenCount),
-            true,  // add BOS
-            true   // special tokens
+            true,
+            true
         )
-        
+
         guard tokenCount > 0 else {
             throw NSError(domain: "LLMManager", code: 20, userInfo: [NSLocalizedDescriptionKey: "Failed to tokenize prompt"])
         }
-        
+
         let promptTokens = Array(tokens.prefix(Int(tokenCount)))
-        
-        // Create batch
-        var batch = llama_batch_init(Int32(Constants.batchSize), 0, 1)
+
+        var batch = llama_batch_init(batchSize, 0, 1)
         defer { llama_batch_free(batch) }
-        
-        // Prepare batch with prompt tokens
+
         batch.n_tokens = Int32(promptTokens.count)
-        
+
         for i in 0..<promptTokens.count {
             batch.token[i] = promptTokens[i]
             batch.pos[i] = Int32(i)
             batch.n_seq_id[i] = 1
-            
+
             if let seq_ids = batch.seq_id, let seq_id = seq_ids[i] {
                 seq_id[0] = 0
             }
-            
+
             batch.logits[i] = 0
         }
-        
-        // Only compute logits for the last token
+
         if batch.n_tokens > 0 {
             batch.logits[Int(batch.n_tokens) - 1] = 1
         }
-        
-        // Decode the prompt
+
         guard llama_decode(context, batch) == 0 else {
             throw NSError(domain: "LLMManager", code: 21, userInfo: [NSLocalizedDescriptionKey: "llama_decode failed"])
         }
-        
-        // Generate tokens
+
         var generatedText = ""
         var n_cur = batch.n_tokens
         let eosToken = llama_vocab_eos(vocab)
-        
-        for _ in 0..<Constants.maxTokens {
-            // Get logits for the last token
+
+        for _ in 0..<maxTokens {
             guard let logits = llama_get_logits_ith(context, batch.n_tokens - 1) else {
                 break
             }
-            
-            // Simple greedy sampling
+
             let vocabSize = llama_vocab_n_tokens(vocab)
             var maxLogit = logits[0]
             var nextToken: llama_token = 0
-            
+
             for i in 1..<Int(vocabSize) {
                 if logits[i] > maxLogit {
                     maxLogit = logits[i]
                     nextToken = llama_token(i)
                 }
             }
-            
-            // Check for EOS
+
             if nextToken == eosToken {
                 break
             }
-            
-            // Convert token to text
+
             var buffer = [CChar](repeating: 0, count: 32)
             let length = llama_token_to_piece(
                 vocab,
@@ -974,47 +1001,30 @@ final class LLMManager: ObservableObject {
                 0,
                 false
             )
-            
+
             if length > 0 {
                 let tokenText = String(cString: buffer)
                 generatedText += tokenText
             }
-            
-            // Prepare batch for next token
+
             batch.n_tokens = 1
             batch.token[0] = nextToken
             batch.pos[0] = n_cur
             batch.n_seq_id[0] = 1
-            
+
             if let seq_ids = batch.seq_id, let seq_id = seq_ids[0] {
                 seq_id[0] = 0
             }
-            
+
             batch.logits[0] = 1
             n_cur += 1
-            
-            // Decode
+
             guard llama_decode(context, batch) == 0 else {
                 break
             }
         }
-        
+
         return generatedText
-    }
-    
-    /// Reset cleanup status to idle
-    func resetStatus() {
-        cleanupStatus = .idle
-        if modelStatus == .ready {
-            statusMessage = "\(selectedModel.displayName) ready"
-        }
-    }
-    
-    // MARK: - Status
-    
-    /// Check if the manager is ready for text cleanup
-    var isReady: Bool {
-        return modelStatus == .ready && llamaModel != nil && llamaContext != nil && isLLMEnabled
     }
 }
 

@@ -338,7 +338,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // Toast notification disabled - users can change devices via Settings > Audio
         }
 
-        // US-603: Handle recording timeout warning (shown at 4 minutes by default)
+        // US-603: Handle recording timeout warning
         audioManager?.onRecordingTimeoutWarning = { remainingSeconds in
             print("AppDelegate: [US-603] Recording timeout warning - \(remainingSeconds) seconds remaining")
             ErrorLogger.shared.log(
@@ -352,7 +352,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         
-        // US-603: Handle recording timeout reached (auto-stop at 5 minutes by default)
+        // US-603: Handle recording timeout reached
         audioManager?.onRecordingTimeoutReached = { [weak self] in
             print("AppDelegate: [US-603] Recording timeout reached - auto-stopping and transcribing")
             ErrorLogger.shared.log(
@@ -420,7 +420,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         
         // Set up callbacks
         whisperManager?.onTranscriptionComplete = { text in
-            print("Transcription complete: \(text)")
+            print("Transcription complete (\(text.count) characters)")
         }
         
         whisperManager?.onError = { error in
@@ -442,7 +442,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         
         // Set up callbacks
         textCleanupManager?.onCleanupComplete = { text in
-            print("Text cleanup complete: \(text)")
+            print("Text cleanup complete (\(text.count) characters)")
         }
         
         textCleanupManager?.onError = { error in
@@ -457,7 +457,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         
         // Set up callbacks
         llmManager?.onCleanupComplete = { text in
-            print("LLM cleanup complete: \(text)")
+            print("LLM cleanup complete (\(text.count) characters)")
         }
         
         llmManager?.onError = { error in
@@ -1082,9 +1082,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Recording State Handling
     
     private func handleRecordingStateChange(_ state: RecordingState) {
-        // US-802: Post notification so Start Recording button can update its state
-        NotificationCenter.default.post(name: .recordingStateChanged, object: state)
-
         // US-054: Manage App Nap based on recording state
         updateAppNapState(for: state)
 
@@ -1101,18 +1098,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
             // Stop audio capture and get result
             if let result = audioManager?.stopCapturing() {
+                let audioSamples = result.audioSamples
+                let audioData = result.audioData
+                let sampleRate = result.sampleRate
+                let wasSilent = result.wasSilent
+                let duration = result.duration
+
                 // Show recording duration info
-                print("Stopped recording - Duration: \(String(format: "%.2f", result.duration))s, Data: \(result.audioData.count) bytes, Peak: \(String(format: "%.1f", result.peakLevel))dB, Samples: \(result.sampleCount)")
+                print("Stopped recording - Duration: \(String(format: "%.2f", result.duration))s, Data: \(result.audioByteCount) bytes, Peak: \(String(format: "%.1f", result.peakLevel))dB, Samples: \(result.sampleCount)")
 
                 // Store audio data in debug manager for visualization
                 Task { @MainActor in
-                    debugManager?.storeAudioData(result.audioData, sampleRate: result.sampleRate)
+                    debugManager?.storeAudioData(audioData, sampleRate: sampleRate)
 
                     // US-306: Auto-save recording if enabled in debug mode
                     if DebugManager.shared.isDebugModeEnabled && DebugManager.shared.isAutoSaveEnabled {
                         let exportResult = AudioExporter.shared.exportToDocuments(
-                            audioData: result.audioData,
-                            sampleRate: result.sampleRate
+                            audioData: audioData,
+                            sampleRate: sampleRate
                         )
                         switch exportResult {
                         case .success(let url):
@@ -1138,13 +1141,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 
                 // US-633: Store recording duration for stats tracking
                 self.lastRecordingDuration = result.duration
-                
-                // Process transcription on MainActor where we can check DebugManager
-                let audioData = result.audioData
-                let sampleRate = result.sampleRate
-                let wasSilent = result.wasSilent
-                let duration = result.duration
-                
+
                 Task { @MainActor [weak self] in
                     // Check if silence detection is disabled in debug mode
                     let bypassSilenceCheck = DebugManager.shared.isDebugModeEnabled && DebugManager.shared.isSilenceDetectionDisabled
@@ -1156,7 +1153,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                             print("Audio is silent but silence detection is disabled in debug mode - proceeding with transcription")
                         }
                         // Process transcription with Whisper
-                        self?.processTranscription(audioData: audioData, sampleRate: sampleRate, recordingDuration: duration)
+                        self?.processTranscription(audioSamples: audioSamples, audioData: audioData, sampleRate: sampleRate, recordingDuration: duration)
                     } else {
                         // Hide indicator after showing duration for silent audio
                         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
@@ -1241,7 +1238,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     @MainActor
-    private func processTranscription(audioData: Data, sampleRate: Double, recordingDuration: Double? = nil) {
+    private func processTranscription(audioSamples: [Float]? = nil, audioData: Data, sampleRate: Double, recordingDuration: Double? = nil) {
         guard let whisper = whisperManager else {
             print("WhisperManager not available")
             return
@@ -1278,8 +1275,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Process transcription in background
         Task { @MainActor in
-            if let transcribedText = await whisper.transcribe(audioData: audioData, sampleRate: sampleRate) {
-                print("Transcription result: \(transcribedText)")
+            let transcribedText: String?
+            if let audioSamples {
+                transcribedText = await whisper.transcribe(audioSamples: audioSamples, sampleRate: sampleRate, audioDataForRetry: audioData)
+            } else {
+                transcribedText = await whisper.transcribe(audioData: audioData, sampleRate: sampleRate)
+            }
+
+            if let transcribedText {
+                print("Transcription result received (\(transcribedText.count) characters)")
 
                 // Log raw transcription to debug manager
                 debugManager?.logRawTranscription(transcribedText, model: whisper.selectedModel.rawValue)
@@ -1401,17 +1405,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Invalidate any existing timer
         stopAudioBufferClearTimer()
         
-        // Create new timer
+        // Create new timer on the main run loop.
         audioBufferClearTimer = Timer.scheduledTimer(
-            withTimeInterval: Self.audioBufferTimeoutSeconds,
+            timeInterval: Self.audioBufferTimeoutSeconds,
+            target: self,
+            selector: #selector(audioBufferClearTimerFired(_:)),
+            userInfo: nil,
             repeats: false
-        ) { [weak self] _ in
-            Task { @MainActor in
-                self?.clearAudioBuffer()
-            }
-        }
+        )
         
         print("[US-608] Audio buffer clear timer started (\(Self.audioBufferTimeoutSeconds)s)")
+    }
+
+    @MainActor
+    @objc private func audioBufferClearTimerFired(_ timer: Timer) {
+        clearAudioBuffer()
     }
     
     /// Stop the audio buffer clear timer
@@ -1456,7 +1464,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Post-processing (capitalize, period, trim) is always applied based on settings
         let cleanedText = await cleanup.processText(transcribedText)
         
-        print("Final text (after cleanup + post-processing): \(cleanedText)")
+        print("Final text ready after cleanup + post-processing (\(cleanedText.count) characters)")
         
         // Log cleaned transcription to debug manager
         debugManager?.logCleanedTranscription(cleanedText, mode: cleanup.selectedMode.rawValue)
